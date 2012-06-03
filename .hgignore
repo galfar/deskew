@@ -7,9 +7,17 @@ Dcu/*
 Gui/*
 Imaging/*
 Releases/*
+Bin/TestOut/*
 
-*.identcache 
+*.identcache
 *.local
 *.~*
 *.*~
 *.dsk
+*.rsm
+*.deployproj
+*.info.plist
+
+Bin/deskew*
+Bin/FastMM_FullDebugMode.dll
+

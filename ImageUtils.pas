@@ -24,6 +24,11 @@
 
   For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
 }
+
+{
+  Unit with various image processing functions. Some are taken from
+  Imaging extensions.
+}
 unit ImageUtils;
 
 {$I ImagingOptions.inc}
@@ -40,8 +45,102 @@ uses
   ImagingLibTiffDelphi, // Tiff support for Delphi Win32
 {$IFEND}
   ImagingPsd, // PSD support
-  ImagingCanvases;
+  ImagingCanvases,
+  ImagingUtility;
+
+{ Thresholding using Otsu's method (which chooses the threshold
+  to minimize the intraclass variance of the black and white pixels!).
+  Functions returns calculated threshold level value [0..255].
+  If BinarizeImage is True then the Image is automatically converted to binary using
+  computed threshold level.}
+function OtsuThresholding(var Image: TImageData; BinarizeImage: Boolean = False): Integer;
 
 implementation
+
+function OtsuThresholding(var Image: TImageData; BinarizeImage: Boolean): Integer;
+var
+  Histogram: array[Byte] of Single;
+  Level, Max, Min, I, J, NumPixels: Integer;
+  Pix: PByte;
+  Mean, Variance: Single;
+  Mu, Omega, LevelMean, LargestMu: Single;
+begin
+  Assert(Image.Format = ifGray8);
+
+  FillChar(Histogram, SizeOf(Histogram), 0);
+  Min := 255;
+  Max := 0;
+  Level := 0;
+  NumPixels := Image.Width * Image.Height;
+  Pix := Image.Bits;
+
+  // Compute histogram and determine min and max pixel values
+  for I := 0 to NumPixels - 1 do
+  begin
+    Histogram[Pix^] := Histogram[Pix^] + 1.0;
+    if Pix^ < Min then
+      Min := Pix^;
+    if Pix^ > Max then
+      Max := Pix^;
+    Inc(Pix);
+  end;
+
+  // Normalize histogram
+  for I := 0 to 255 do
+    Histogram[I] := Histogram[I] / NumPixels;
+
+  // Compute image mean and variance
+  Mean := 0.0;
+  Variance := 0.0;
+  for I := 0 to 255 do
+    Mean := Mean + (I + 1) * Histogram[I];
+  for I := 0 to 255 do
+    Variance := Variance + Sqr(I + 1 - Mean) * Histogram[I];
+
+  // Now finally compute threshold level
+  LargestMu := 0;
+
+  for I := 0 to 255 do
+  begin
+    Omega := 0.0;
+    LevelMean := 0.0;
+
+    for J := 0 to I - 1 do
+    begin
+      Omega := Omega + Histogram[J];
+      LevelMean := LevelMean + (J + 1) * Histogram[J];
+    end;
+
+    Mu := Sqr(Mean * Omega - LevelMean);
+    Omega := Omega * (1.0 - Omega);
+
+    if Omega > 0.0 then
+      Mu := Mu / Omega
+    else
+      Mu := 0;
+
+    if Mu > LargestMu then
+    begin
+      LargestMu := Mu;
+      Level := I;
+    end;
+  end;
+
+  if BinarizeImage then
+  begin
+    // Do thresholding using computed level
+    Pix := Image.Bits;
+    for I := 0 to Image.Width * Image.Height - 1 do
+    begin
+      if Pix^ >= Level then
+        Pix^ := 255
+      else
+        Pix^ := 0;
+      Inc(Pix);
+    end;
+  end;
+
+  Result := Level;
+end;
 
 end.

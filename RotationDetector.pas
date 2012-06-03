@@ -28,20 +28,33 @@ unit RotationDetector;
 
 interface
 
-type
-  TByteArray = array[0..MaxInt - 1] of Byte;
-  PByteArray = ^TByteArray;
+uses
+  Types,
+  ImagingUtility;
 
-{
-  Calculates rotation angle for given 8bit grayscale image.
-}
+type
+  TCalcSkewAngleStats = record
+    PixelCount: Integer;
+    TestedPixels: Integer;
+    AccumulatorSize: Integer;
+    AccumulatedCounts: Integer;
+    BestCount: Double;
+  end;
+  PCalcSkewAngleStats = ^TCalcSkewAngleStats;
+
+{ Calculates rotation angle for given 8bit grayscale image.
+  Useful for finding skew of scanned documents etc.
+  Uses Hough transform internally.
+  MaxAngle is maximal (abs. value) expected skew angle in degrees (to speed things up)
+  and Threshold (0..255) is used to classify pixel as black (text) or white (background).}
 function CalcRotationAngle(MaxAngle: Integer; Treshold: Integer;
-  Width, Height: Integer; Pixels: PByteArray): Double;
+  Width, Height: Integer; Pixels: PByteArray; Margins: PRect = nil;
+  Stats: PCalcSkewAngleStats = nil): Double;
 
 implementation
 
 function CalcRotationAngle(MaxAngle: Integer; Treshold: Integer;
-  Width, Height: Integer; Pixels: PByteArray): Double;
+  Width, Height: Integer; Pixels: PByteArray; Margins: PRect; Stats: PCalcSkewAngleStats): Double;
 const
   // Number of "best" lines we take into account when determining
   // resulting rotation angle (lines with most votes).
@@ -57,15 +70,17 @@ type
   end;
   TLineArray = array of TLine;
 var
-  AlphaStart, MinD, Sum: Double;
-  AlphaSteps, DCount, AccumulatorSize, I: Integer;
+  AlphaStart, MinD, SumAngles: Double;
+  AlphaSteps, DCount, AccumulatorSize, I, AccumulatedCounts: Integer;
   BestLines: TLineArray;
   HoughAccumulator: array of Integer;
+  PageWidth, PageHeight: Integer;
+  PageMargins: TRect;
 
   // Classifies pixel at [X, Y] as black or white using threshold.
   function IsPixelBlack(X, Y: Integer): Boolean;
   begin
-    Result := Pixels[Y * Width + X] < Treshold;
+    Result := Pixels[(PageMargins.Top + Y) * Width + PageMargins.Left + X] < Treshold;
   end;
 
   // Calculates alpha parameter for given angle step.
@@ -102,11 +117,13 @@ var
   var
     Y, X: Integer;
   begin
-    for Y := 0 to Height - 1 do
-      for X := 0 to Width - 1 do
+    for Y := 0 to PageHeight - 1 do
+      for X := 0 to PageWidth - 1 do
       begin
         if IsPixelBlack(X, Y) and not IsPixelBlack(X, Y + 1) then
+        begin
           CalcLines(X, Y);
+        end;
       end;
   end;
 
@@ -116,6 +133,7 @@ var
     I, J, DIndex, AlphaIndex: Integer;
     Temp: TLine;
   begin
+    AccumulatedCounts := 0;
     SetLength(Result, Count);
 
     for I := 0 to AccumulatorSize - 1 do
@@ -137,6 +155,8 @@ var
           J := J - 1;
         end;
       end;
+
+      AccumulatedCounts := AccumulatedCounts + HoughAccumulator[I];
     end;
 
     for I := 0 to Count - 1 do
@@ -150,10 +170,19 @@ var
   end;
 
 begin
+  // Use supplied page margins or just the whole image
+  if Margins = nil then
+    PageMargins := Rect(0, 0, Width, Height)
+  else
+    PageMargins := Margins^;
+
+  PageWidth := PageMargins.Right - PageMargins.Left;
+  PageHeight := PageMargins.Bottom - PageMargins.Top;
+
   AlphaStart := -MaxAngle;
   AlphaSteps := Round(2 * MaxAngle / AlphaStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
   MinD := -Width;
-  DCount := 2 * (Width + Height);
+  DCount := 2 * (PageWidth + PageHeight);
 
   // Determine the size of line accumulator
   AccumulatorSize := DCount * AlphaSteps;
@@ -166,10 +195,21 @@ begin
   BestLines := GetBestLines(BestLinesCount);
 
   // Average angles of the selected lines to get the rotation angle of the image
-  Sum := 0;
+  SumAngles := 0;
   for I := 0 to BestLinesCount - 1 do
-    Sum := Sum + BestLines[I].Alpha;
-  Result := Sum / BestLinesCount;
+    SumAngles := SumAngles + BestLines[I].Alpha;
+
+  Result := SumAngles / BestLinesCount;
+
+  if Stats <> nil then
+  begin
+    Stats.BestCount := BestLines[0].Count;
+    Stats.PixelCount := PageWidth * PageHeight;
+    Stats.AccumulatorSize := AccumulatorSize;
+    Stats.AccumulatedCounts := AccumulatedCounts;
+    Stats.TestedPixels := AccumulatedCounts div AlphaSteps;
+  end;
 end;
+
 
 end.
