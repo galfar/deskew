@@ -1,0 +1,15 @@
+syntax: glob
+
+__history
+
+_internal/*
+Dcu/*
+Gui/*
+Imaging/*
+Releases/*
+
+*.identcache 
+*.local
+*.~*
+*.*~
+*.dsk

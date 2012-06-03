@@ -1,0 +1,1 @@
+fpc -Fuimaging -Fuimaging\ZLib -Fuimaging\JpegLib -dDONT_LINK_EXTRAS -Fiimaging -O3 -B deskew.dpr
