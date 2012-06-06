@@ -38,7 +38,7 @@ type
     TestedPixels: Integer;
     AccumulatorSize: Integer;
     AccumulatedCounts: Integer;
-    BestCount: Double;
+    BestCount: Integer;
   end;
   PCalcSkewAngleStats = ^TCalcSkewAngleStats;
 
@@ -46,15 +46,19 @@ type
   Useful for finding skew of scanned documents etc.
   Uses Hough transform internally.
   MaxAngle is maximal (abs. value) expected skew angle in degrees (to speed things up)
-  and Threshold (0..255) is used to classify pixel as black (text) or white (background).}
+  and Threshold (0..255) is used to classify pixel as black (text) or white (background).
+  Area of interest rectangle can be defined to restrict the detection to
+  work only in defined part of image (useful when the document has text only in
+  smaller area of page and non-text features outside the area confuse the rotation detector).
+  Various calculations stats can be retrieved by passing Stats parameter.}
 function CalcRotationAngle(MaxAngle: Integer; Treshold: Integer;
-  Width, Height: Integer; Pixels: PByteArray; Margins: PRect = nil;
+  Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect = nil;
   Stats: PCalcSkewAngleStats = nil): Double;
 
 implementation
 
 function CalcRotationAngle(MaxAngle: Integer; Treshold: Integer;
-  Width, Height: Integer; Pixels: PByteArray; Margins: PRect; Stats: PCalcSkewAngleStats): Double;
+  Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect; Stats: PCalcSkewAngleStats): Double;
 const
   // Number of "best" lines we take into account when determining
   // resulting rotation angle (lines with most votes).
@@ -75,12 +79,12 @@ var
   BestLines: TLineArray;
   HoughAccumulator: array of Integer;
   PageWidth, PageHeight: Integer;
-  PageMargins: TRect;
+  ContentRect: TRect;
 
   // Classifies pixel at [X, Y] as black or white using threshold.
   function IsPixelBlack(X, Y: Integer): Boolean;
   begin
-    Result := Pixels[(PageMargins.Top + Y) * Width + PageMargins.Left + X] < Treshold;
+    Result := Pixels[Y * Width + X] < Treshold;
   end;
 
   // Calculates alpha parameter for given angle step.
@@ -120,7 +124,8 @@ var
     for Y := 0 to PageHeight - 1 do
       for X := 0 to PageWidth - 1 do
       begin
-        if IsPixelBlack(X, Y) and not IsPixelBlack(X, Y + 1) then
+        if IsPixelBlack(ContentRect.Left + X, ContentRect.Top + Y) and
+          not IsPixelBlack(ContentRect.Left + X, ContentRect.Top + Y + 1) then
         begin
           CalcLines(X, Y);
         end;
@@ -170,18 +175,20 @@ var
   end;
 
 begin
-  // Use supplied page margins or just the whole image
-  if Margins = nil then
-    PageMargins := Rect(0, 0, Width, Height)
-  else
-    PageMargins := Margins^;
+  // Use supplied page content rect or just the whole image
+  ContentRect := Rect(0, 0, Width, Height);
+  if DetectionArea <> nil then
+  begin
+    Assert((RectWidth(DetectionArea^) <= Width) and (RectHeight(DetectionArea^) <= Height));
+    ContentRect := DetectionArea^;
+  end;
 
-  PageWidth := PageMargins.Right - PageMargins.Left;
-  PageHeight := PageMargins.Bottom - PageMargins.Top;
+  PageWidth := ContentRect.Right - ContentRect.Left;
+  PageHeight := ContentRect.Bottom - ContentRect.Top;
 
   AlphaStart := -MaxAngle;
   AlphaSteps := Round(2 * MaxAngle / AlphaStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
-  MinD := -Width;
+  MinD := -PageWidth;
   DCount := 2 * (PageWidth + PageHeight);
 
   // Determine the size of line accumulator

@@ -46,6 +46,7 @@ uses
 {$IFEND}
   ImagingPsd, // PSD support
   ImagingCanvases,
+  ImagingFormats,
   ImagingUtility;
 
 { Thresholding using Otsu's method (which chooses the threshold
@@ -54,6 +55,8 @@ uses
   If BinarizeImage is True then the Image is automatically converted to binary using
   computed threshold level.}
 function OtsuThresholding(var Image: TImageData; BinarizeImage: Boolean = False): Integer;
+{ Merges 32bit image with a background of specified color. }
+procedure MergeWithBackground(Image: TSingleImage; BackgroundColor: TColor32);
 
 implementation
 
@@ -141,6 +144,28 @@ begin
   end;
 
   Result := Level;
+end;
+
+procedure MergeWithBackground(Image: TSingleImage; BackgroundColor: TColor32);
+var
+  Back: TSingleImage;
+  Canvas, BackCanvas: TImagingCanvas;
+begin
+  Assert(Image.Format = ifA8R8G8B8);
+
+  Back := TSingleImage.CreateFromParams(Image.Width, Image.Height, ifA8R8G8B8);
+  Canvas := TFastARGB32Canvas.CreateForImage(Image);
+  BackCanvas := TFastARGB32Canvas.CreateForImage(Back);
+  try
+    BackCanvas.FillColor32 := BackgroundColor;
+    BackCanvas.FillRect(Back.BoundsRect);
+    Canvas.DrawAlpha(Image.BoundsRect, BackCanvas, 0, 0);
+    Back.CopyTo(0, 0, Image.Width, Image.Height, Image, 0, 0);
+  finally
+    Back.Free;
+    Canvas.Free;
+    BackCanvas.Free;
+  end;
 end;
 
 end.

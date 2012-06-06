@@ -1,0 +1,27 @@
+Compiling Deskew
+------------------------
+
+Deskew is written in Object Pascal. You need
+Delphi or FPC/Lazarus to recompile it.
+
+Tested Compilers
+------------------------
+There are project files for these IDEs:
+
+  1) Delphi 7 (deskew.dpr + deskew.dof)
+  2) Delphi XE 2 (deskew.dproj)
+  3) Lazarus 0.9.30.4 (deskew.lpi)
+
+Additionaly, there are compile scripts for FPC compiler
+Combile.bat and compile.sh.
+
+Target Platforms
+------------------------
+Deskew was compiled for these platforms:
+Win32, Win64, Linux 64bit, Mac OSX 32bit
+
+Dependencies
+------------------------
+Vampyre Imaging Library is needed for compilation.
+You can find it in Imaging folder or get it at
+http://imaginglib.sourceforge.net

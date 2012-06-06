@@ -33,7 +33,9 @@ uses
   Types,
   SysUtils,
   Classes,
-  ImagingTypes;
+  StrUtils,
+  ImagingTypes,
+  ImagingUtility;
 
 const
   DefaultThreshold = 128;
@@ -55,14 +57,16 @@ type
     FMaxAngle: Integer;
     FThresholdingMethod: TThresholdingMethod;
     FThresholdLevel: Integer;
-    FMargins: TRect;
+    FContentRect: TRect;
     FBackgroundColor: TColor32;
     FShowStats: Boolean;
+    FShowParams: Boolean;
     function GetIsValid: Boolean;
   public
     constructor Create;
     // Parses command line arguments to get optiosn set by user
     procedure ParseCommnadLine;
+    function OptionsToString: string;
 
     property InputFile: string read FInputFile;
     property OutputFile: string read FOutputFile;
@@ -72,10 +76,14 @@ type
     property ThresholdingMethod: TThresholdingMethod read FThresholdingMethod;
     // Threshold for black/white pixel classification for explicit thresholding method
     property ThresholdLevel: Integer read FThresholdLevel;
-
-    property Margins: TRect read FMargins;
+    // Rect where to do the skew detection on the page image
+    property ContentRect: TRect read FContentRect;
+    // Background color for the rotated image
     property BackgroundColor: TColor32 read FBackgroundColor;
+    // Show skew detection stats
     property ShowStats: Boolean read FShowStats;
+    // Show current params to user (for testing etc.)
+    property ShowParams: Boolean read FShowParams;
 
     property IsValid: Boolean read GetIsValid;
   end;
@@ -89,10 +97,11 @@ begin
   FThresholdLevel := DefaultThreshold;
   FMaxAngle := DefaultMaxAngle;
   FThresholdingMethod := tmOtsu;
-  FMargins := Rect(0, 0, 0, 0);
+  FContentRect := Rect(0, 0, 0, 0); // whole page
   FBackgroundColor := 0;
   FShowStats := False;
   FOutputFile := SDefaultOutputFile;
+  FShowParams := False;
 end;
 
 function TCmdLineOptions.GetIsValid: Boolean;
@@ -104,9 +113,65 @@ end;
 procedure TCmdLineOptions.ParseCommnadLine;
 var
   I: LongInt;
-  Param, Arg, Dir: string;
+  Param, Arg: string;
+
+  // From Delphi RTL StrUtils.pas - for compiling in Delphi 7
+  function SplitString(const S, Delimiters: string): TDynStringArray;
+  var
+    StartIdx: Integer;
+    FoundIdx: Integer;
+    SplitPoints: Integer;
+    CurrentSplit: Integer;
+    I: Integer;
+
+    function FindDelimiter(const Delimiters, S: string; StartIdx: Integer = 1): Integer;
+    var
+      Stop: Boolean;
+      Len: Integer;
+    begin
+      Result := 0;
+      Len := Length(S);
+      Stop := False;
+      while (not Stop) and (StartIdx <= Len) do
+        if IsDelimiter(Delimiters, S, StartIdx) then
+        begin
+          Result := StartIdx;
+          Stop := True;
+        end
+        else
+          Inc(StartIdx);
+    end;
+
+  begin
+    Result := nil;
+    if S <> '' then
+    begin
+      SplitPoints := 0;
+      for I := 1 to Length(S) do
+      begin
+        if IsDelimiter(Delimiters, S, I) then
+          Inc(SplitPoints);
+      end;
+
+      SetLength(Result, SplitPoints + 1);
+      StartIdx := 1;
+      CurrentSplit := 0;
+      repeat
+        FoundIdx := FindDelimiter(Delimiters, S, StartIdx);
+        if FoundIdx <> 0 then
+        begin
+          Result[CurrentSplit] := Copy(S, StartIdx, FoundIdx - StartIdx);
+          Inc(CurrentSplit);
+          StartIdx := FoundIdx + 1;
+        end;
+      until CurrentSplit = SplitPoints;
+      Result[SplitPoints] := Copy(S, StartIdx, Length(S) - StartIdx + 1);
+    end;
+  end;
 
   procedure CheckParam(const Param, Value: string);
+  var
+    StrArray: TDynStringArray;
   begin
     if Param = '-o' then
       FOutputFile := Value
@@ -121,6 +186,29 @@ var
         FThresholdingMethod := tmExplicit;
         FThresholdLevel := StrToIntDef(Value, -1);
       end;
+    end
+    else if Param = '-b' then
+    begin
+      // Set alpha to 255 for background
+      FBackgroundColor := $FF000000 or Cardinal($FFFFFF and StrToInt('$' + Value));
+    end
+    else if Param = '-s' then
+    begin
+      if Pos('s', Value) > 0 then
+        FShowStats := True;
+      if Pos('p', Value) > 0 then
+        FShowParams := True;
+    end
+    else if Param = '-r' then
+    begin
+      StrArray := SplitString(Value, ',');
+      if Length(StrArray) = 4 then
+      begin
+        FContentRect.Left := StrToInt(StrArray[0]);
+        FContentRect.Top := StrToInt(StrArray[1]);
+        FContentRect.Right := StrToInt(StrArray[2]);
+        FContentRect.Bottom := StrToInt(StrArray[3]);
+      end;
     end;
   end;
 
@@ -134,13 +222,26 @@ begin
     begin
       Arg := ParamStr(I + 1);
       Inc(I);
-      CheckParam(Param, Arg);
+      CheckParam(Param, LowerCase(Arg));
     end
     else
       FInputFile := Param;
 
     Inc(I);
   end;
+end;
+
+function TCmdLineOptions.OptionsToString: string;
+begin
+  Result :=
+    '  input file  =   ' + InputFile + sLineBreak +
+    '  output file =  ' + OutputFile + sLineBreak +
+    '  max angle   = ' + IntToStr(MaxAngle) + sLineBreak +
+    '  thresholdinging method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
+    '  threshold level  = ' + IntToStr(ThresholdLevel) + sLineBreak +
+    '  background color = ' + IntToHex(BackgroundColor, 6) + sLineBreak +
+    '  content rect     = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
+    '  show info = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '')  + sLineBreak;
 end;
 
 end.
