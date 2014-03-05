@@ -17,6 +17,6 @@ Bin/TestOut/*
 *.deployproj
 *.info.plist
 
-Bin/deskew*
+
 
 
