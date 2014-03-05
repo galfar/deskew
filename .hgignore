@@ -5,7 +5,6 @@ __history
 _internal/*
 Dcu/*
 Gui/*
-Imaging/*
 Releases/*
 Bin/TestOut/*
 
@@ -19,5 +18,5 @@ Bin/TestOut/*
 *.info.plist
 
 Bin/deskew*
-Bin/FastMM_FullDebugMode.dll
+
 

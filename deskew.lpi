@@ -10,6 +10,7 @@
         <LRSInOutputDirectory Value="False"/>
       </Flags>
       <MainUnit Value="0"/>
+      <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
       <ActiveWindowIndexAtStart Value="0"/>
     </General>
@@ -19,8 +20,49 @@
     <VersionInfo>
       <StringTable ProductVersion=""/>
     </VersionInfo>
-    <BuildModes Count="1" Active="Default">
-      <Item1 Name="Default" Default="True"/>
+    <BuildModes Count="2" Active="Release">
+      <Item1 Name="Release" Default="True"/>
+      <Item2 Name="Debug">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="Bin\deskew"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+            <Libraries Value="Imaging\LibTiff\Compiled"/>
+            <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+            <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="Delphi"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <Checks>
+              <IOChecks Value="True"/>
+              <StackChecks Value="True"/>
+            </Checks>
+            <VerifyObjMethodCallValidity Value="True"/>
+            <Optimizations>
+              <OptimizationLevel Value="0"/>
+            </Optimizations>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <UseHeaptrc Value="True"/>
+            </Debugging>
+          </Linking>
+          <Other>
+            <CompilerMessages>
+              <UseMsgFile Value="True"/>
+            </CompilerMessages>
+            <CompilerPath Value="$(CompPath)"/>
+          </Other>
+        </CompilerOptions>
+      </Item2>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -30,17 +72,18 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
+        <CommandLineParams Value="-t a -a 5 -o TestOut\tiff-jpeg.tif ..\TestImages\tiff-jpeg.tif"/>
       </local>
     </RunParams>
-    <Units Count="10">
+    <Units Count="15">
       <Unit0>
         <Filename Value="deskew.lpr"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="0"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="1"/>
-        <CursorPos X="7" Y="5"/>
-        <UsageCount Value="20"/>
+        <TopLine Value="4"/>
+        <CursorPos X="8" Y="38"/>
+        <UsageCount Value="293"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit0>
@@ -48,23 +91,21 @@
         <Filename Value="RotationDetector.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="RotationDetector"/>
-        <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
         <TopLine Value="154"/>
         <CursorPos X="18" Y="182"/>
-        <UsageCount Value="20"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="293"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit1>
       <Unit2>
         <Filename Value="CmdLineOptions.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="CmdLineOptions"/>
-        <EditorIndex Value="3"/>
+        <EditorIndex Value="6"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="201"/>
-        <CursorPos X="32" Y="231"/>
-        <UsageCount Value="20"/>
+        <TopLine Value="195"/>
+        <CursorPos X="28" Y="157"/>
+        <UsageCount Value="293"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit2>
@@ -72,7 +113,12 @@
         <Filename Value="ImageUtils.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="ImageUtils"/>
-        <UsageCount Value="20"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="17"/>
+        <CursorPos X="43" Y="37"/>
+        <UsageCount Value="293"/>
+        <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit3>
       <Unit4>
@@ -82,117 +128,253 @@
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="171"/>
-        <CursorPos X="34" Y="208"/>
-        <UsageCount Value="20"/>
+        <TopLine Value="21"/>
+        <CursorPos X="39" Y="50"/>
+        <UsageCount Value="293"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit4>
       <Unit5>
         <Filename Value="Imaging\Imaging.pas"/>
         <UnitName Value="Imaging"/>
+        <EditorIndex Value="3"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="826"/>
-        <CursorPos X="36" Y="826"/>
-        <UsageCount Value="10"/>
+        <TopLine Value="667"/>
+        <CursorPos X="11" Y="680"/>
+        <UsageCount Value="124"/>
+        <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit5>
       <Unit6>
-        <Filename Value="Imaging\ImagingPsd.pas"/>
-        <UnitName Value="ImagingPsd"/>
+        <Filename Value="Imaging\ImagingUtility.pas"/>
+        <UnitName Value="ImagingUtility"/>
+        <EditorIndex Value="11"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="53"/>
-        <CursorPos X="19" Y="67"/>
-        <UsageCount Value="10"/>
+        <TopLine Value="6"/>
+        <CursorPos X="14" Y="31"/>
+        <UsageCount Value="146"/>
+        <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit6>
       <Unit7>
-        <Filename Value="Imaging\ImagingExtras.pas"/>
-        <UnitName Value="ImagingExtras"/>
+        <Filename Value="Imaging\ImagingOptions.inc"/>
+        <EditorIndex Value="12"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="18"/>
-        <CursorPos X="22" Y="46"/>
-        <UsageCount Value="10"/>
+        <TopLine Value="118"/>
+        <CursorPos X="19" Y="138"/>
+        <UsageCount Value="146"/>
+        <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit7>
       <Unit8>
-        <Filename Value="Imaging\ImagingUtility.pas"/>
-        <UnitName Value="ImagingUtility"/>
-        <EditorIndex Value="4"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <UnitName Value="LibTiffDelphi"/>
+        <EditorIndex Value="8"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
-        <CursorPos X="14" Y="31"/>
-        <UsageCount Value="10"/>
+        <CursorPos X="48" Y="12"/>
+        <UsageCount Value="144"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit8>
       <Unit9>
-        <Filename Value="Imaging\ImagingOptions.inc"/>
-        <EditorIndex Value="5"/>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <UnitName Value="LibDelphi"/>
+        <EditorIndex Value="10"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="121"/>
-        <CursorPos X="1" Y="1"/>
-        <UsageCount Value="10"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="17"/>
+        <UsageCount Value="144"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit9>
+      <Unit10>
+        <Filename Value="Imaging\LibTiff\ImagingLibTiff.pas"/>
+        <UnitName Value="ImagingLibTiff"/>
+        <EditorIndex Value="5"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="40" Y="1"/>
+        <UsageCount Value="124"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="Imaging\LibTiff\LibTiffDynLib.pas"/>
+        <UnitName Value="LibTiffDynLib"/>
+        <EditorIndex Value="7"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="19"/>
+        <CursorPos X="25" Y="28"/>
+        <UsageCount Value="123"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="Imaging\ImagingJpeg.pas"/>
+        <UnitName Value="ImagingJpeg"/>
+        <EditorIndex Value="4"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="506"/>
+        <CursorPos X="23" Y="520"/>
+        <UsageCount Value="124"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="Imaging\JpegLib\imjdhuff.pas"/>
+        <UnitName Value="imjdhuff"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1154"/>
+        <CursorPos X="115" Y="1166"/>
+        <UsageCount Value="115"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="Imaging\LibTiff\LibJpegDelphi.pas"/>
+        <UnitName Value="LibJpegDelphi"/>
+        <EditorIndex Value="9"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="62" Y="22"/>
+        <UsageCount Value="119"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit14>
     </Units>
-    <JumpHistory Count="11" HistoryIndex="10">
+    <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="deskew.lpr"/>
-        <Caret Line="29" Column="16" TopLine="1"/>
+        <Caret Line="31" Column="33" TopLine="1"/>
       </Position1>
       <Position2>
-        <Filename Value="RotationDetector.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <Caret Line="67" Column="27" TopLine="20"/>
       </Position2>
       <Position3>
-        <Filename Value="RotationDetector.pas"/>
-        <Caret Line="33" Column="3" TopLine="10"/>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
       </Position3>
       <Position4>
-        <Filename Value="CmdLineOptions.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="1521" Column="29" TopLine="1477"/>
       </Position4>
       <Position5>
-        <Filename Value="Imaging\ImagingUtility.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="638" Column="1" TopLine="616"/>
       </Position5>
       <Position6>
-        <Filename Value="Imaging\ImagingUtility.pas"/>
-        <Caret Line="1596" Column="42" TopLine="1573"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="1428" Column="3" TopLine="1402"/>
       </Position6>
       <Position7>
-        <Filename Value="Imaging\ImagingUtility.pas"/>
-        <Caret Line="395" Column="31" TopLine="372"/>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
       </Position7>
       <Position8>
-        <Filename Value="Imaging\ImagingUtility.pas"/>
-        <Caret Line="1596" Column="42" TopLine="1573"/>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="30" Column="34" TopLine="1"/>
       </Position8>
       <Position9>
-        <Filename Value="Imaging\ImagingUtility.pas"/>
-        <Caret Line="395" Column="21" TopLine="372"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="1517" Column="14" TopLine="1473"/>
       </Position9>
       <Position10>
-        <Filename Value="CmdLineOptions.pas"/>
-        <Caret Line="69" Column="42" TopLine="46"/>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
       </Position10>
       <Position11>
-        <Filename Value="Imaging\ImagingUtility.pas"/>
-        <Caret Line="1596" Column="42" TopLine="14"/>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="13" Column="23" TopLine="1"/>
       </Position11>
+      <Position12>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
+      </Position12>
+      <Position13>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="28" Column="42" TopLine="1"/>
+      </Position13>
+      <Position14>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="1518" Column="22" TopLine="1479"/>
+      </Position14>
+      <Position15>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
+      </Position15>
+      <Position16>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <Caret Line="191" Column="5" TopLine="150"/>
+      </Position16>
+      <Position17>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <Caret Line="159" Column="10" TopLine="131"/>
+      </Position17>
+      <Position18>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
+      </Position18>
+      <Position19>
+        <Filename Value="Imaging\LibTiff\imaginglibtiff.pas"/>
+        <Caret Line="255" Column="42" TopLine="253"/>
+      </Position19>
+      <Position20>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
+      </Position20>
+      <Position21>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="32" Column="29" TopLine="1"/>
+      </Position21>
+      <Position22>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
+      </Position22>
+      <Position23>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="29" Column="29" TopLine="1"/>
+      </Position23>
+      <Position24>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="45" Column="1" TopLine="1"/>
+      </Position24>
+      <Position25>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="203" Column="22" TopLine="171"/>
+      </Position25>
+      <Position26>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <Caret Line="128" Column="22" TopLine="102"/>
+      </Position26>
+      <Position27>
+        <Filename Value="MainUnit.pas"/>
+        <Caret Line="141" Column="62" TopLine="136"/>
+      </Position27>
+      <Position28>
+        <Filename Value="ImageUtils.pas"/>
+        <Caret Line="44" Column="7" TopLine="32"/>
+      </Position28>
+      <Position29>
+        <Filename Value="ImageUtils.pas"/>
+        <Caret Line="45" Column="24" TopLine="22"/>
+      </Position29>
+      <Position30>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="38" Column="8" TopLine="4"/>
+      </Position30>
     </JumpHistory>
   </ProjectOptions>
   <CompilerOptions>
-    <Version Value="9"/>
+    <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
       <Filename Value="Bin\deskew"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
-      <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib"/>
+      <Libraries Value="Imaging\LibTiff\Compiled"/>
+      <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
       <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
@@ -203,11 +385,13 @@
     <CodeGeneration>
       <SmartLinkUnit Value="True"/>
       <Optimizations>
+        <VariablesInRegisters Value="True"/>
         <OptimizationLevel Value="3"/>
       </Optimizations>
     </CodeGeneration>
     <Linking>
       <Debugging>
+        <GenerateDebugInfo Value="False"/>
         <UseLineInfoUnit Value="False"/>
       </Debugging>
       <LinkSmart Value="True"/>
@@ -232,4 +416,4 @@
       </Item3>
     </Exceptions>
   </Debugging>
-</CONFIG>
+</CONFIG>

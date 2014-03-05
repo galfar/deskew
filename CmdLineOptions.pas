@@ -59,6 +59,7 @@ type
     FThresholdLevel: Integer;
     FContentRect: TRect;
     FBackgroundColor: TColor32;
+    FForcedOutputFormat: TImageFormat;
     FShowStats: Boolean;
     FShowParams: Boolean;
     function GetIsValid: Boolean;
@@ -80,6 +81,8 @@ type
     property ContentRect: TRect read FContentRect;
     // Background color for the rotated image
     property BackgroundColor: TColor32 read FBackgroundColor;
+    // Forced output format (applied just before saving the output)
+    property ForcedOutputFormat: TImageFormat read FForcedOutputFormat;
     // Show skew detection stats
     property ShowStats: Boolean read FShowStats;
     // Show current params to user (for testing etc.)
@@ -102,6 +105,7 @@ begin
   FShowStats := False;
   FOutputFile := SDefaultOutputFile;
   FShowParams := False;
+  FForcedOutputFormat := ifUnknown;
 end;
 
 function TCmdLineOptions.GetIsValid: Boolean;
@@ -172,14 +176,17 @@ var
   procedure CheckParam(const Param, Value: string);
   var
     StrArray: TDynStringArray;
+    ValLower: string;
   begin
+    ValLower := LowerCase(Value);
+
     if Param = '-o' then
       FOutputFile := Value
     else if Param = '-a' then
       FMaxAngle := StrToIntDef(Value, -1)
     else if Param = '-t' then
     begin
-      if Value = 'a' then
+      if ValLower = 'a' then
         FThresholdingMethod := tmOtsu
       else
       begin
@@ -190,18 +197,27 @@ var
     else if Param = '-b' then
     begin
       // Set alpha to 255 for background
-      FBackgroundColor := $FF000000 or Cardinal($FFFFFF and StrToInt('$' + Value));
+      FBackgroundColor := $FF000000 or Cardinal($FFFFFF and StrToInt('$' + ValLower));
+    end
+    else if Param = '-f' then
+    begin
+      if ValLower = 'b1' then
+        FForcedOutputFormat := ifBinary
+      else if ValLower = 'g8' then
+        FForcedOutputFormat := ifGray8
+      else if ValLower = 'rgba32' then
+        FForcedOutputFormat := ifA8R8G8B8;
     end
     else if Param = '-s' then
     begin
-      if Pos('s', Value) > 0 then
+      if Pos('s', ValLower) > 0 then
         FShowStats := True;
-      if Pos('p', Value) > 0 then
+      if Pos('p', ValLower) > 0 then
         FShowParams := True;
     end
     else if Param = '-r' then
     begin
-      StrArray := SplitString(Value, ',');
+      StrArray := SplitString(ValLower, ',');
       if Length(StrArray) = 4 then
       begin
         FContentRect.Left := StrToInt(StrArray[0]);
@@ -222,7 +238,7 @@ begin
     begin
       Arg := ParamStr(I + 1);
       Inc(I);
-      CheckParam(Param, LowerCase(Arg));
+      CheckParam(Param, Arg);
     end
     else
       FInputFile := Param;

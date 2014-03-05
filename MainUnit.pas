@@ -47,7 +47,7 @@ procedure RunDeskew;
 implementation
 
 const
-  SAppTitle = 'Deskew 1.00 (2012-06-05) by Marek Mauder';
+  SAppTitle = 'Deskew 1.10 (2014-03-03) by Marek Mauder';
   SAppHome = 'http://galfar.vevb.net/deskew/';
 
 var
@@ -66,13 +66,14 @@ begin
   OutFilter := '';
 
   WriteLn('Usage:');
-  WriteLn('deskew [-a angle] [-t a|treshold] [-b color] [-r rect] [-o output] [-s info] input');
+  WriteLn('deskew [-o output] [-a angle] [-t a|treshold] [-b color] [-r rect] [-f format] [-s info] input');
+  WriteLn('    -o output:     Output image file (default: out.png)');
   WriteLn('    -a angle:      Maximal skew angle in degrees (default: 10)');
   WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: a)');
   WriteLn('    -b color:      Background color in hex format RRGGBB (default: trns. black)');
   WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
   WriteLn('                   left,top,right,bottom (default: whole page)');
-  WriteLn('    -o output:     Output image file (default: out.png)');
+  WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgba32)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters');
   WriteLn('    input:         Input image file');
@@ -169,8 +170,17 @@ begin
   begin
     // Finally, merge rotated image with background
     MergeWithBackground(OutputImage, Options.BackgroundColor);
-    if OutputImage.Format <> OrigFormat then
+    // Convert image back to its original format (but only if there is no forced format applied later)
+    if (OutputImage.Format <> OrigFormat) and (Options.ForcedOutputFormat = ifUnknown) then
       OutputImage.Format := OrigFormat;
+  end;
+
+  if Options.ForcedOutputFormat <> ifUnknown then
+  begin
+    // Force output format. For example Deskew won't automatically
+    // save image as binary if the input was binary since it
+    // might degrade the output a lot (rotation adds a lot of colors to image).
+    OutputImage.Format := Options.ForcedOutputFormat;
   end;
 
   if Options.ShowStats then
@@ -211,8 +221,11 @@ begin
         InputImage.LoadFromFile(Options.InputFile);
         // Do the magic
         DoDeskew;
-        // Save the output
+        // Make sure output folders are ready
         EnsureOutputLocation(Options.OutputFile);
+        // Make sure recognized metadata stays (like scanning DPI info)
+        GlobalMetadata.CopyLoadedMetaItemsForSaving;
+        // Save the output
         OutputImage.SaveToFile(Options.OutputFile);
         WriteLn('Done!');
       end
@@ -238,4 +251,4 @@ begin
   end;
 end;
 
-end.
+end.

@@ -38,6 +38,7 @@ uses
   CmdLineOptions in 'CmdLineOptions.pas',
   ImageUtils in 'ImageUtils.pas',
   MainUnit in 'MainUnit.pas';
+
 begin
 {$IFDEF DEBUG}
   ReportMemoryLeaksOnShutdown := True;

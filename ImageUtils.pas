@@ -41,8 +41,12 @@ uses
   ImagingTypes,
   Imaging,
   ImagingClasses,
-{$IF Defined(DCC) and Defined(CPUX86) and Defined(MSWINDOWS)}
-  ImagingLibTiffDelphi, // Tiff support for Delphi Win32
+{$IF not Defined(MACOS) and (Defined(FPC) or
+  (Defined(DCC) and Defined(MSWINDOWS) and Defined(CPUX86)))}
+  ImagingTiffLib,
+{$ELSEIF Defined(MACOS)}
+  // Not yet ready
+  //ImagingTiffMac,
 {$IFEND}
   ImagingPsd, // PSD support
   ImagingCanvases,
@@ -168,4 +172,4 @@ begin
   end;
 end;
 
-end.
+end.

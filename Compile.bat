@@ -1,1 +1,0 @@
-fpc -FuImaging -FuImaging/ZLib -FuImaging/JpegLib -FiImaging -FUdcu/$fpctarget -O3 -B -Mdelphi -FEBin deskew.lpr

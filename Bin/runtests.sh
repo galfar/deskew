@@ -1,17 +1,21 @@
-./deskew -t a -a 5 -o TestOut/outa1.png ../TestImages/1.png
-./deskew -t a -a 10 -o TestOut/outa2.png ../TestImages/2.png
-./deskew -t a -a 10 -o TestOut/outa3.png ../TestImages/3.png
-./deskew -t a -a 10 -o TestOut/outa4.png ../TestImages/4.png
-./deskew -t a -a 10 -o TestOut/outa5.png ../TestImages/5.png
-./deskew -t a -a 5 -o TestOut/outaF1550.png ../TestImages/F1550.jpg
+./deskew -t a -a 5 -o TestOut/Outa1.tif ../TestImages/1.tif
+./deskew -t a -a 10 -o TestOut/Outa2.png ../TestImages/2.png
+./deskew -t a -a 10 -o TestOut/Outa3.png ../TestImages/3.png
+./deskew -t a -a 10 -o TestOut/Outa4.png ../TestImages/4.png
+./deskew -t a -a 10 -o TestOut/Outa5.png ../TestImages/5.png
+./deskew -t a -a 5 -o TestOut/OutaF1550.jpg ../TestImages/F1550.jpg
+./deskew -t a -a 5 -o TestOut/tiff-jpeg.tif ../TestImages/tiff-jpeg.tif
 
-./deskew -t 128 -a 5 -o TestOut/oute1.png ../TestImages/1.png
-./deskew -t 128 -a 10 -o TestOut/oute2.png ../TestImages/2.png
-./deskew -t 180 -a 5 -o TestOut/outeF1550.png ../TestImages/F1550.jpg
+./deskew -t 128 -a 5 -o TestOut/Oute1.tif ../TestImages/1.tif
+./deskew -t 128 -a 10 -o TestOut/Oute2.png ../TestImages/2.png
+./deskew -t 180 -a 5 -o TestOut/OuteF1550.jpg ../TestImages/F1550.jpg
 
-./deskew -b FF0000 -o TestOut/outb1.png ../TestImages/1.png
-./deskew -b 00FFFF -o TestOut/outb5.png ../TestImages/5.png
+./deskew -b FF0000 -o TestOut/Outb1.tif ../TestImages/1.tif
+./deskew -b 00FFFF -o TestOut/Outb5.png ../TestImages/5.png
 
-./deskew -r 214,266,933,1040 -o TestOut/outr4.png ../TestImages/4.png
+./deskew -r 214,266,933,1040 -o TestOut/Outr4.png ../TestImages/4.png
 
-./deskew -t 100 -a 11 -b aa55cc -r 314,366,833,940 -s sp -o TestOut/outs4.png ../TestImages/4.png
+./deskew -t 100 -a 11 -b aa55cc -r 314,366,833,940 -s sp -o TestOut/Outs4.png ../TestImages/4.png
+
+./deskew -t a -a 5 -f b1 -o TestOut/Outf1.tif ../TestImages/1.tif
+./deskew -t a -a 10 -f b1 -o TestOut/Outf2.png ../TestImages/2.png
