@@ -51,13 +51,13 @@ type
   work only in defined part of image (useful when the document has text only in
   smaller area of page and non-text features outside the area confuse the rotation detector).
   Various calculations stats can be retrieved by passing Stats parameter.}
-function CalcRotationAngle(MaxAngle: Integer; Treshold: Integer;
+function CalcRotationAngle(const MaxAngle: Double; Treshold: Integer;
   Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect = nil;
   Stats: PCalcSkewAngleStats = nil): Double;
 
 implementation
 
-function CalcRotationAngle(MaxAngle: Integer; Treshold: Integer;
+function CalcRotationAngle(const MaxAngle: Double; Treshold: Integer;
   Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect; Stats: PCalcSkewAngleStats): Double;
 const
   // Number of "best" lines we take into account when determining

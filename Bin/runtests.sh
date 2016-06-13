@@ -19,3 +19,5 @@
 
 ./deskew -t a -a 5 -f b1 -o TestOut/Outf1.tif ../TestImages/1.tif
 ./deskew -t a -a 10 -f b1 -o TestOut/Outf2.png ../TestImages/2.png
+
+./deskew -t a -a 5 -l 2 -o TestOut/Outs1.tif ../TestImages/1.tif 

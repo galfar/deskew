@@ -41,12 +41,17 @@ deskew [-o output] [-a angle] [-t a|treshold] [-b color] [-r rect] [-f format] [
     Input:  BMP, JPG, PNG, JNG, GIF, DDS, TGA, PBM, PGM, PPM, PAM, PFM, PSD, TIF (depends on platform)
     Output: BMP, JPG, PNG, JNG, GIF, DDS, TGA, PGM, PPM, PAM, PFM, PSD, TIF (depends on platform)
 
+Notes
+-------------------------
+
+On Linux, you need to have libtiff 4.x installed (package is called libtiff5).
+
 Version History
 ------------------------
   1.10 2014-03-04:
     - TIFF support for Win64 and 32/64bit Linux
     - forced output formats
-    - fix: output file name were always lowercase
+    - fix: output file names were always lowercase
     - fix: preserves resolution metadata (e.g. 300dpi) of input when writing output
   1.00 2012-06-04:
     - background color

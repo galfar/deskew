@@ -47,7 +47,7 @@ procedure RunDeskew;
 implementation
 
 const
-  SAppTitle = 'Deskew 1.10 (2014-03-03) by Marek Mauder';
+  SAppTitle = 'Deskew 1.12 (2016-06-10) by Marek Mauder';
   SAppHome = 'http://galfar.vevb.net/deskew/';
 
 var
@@ -66,17 +66,21 @@ begin
   OutFilter := '';
 
   WriteLn('Usage:');
-  WriteLn('deskew [-o output] [-a angle] [-t a|treshold] [-b color] [-r rect] [-f format] [-s info] input');
+  WriteLn('deskew [-o output] [-a angle] [-b color] [..] input');
+  WriteLn('    input:         Input image file');
+  WriteLn('  Options:');
   WriteLn('    -o output:     Output image file (default: out.png)');
   WriteLn('    -a angle:      Maximal skew angle in degrees (default: 10)');
-  WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: a)');
   WriteLn('    -b color:      Background color in hex format RRGGBB (default: trns. black)');
+  WriteLn('  Ext. options:');
+  WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: a)');
   WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
   WriteLn('                   left,top,right,bottom (default: whole page)');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgba32)');
+  WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.1)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters');
-  WriteLn('    input:         Input image file');
+
 
   Count := GetFileFormatCount;
   for I := 0 to Count - 1 do
@@ -94,9 +98,9 @@ begin
   WriteLn('    Output: ', UpperCase(OutFilter));
 end;
 
-procedure DoDeskew;
+function DoDeskew: Boolean;
 var
-  Angle: Double;
+  SkewAngle: Double;
   Threshold: Integer;
   ContentRect: TRect;
   Stats: TCalcSkewAngleStats;
@@ -114,6 +118,7 @@ var
   end;
 
 begin
+  Result := False;
   Threshold := 0;
   WriteLn('Preparing input image (', ExtractFileName(Options.InputFile), ') ...');
 
@@ -144,36 +149,45 @@ begin
       ContentRect := InputImage.BoundsRect;
   end;
 
-  // Main step - calculate image rotation angle
+  // Main step - calculate image rotation SkewAngle
   WriteLn('Calculating skew angle...');
-  Angle := CalcRotationAngle(Options.MaxAngle, Threshold,
+  SkewAngle := CalcRotationAngle(Options.MaxAngle, Threshold,
     InputImage.Width, InputImage.Height, InputImage.Bits,
     @ContentRect, @Stats);
-  WriteLn('Skew angle found: ', Angle:4:2);
+  WriteLn('Skew angle found: ', SkewAngle:4:2);
 
-  // Finally, rotate the image. We rotate the original input image, not the working
-  // one so the color space is preserved.
-  WriteLn('Rotating image...');
-  if OutputImage.FormatInfo.IsIndexed or OutputImage.FormatInfo.IsSpecial then
-    OutputImage.Format := ifA8R8G8B8; // Rotation doesn't like indexed and compressed images
-
-  // For back color to work we need to make sure empty "void" around the image has alpha=0,
-  // so 32bit ARGB format is needed
-  OrigFormat := OutputImage.Format;
-  HasBackColor := Options.BackgroundColor <> 0;
-  if HasBackColor then
-    OutputImage.Format := ifA8R8G8B8;
-
-  OutputImage.Rotate(Angle);
-
-  if HasBackColor then
+  // Check if detected skew angle is higher than "skip" threshold - may not
+  // want to do rotation (+possible background fill) needlessly.
+  if Abs(SkewAngle) >= Options.SkipAngle then
   begin
-    // Finally, merge rotated image with background
-    MergeWithBackground(OutputImage, Options.BackgroundColor);
-    // Convert image back to its original format (but only if there is no forced format applied later)
-    if (OutputImage.Format <> OrigFormat) and (Options.ForcedOutputFormat = ifUnknown) then
-      OutputImage.Format := OrigFormat;
-  end;
+    Result := True;
+
+    // Finally, rotate the image. We rotate the original input image, not the working
+    // one so the color space is preserved.
+    WriteLn('Rotating image...');
+    if OutputImage.FormatInfo.IsIndexed or OutputImage.FormatInfo.IsSpecial then
+      OutputImage.Format := ifA8R8G8B8; // Rotation doesn't like indexed and compressed images
+
+    // For back color to work we need to make sure empty "void" around the image has alpha=0,
+    // so 32bit ARGB format is needed
+    OrigFormat := OutputImage.Format;
+    HasBackColor := Options.BackgroundColor <> 0;
+    if HasBackColor then
+      OutputImage.Format := ifA8R8G8B8;
+
+    OutputImage.Rotate(SkewAngle);
+
+    if HasBackColor then
+    begin
+      // Finally, merge rotated image with background
+      MergeWithBackground(OutputImage, Options.BackgroundColor);
+      // Convert image back to its original format (but only if there is no forced format applied later)
+      if (OutputImage.Format <> OrigFormat) and (Options.ForcedOutputFormat = ifUnknown) then
+        OutputImage.Format := OrigFormat;
+    end;
+  end
+  else
+    WriteLn('Skipping deskewing step, skew angle lower that threashold of ', Options.SkipAngle:4:2);
 
   if Options.ForcedOutputFormat <> ifUnknown then
   begin
@@ -181,6 +195,7 @@ begin
     // save image as binary if the input was binary since it
     // might degrade the output a lot (rotation adds a lot of colors to image).
     OutputImage.Format := Options.ForcedOutputFormat;
+    Result := True;
   end;
 
   if Options.ShowStats then
@@ -199,6 +214,19 @@ procedure RunDeskew;
       ForceDirectories(Dir);
   end;
 
+  procedure CopyFile(const SrcPath, DestPath: string);
+  var
+    SrcStream, DestStream: TFileStream;
+  begin
+    SrcStream := TFileStream.Create(SrcPath, fmOpenRead);
+    DestStream := TFileStream.Create(DestPath, fmCreate);
+    DestStream.CopyFrom(SrcStream, SrcStream.Size);
+    DestStream.Free;
+    SrcStream.Free;
+  end;
+
+var
+  Changed: Boolean;
 begin
   WriteLn(SAppTitle);
   WriteLn(SAppHome);
@@ -220,13 +248,21 @@ begin
         // Load input image
         InputImage.LoadFromFile(Options.InputFile);
         // Do the magic
-        DoDeskew;
+        Changed := DoDeskew();
         // Make sure output folders are ready
         EnsureOutputLocation(Options.OutputFile);
-        // Make sure recognized metadata stays (like scanning DPI info)
-        GlobalMetadata.CopyLoadedMetaItemsForSaving;
-        // Save the output
-        OutputImage.SaveToFile(Options.OutputFile);
+        if Changed then
+        begin
+          // Make sure recognized metadata stays (like scanning DPI info)
+          GlobalMetadata.CopyLoadedMetaItemsForSaving;
+          // Save the output
+          OutputImage.SaveToFile(Options.OutputFile);
+        end
+        else
+        begin
+          // No change to image made, just copy it to the desired destination
+          CopyFile(Options.InputFile, Options.OutputFile);
+        end;
         WriteLn('Done!');
       end
       else
@@ -251,4 +287,4 @@ begin
   end;
 end;
 
-end.
+end.

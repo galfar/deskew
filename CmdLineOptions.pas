@@ -54,7 +54,8 @@ type
   private
     FInputFile: string;
     FOutputFile: string;
-    FMaxAngle: Integer;
+    FMaxAngle: Double;
+    FSkipAngle: Double;
     FThresholdingMethod: TThresholdingMethod;
     FThresholdLevel: Integer;
     FContentRect: TRect;
@@ -62,6 +63,7 @@ type
     FForcedOutputFormat: TImageFormat;
     FShowStats: Boolean;
     FShowParams: Boolean;
+    FFormatSettings: TFormatSettings;
     function GetIsValid: Boolean;
   public
     constructor Create;
@@ -71,8 +73,10 @@ type
 
     property InputFile: string read FInputFile;
     property OutputFile: string read FOutputFile;
-    // Max expected rotation angle (algo then works in range <-MaxAngle, MaxAngle>)
-    property MaxAngle: Integer read FMaxAngle;
+    // Max expected rotation angle - algo then works in range [-MaxAngle, MaxAngle]
+    property MaxAngle: Double read FMaxAngle;
+    // Skew threshold angle - skip deskewing if detected skew angle is in range (-MinAngle, MinAngle)
+    property SkipAngle: Double read FSkipAngle;
     // Thresholding method used when converting images to binary black/white format
     property ThresholdingMethod: TThresholdingMethod read FThresholdingMethod;
     // Threshold for black/white pixel classification for explicit thresholding method
@@ -99,6 +103,7 @@ constructor TCmdLineOptions.Create;
 begin
   FThresholdLevel := DefaultThreshold;
   FMaxAngle := DefaultMaxAngle;
+  FSkipAngle := 0.1;
   FThresholdingMethod := tmOtsu;
   FContentRect := Rect(0, 0, 0, 0); // whole page
   FBackgroundColor := 0;
@@ -106,11 +111,12 @@ begin
   FOutputFile := SDefaultOutputFile;
   FShowParams := False;
   FForcedOutputFormat := ifUnknown;
+  FFormatSettings := ImagingUtility.GetFormatSettingsForFloats;
 end;
 
 function TCmdLineOptions.GetIsValid: Boolean;
 begin
-  Result := (InputFile <> '') and (MaxAngle > 0) and
+  Result := (InputFile <> '') and (MaxAngle > 0) and (SkipAngle >= 0) and
     ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0));
 end;
 
@@ -183,7 +189,9 @@ var
     if Param = '-o' then
       FOutputFile := Value
     else if Param = '-a' then
-      FMaxAngle := StrToIntDef(Value, -1)
+      FMaxAngle := StrToFloatDef(Value, -1, FFormatSettings)
+    else if Param = '-l' then
+      FSkipAngle := StrToFloatDef(Value, -1, FFormatSettings)
     else if Param = '-t' then
     begin
       if ValLower = 'a' then
@@ -252,7 +260,8 @@ begin
   Result :=
     '  input file  =   ' + InputFile + sLineBreak +
     '  output file =  ' + OutputFile + sLineBreak +
-    '  max angle   = ' + IntToStr(MaxAngle) + sLineBreak +
+    '  max angle   = ' + FloatToStr(MaxAngle) + sLineBreak +
+    '  skip angle  = ' + FloatToStr(SkipAngle) + sLineBreak +
     '  thresholdinging method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
     '  threshold level  = ' + IntToStr(ThresholdLevel) + sLineBreak +
     '  background color = ' + IntToHex(BackgroundColor, 6) + sLineBreak +
