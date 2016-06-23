@@ -30,6 +30,8 @@ interface
 
 uses
   Types,
+  SysUtils,
+  Math,
   ImagingUtility;
 
 type
@@ -70,7 +72,7 @@ type
     Count: Integer;
     Index: Integer;
     Alpha: Double;
-    D: Double;
+    Distance: Double;
   end;
   TLineArray = array of TLine;
 var
@@ -87,15 +89,10 @@ var
     Result := Pixels[Y * Width + X] < Treshold;
   end;
 
-  // Calculates alpha parameter for given angle step.
-  function GetAlpha(Index: Integer): Double;
+  // Calculates final angle for given angle step.
+  function GetFinalAngle(StepIndex: Integer): Double;
   begin
-    Result := AlphaStart + Index * AlphaStep;
-  end;
-
-  function CalcDIndex(D: Double): Integer;
-  begin
-    Result := Trunc(D - MinD);
+    Result := AlphaStart + StepIndex * AlphaStep;
   end;
 
   // Calculates angle and distance parameters for all lines
@@ -104,14 +101,20 @@ var
   var
     D, Rads: Double;
     I, DIndex, Index: Integer;
+    Sin, Cos: Extended;
   begin
     for I := 0 to AlphaSteps - 1 do
     begin
-      Rads := GetAlpha(I) * Pi / 180; // Angle for current step in radians
-      D := Y * Cos(Rads) - X * Sin(Rads); // Parameter D of the line y=tg(alpha)x + d
-      DIndex := CalcDIndex(D);
+      // Angle for current step in radians
+      Rads := GetFinalAngle(I) * PI / 180;
+      SinCos(Rads, Sin, Cos);
+      // Parameter D(distance from origin) of the line y=tg(alpha)x + d
+      D := Y * Cos - X * Sin;
+      // Calc index into accumulator for current line
+      DIndex := Trunc(D - MinD);
       Index := DIndex * AlphaSteps + I;
-      HoughAccumulator[Index] := HoughAccumulator[Index] + 1; // Add one vote for current line
+      // Add one vote for current line
+      HoughAccumulator[Index] := HoughAccumulator[Index] + 1;
     end;
   end;
 
@@ -169,8 +172,8 @@ var
       // Caculate line angle and distance according to index in the accumulator
       DIndex := Result[I].Index div AlphaSteps;
       AlphaIndex := Result[I].Index - DIndex * AlphaSteps;
-      Result[I].Alpha := GetAlpha(AlphaIndex);
-      Result[I].D := DIndex + MinD;
+      Result[I].Alpha := GetFinalAngle(AlphaIndex);
+      Result[I].Distance := DIndex + MinD;
     end;
   end;
 
@@ -188,7 +191,7 @@ begin
 
   AlphaStart := -MaxAngle;
   AlphaSteps := Round(2 * MaxAngle / AlphaStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
-  MinD := -PageWidth;
+  MinD := -Max(PageWidth, PageHeight);
   DCount := 2 * (PageWidth + PageHeight);
 
   // Determine the size of line accumulator

@@ -63,12 +63,14 @@ type
     FForcedOutputFormat: TImageFormat;
     FShowStats: Boolean;
     FShowParams: Boolean;
+    FShowTimings: Boolean;
     FFormatSettings: TFormatSettings;
+    FErrorMessage: string;
     function GetIsValid: Boolean;
   public
     constructor Create;
     // Parses command line arguments to get optiosn set by user
-    procedure ParseCommnadLine;
+    function ParseCommnadLine: Boolean;
     function OptionsToString: string;
 
     property InputFile: string read FInputFile;
@@ -91,8 +93,11 @@ type
     property ShowStats: Boolean read FShowStats;
     // Show current params to user (for testing etc.)
     property ShowParams: Boolean read FShowParams;
+    // Show timing of processing steps to user
+    property ShowTimings: Boolean read FShowTimings;
 
     property IsValid: Boolean read GetIsValid;
+    property ErrorMessage: string read FErrorMessage;
   end;
 
 implementation
@@ -103,13 +108,14 @@ constructor TCmdLineOptions.Create;
 begin
   FThresholdLevel := DefaultThreshold;
   FMaxAngle := DefaultMaxAngle;
-  FSkipAngle := 0.1;
+  FSkipAngle := 0.01;
   FThresholdingMethod := tmOtsu;
   FContentRect := Rect(0, 0, 0, 0); // whole page
   FBackgroundColor := 0;
-  FShowStats := False;
   FOutputFile := SDefaultOutputFile;
+  FShowStats := False;
   FShowParams := False;
+  FShowTimings:= False;
   FForcedOutputFormat := ifUnknown;
   FFormatSettings := ImagingUtility.GetFormatSettingsForFloats;
 end;
@@ -120,7 +126,7 @@ begin
     ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0));
 end;
 
-procedure TCmdLineOptions.ParseCommnadLine;
+function TCmdLineOptions.ParseCommnadLine: Boolean;
 var
   I: LongInt;
   Param, Arg: string;
@@ -179,11 +185,12 @@ var
     end;
   end;
 
-  procedure CheckParam(const Param, Value: string);
+  function CheckParam(const Param, Value: string): Boolean;
   var
     StrArray: TDynStringArray;
     ValLower: string;
   begin
+    Result := True;
     ValLower := LowerCase(Value);
 
     if Param = '-o' then
@@ -222,6 +229,8 @@ var
         FShowStats := True;
       if Pos('p', ValLower) > 0 then
         FShowParams := True;
+      if Pos('t', ValLower) > 0 then
+        FShowTimings := True;
     end
     else if Param = '-r' then
     begin
@@ -233,10 +242,16 @@ var
         FContentRect.Right := StrToInt(StrArray[2]);
         FContentRect.Bottom := StrToInt(StrArray[3]);
       end;
+    end
+    else
+    begin
+      FErrorMessage := 'Unknown parameter: ' + Param;
+      Result := False;
     end;
   end;
 
 begin
+  Result := True;
   I := 1;
 
   while I <= ParamCount do
@@ -246,7 +261,11 @@ begin
     begin
       Arg := ParamStr(I + 1);
       Inc(I);
-      CheckParam(Param, Arg);
+      if not CheckParam(Param, Arg) then
+      begin
+        Result := False;
+        Exit;
+      end;
     end
     else
       FInputFile := Param;

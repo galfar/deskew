@@ -396,7 +396,7 @@ end;
 {$IF Defined(MSWINDOWS)}
 var
   PerfFrequency: Int64;
-  InvPerfFrequency: Single;
+  InvPerfFrequency: Extended;
 
 function GetTimeMicroseconds: Int64;
 var
@@ -1616,6 +1616,7 @@ initialization
 {$ELSE FPC}
   FloatFormatSettings := DefaultFormatSettings;
   FloatFormatSettings.DecimalSeparator := '.';
+  FloatFormatSettings.ThousandSeparator := ' ';
 {$IFEND}
 
 {

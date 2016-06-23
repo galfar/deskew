@@ -47,7 +47,7 @@ procedure RunDeskew;
 implementation
 
 const
-  SAppTitle = 'Deskew 1.12 (2016-06-10) by Marek Mauder';
+  SAppTitle = 'Deskew 1.13 (2016-06-22) by Marek Mauder';
   SAppHome = 'http://galfar.vevb.net/deskew/';
 
 var
@@ -77,9 +77,9 @@ begin
   WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
   WriteLn('                   left,top,right,bottom (default: whole page)');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgba32)');
-  WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.1)');
+  WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
   WriteLn('    -s info:       Info dump (any combination of):');
-  WriteLn('                   s - skew detection stats, p - program parameters');
+  WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
 
 
   Count := GetFileFormatCount;
@@ -98,6 +98,26 @@ begin
   WriteLn('    Output: ', UpperCase(OutFilter));
 end;
 
+function FormatNiceNumber(const X: Int64; Width : Integer = 16): string;
+var
+  FmtStr: string;
+begin
+  if Width = 0 then
+    FmtStr := '%.0n'
+  else
+    FmtStr := '%' + IntToStr(Width) + '.0n';
+  Result := Format(FmtStr, [X * 1.0], GetFormatSettingsForFloats);
+end;
+
+var
+  Time: Int64;
+
+procedure WriteTiming(const StepName: string);
+begin
+  if Options.ShowTimings then
+    WriteLn(StepName + ' - time taken: ' + FormatNiceNumber(GetTimeMicroseconds - Time, 0) + ' us');
+end;
+
 function DoDeskew: Boolean;
 var
   SkewAngle: Double;
@@ -110,11 +130,11 @@ var
   procedure WriteStats;
   begin
     WriteLn('Skew detection stats:');
-    WriteLn('  pixel count:        ', Stats.PixelCount);
-    WriteLn('  tested pixels:      ', Stats.TestedPixels);
-    WriteLn('  accumulator size:   ', Stats.AccumulatorSize);
-    WriteLn('  accumulated counts: ', Stats.AccumulatedCounts);
-    WriteLn('  best count:         ', Stats.BestCount);
+    WriteLn('  pixel count:        ', FormatNiceNumber(Stats.PixelCount));
+    WriteLn('  tested pixels:      ', FormatNiceNumber(Stats.TestedPixels));
+    WriteLn('  accumulator size:   ', FormatNiceNumber(Stats.AccumulatorSize));
+    WriteLn('  accumulated counts: ', FormatNiceNumber(Stats.AccumulatedCounts));
+    WriteLn('  best count:         ', FormatNiceNumber(Stats.BestCount));
   end;
 
 begin
@@ -137,7 +157,9 @@ begin
     tmOtsu:
       begin
         // Determine the threshold automatically
+        Time := GetTimeMicroseconds;
         Threshold := OtsuThresholding(InputImage.ImageDataPointer^);
+        WriteTiming('Auto thresholding');
       end;
   end;
 
@@ -151,9 +173,11 @@ begin
 
   // Main step - calculate image rotation SkewAngle
   WriteLn('Calculating skew angle...');
+  Time := GetTimeMicroseconds;
   SkewAngle := CalcRotationAngle(Options.MaxAngle, Threshold,
     InputImage.Width, InputImage.Height, InputImage.Bits,
     @ContentRect, @Stats);
+  WriteTiming('Skew detection');
   WriteLn('Skew angle found: ', SkewAngle:4:2);
 
   // Check if detected skew angle is higher than "skip" threshold - may not
@@ -175,19 +199,24 @@ begin
     if HasBackColor then
       OutputImage.Format := ifA8R8G8B8;
 
+    Time := GetTimeMicroseconds;
     OutputImage.Rotate(SkewAngle);
+    WriteTiming('Rotate image');
 
     if HasBackColor then
     begin
       // Finally, merge rotated image with background
+      Time := GetTimeMicroseconds;
       MergeWithBackground(OutputImage, Options.BackgroundColor);
+      WriteTiming('Apply background');
+
       // Convert image back to its original format (but only if there is no forced format applied later)
       if (OutputImage.Format <> OrigFormat) and (Options.ForcedOutputFormat = ifUnknown) then
         OutputImage.Format := OrigFormat;
     end;
   end
   else
-    WriteLn('Skipping deskewing step, skew angle lower that threashold of ', Options.SkipAngle:4:2);
+    WriteLn('Skipping deskewing step, skew angle lower that threshold of ', Options.SkipAngle:4:2);
 
   if Options.ForcedOutputFormat <> ifUnknown then
   begin
@@ -237,20 +266,22 @@ begin
 
   try
     try
-      // Parse command line
-      Options.ParseCommnadLine;
-
-      if Options.IsValid then
+      if Options.ParseCommnadLine and Options.IsValid then
       begin
         if Options.ShowParams then
           WriteLn(Options.OptionsToString);
 
         // Load input image
+        Time := GetTimeMicroseconds;
         InputImage.LoadFromFile(Options.InputFile);
+        WriteTiming('Load input file');
+
         // Do the magic
         Changed := DoDeskew();
         // Make sure output folders are ready
         EnsureOutputLocation(Options.OutputFile);
+
+        Time := GetTimeMicroseconds;
         if Changed then
         begin
           // Make sure recognized metadata stays (like scanning DPI info)
@@ -263,12 +294,18 @@ begin
           // No change to image made, just copy it to the desired destination
           CopyFile(Options.InputFile, Options.OutputFile);
         end;
+        WriteTiming('Save output file');
+
         WriteLn('Done!');
       end
       else
       begin
         // Bad input
         WriteLn('Invalid parameters!');
+        if Options.ErrorMessage <> '' then
+          WriteLn(Options.ErrorMessage);
+        WriteLn;
+
         WriteUsage;
         ExitCode := 1;
       end;
@@ -285,6 +322,10 @@ begin
     InputImage.Free;
     OutputImage.Free;
   end;
+
+{$IFDEF DEBUG}
+  ReadLn;
+{$ENDIF}
 end;
 
 end.
