@@ -4,7 +4,7 @@
 ./deskew -t a -a 10 -o TestOut/Outa4.png ../TestImages/4.png
 ./deskew -t a -a 10 -o TestOut/Outa5.png ../TestImages/5.png
 ./deskew -t a -a 5 -o TestOut/OutaF1550.jpg ../TestImages/F1550.jpg
-./deskew -t a -a 5 -o TestOut/tiff-jpeg.tif ../TestImages/tiff-jpeg.tif
+./deskew -t a -a 5 -b FFFFFF -o TestOut/tiff-jpeg.tif ../TestImages/tiff-jpeg.tif
 
 ./deskew -t 128 -a 5 -o TestOut/Oute1.tif ../TestImages/1.tif
 ./deskew -t 128 -a 10 -o TestOut/Oute2.png ../TestImages/2.png

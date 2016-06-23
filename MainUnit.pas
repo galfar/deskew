@@ -47,7 +47,7 @@ procedure RunDeskew;
 implementation
 
 const
-  SAppTitle = 'Deskew 1.13 (2016-06-22) by Marek Mauder';
+  SAppTitle = 'Deskew 1.14 (2016-06-24) by Marek Mauder';
   SAppHome = 'http://galfar.vevb.net/deskew/';
 
 var
@@ -190,33 +190,35 @@ begin
     // one so the color space is preserved.
     WriteLn('Rotating image...');
     if OutputImage.FormatInfo.IsIndexed or OutputImage.FormatInfo.IsSpecial then
-      OutputImage.Format := ifA8R8G8B8; // Rotation doesn't like indexed and compressed images
+      OutputImage.Format := ifA8R8G8B8; // Rotation doesn't like indexed and compressed/1bit images
 
     // For back color to work we need to make sure empty "void" around the image has alpha=0,
     // so 32bit ARGB format is needed
-    OrigFormat := OutputImage.Format;
-    HasBackColor := Options.BackgroundColor <> 0;
-    if HasBackColor then
-      OutputImage.Format := ifA8R8G8B8;
 
-    Time := GetTimeMicroseconds;
-    OutputImage.Rotate(SkewAngle);
-    WriteTiming('Rotate image');
+    HasBackColor := Options.BackgroundColor <> 0;
 
     if HasBackColor then
     begin
-      // Finally, merge rotated image with background
+      OrigFormat := OutputImage.Format;
+      OutputImage.Format := ifA8R8G8B8;
+
       Time := GetTimeMicroseconds;
-      MergeWithBackground(OutputImage, Options.BackgroundColor);
-      WriteTiming('Apply background');
+      ImageUtils.RotateImageWithBackground(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor);
+      WriteTiming('Rotate image with background');
 
       // Convert image back to its original format (but only if there is no forced format applied later)
       if (OutputImage.Format <> OrigFormat) and (Options.ForcedOutputFormat = ifUnknown) then
         OutputImage.Format := OrigFormat;
+    end
+    else
+    begin
+      Time := GetTimeMicroseconds;
+      OutputImage.Rotate(SkewAngle);
+      WriteTiming('Rotate image');
     end;
   end
   else
-    WriteLn('Skipping deskewing step, skew angle lower that threshold of ', Options.SkipAngle:4:2);
+    WriteLn('Skipping deskewing step, skew angle lower than threshold of ', Options.SkipAngle:4:2);
 
   if Options.ForcedOutputFormat <> ifUnknown then
   begin

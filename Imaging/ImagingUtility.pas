@@ -1616,7 +1616,7 @@ initialization
 {$ELSE FPC}
   FloatFormatSettings := DefaultFormatSettings;
   FloatFormatSettings.DecimalSeparator := '.';
-  FloatFormatSettings.ThousandSeparator := ' ';
+  FloatFormatSettings.ThousandSeparator := ',';
 {$IFEND}
 
 {
