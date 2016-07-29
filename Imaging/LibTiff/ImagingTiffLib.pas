@@ -53,7 +53,7 @@ unit ImagingTiffLib;
 interface
 
 uses
-  SysUtils, Imaging, ImagingTypes, ImagingUtility, ImagingIO, ImagingExtras,
+  SysUtils, Imaging, ImagingTypes, ImagingUtility, ImagingIO,
   ImagingTiff,
 {$IFDEF USE_DYN_LIB}
   LibTiffDynLib;

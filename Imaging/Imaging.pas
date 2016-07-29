@@ -344,6 +344,30 @@ procedure WriteRawImageRect(Data: Pointer; Left, Top, Width, Height: Integer;
 procedure ResizeImageToFit(const SrcImage: TImageData; FitWidth, FitHeight: Integer;
   Filter: TResizeFilter; var DestImage: TImageData);
 
+{ Color functions }
+
+{ Constructs TColor24Rec color.}
+function Color24(R, G, B: Byte): TColor24Rec; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Constructs TColor32Rec color.}
+function Color32(A, R, G, B: Byte): TColor32Rec; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Constructs TColor48Rec color.}
+function Color48(R, G, B: Word): TColor48Rec; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Constructs TColor64Rec color.}
+function Color64(A, R, G, B: Word): TColor64Rec; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Constructs TColorFPRec color.}
+function ColorFP(A, R, G, B: Single): TColorFPRec; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Constructs TColorHFRec color.}
+function ColorHF(A, R, G, B: THalfFloat): TColorHFRec; {$IFDEF USE_INLINE}inline;{$ENDIF}
+
+{ Convenience function for getting alpha component of TColor32.}
+function GetAlphaValue(Color32: TColor32): Byte; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Convenience function for getting red component of TColor32.}
+function GetRedValue(Color32: TColor32): Byte; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Convenience function for getting green component of TColor32.}
+function GetGreenValue(Color32: TColor32): Byte; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Convenience function for getting blue component of TColor32.}
+function GetBlueValue(Color32: TColor32): Byte; {$IFDEF USE_INLINE}inline;{$ENDIF}
+
 
 { ------------------------------------------------------------------------
                            Other Imaging Stuff
@@ -2988,6 +3012,74 @@ begin
 
   StretchRect(SrcImage, 0, 0, CurSize.CX, CurSize.CY, DestImage, 0, 0,
     DestSize.CX, DestSize.CY, Filter);
+end;
+
+{ Color constructor functions }
+
+function Color24(R, G, B: Byte): TColor24Rec;
+begin
+  Result.R := R;
+  Result.G := G;
+  Result.B := B;
+end;
+
+function Color32(A, R, G, B: Byte): TColor32Rec;
+begin
+  Result.A := A;
+  Result.R := R;
+  Result.G := G;
+  Result.B := B;
+end;
+
+function Color48(R, G, B: Word): TColor48Rec;
+begin
+  Result.R := R;
+  Result.G := G;
+  Result.B := B;
+end;
+
+function Color64(A, R, G, B: Word): TColor64Rec;
+begin
+  Result.A := A;
+  Result.R := R;
+  Result.G := G;
+  Result.B := B;
+end;
+
+function ColorFP(A, R, G, B: Single): TColorFPRec;
+begin
+  Result.A := A;
+  Result.R := R;
+  Result.G := G;
+  Result.B := B;
+end;
+
+function ColorHF(A, R, G, B: THalfFloat): TColorHFRec;
+begin
+  Result.A := A;
+  Result.R := R;
+  Result.G := G;
+  Result.B := B;
+end;
+
+function GetAlphaValue(Color32: TColor32): Byte;
+begin
+  Result := Color32 shr 24;
+end;
+
+function GetRedValue(Color32: TColor32): Byte;
+begin
+  Result := (Color32 shr 16) and $FF;
+end;
+
+function GetGreenValue(Color32: TColor32): Byte;
+begin
+  Result := (Color32 shr 8) and $FF;
+end;
+
+function GetBlueValue(Color32: TColor32): Byte;
+begin
+  Result := Color32 and $FF;
 end;
 
 { ------------------------------------------------------------------------

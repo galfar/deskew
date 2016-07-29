@@ -47,7 +47,7 @@ procedure RunDeskew;
 implementation
 
 const
-  SAppTitle = 'Deskew 1.14 (2016-06-24) by Marek Mauder';
+  SAppTitle = 'Deskew 1.16 (2016-07-29) by Marek Mauder'{$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF};
   SAppHome = 'http://galfar.vevb.net/deskew/';
 
 var
@@ -71,12 +71,12 @@ begin
   WriteLn('  Options:');
   WriteLn('    -o output:     Output image file (default: out.png)');
   WriteLn('    -a angle:      Maximal skew angle in degrees (default: 10)');
-  WriteLn('    -b color:      Background color in hex format RRGGBB (default: trns. black)');
+  WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: trns. black)');
   WriteLn('  Ext. options:');
   WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: a)');
   WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
   WriteLn('                   left,top,right,bottom (default: whole page)');
-  WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgba32)');
+  WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
@@ -124,8 +124,6 @@ var
   Threshold: Integer;
   ContentRect: TRect;
   Stats: TCalcSkewAngleStats;
-  HasBackColor: Boolean;
-  OrigFormat: TImageFormat;
 
   procedure WriteStats;
   begin
@@ -181,46 +179,47 @@ begin
   WriteLn('Skew angle found: ', SkewAngle:4:2);
 
   // Check if detected skew angle is higher than "skip" threshold - may not
-  // want to do rotation (+possible background fill) needlessly.
+  // want to do rotation needlessly.
   if Abs(SkewAngle) >= Options.SkipAngle then
   begin
     Result := True;
 
     // Finally, rotate the image. We rotate the original input image, not the working
-    // one so the color space is preserved.
+    // one so the color space is preserved if possible.
     WriteLn('Rotating image...');
-    if OutputImage.FormatInfo.IsIndexed or OutputImage.FormatInfo.IsSpecial then
-      OutputImage.Format := ifA8R8G8B8; // Rotation doesn't like indexed and compressed/1bit images
 
-    // For back color to work we need to make sure empty "void" around the image has alpha=0,
-    // so 32bit ARGB format is needed
-
-    HasBackColor := Options.BackgroundColor <> 0;
-
-    if HasBackColor then
+    // Rotation is optimized for Gray8, RGB24, and ARGB32 formats at this time
+    if not (OutputImage.Format in ImageUtils.SupportedRotationFormats) then
     begin
-      OrigFormat := OutputImage.Format;
-      OutputImage.Format := ifA8R8G8B8;
-
-      Time := GetTimeMicroseconds;
-      ImageUtils.RotateImageWithBackground(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor);
-      WriteTiming('Rotate image with background');
-
-      // Convert image back to its original format (but only if there is no forced format applied later)
-      if (OutputImage.Format <> OrigFormat) and (Options.ForcedOutputFormat = ifUnknown) then
-        OutputImage.Format := OrigFormat;
-    end
-    else
-    begin
-      Time := GetTimeMicroseconds;
-      OutputImage.Rotate(SkewAngle);
-      WriteTiming('Rotate image');
+      if OutputImage.FormatInfo.HasAlphaChannel then
+        OutputImage.Format := ifA8R8G8B8
+      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then
+        OutputImage.Format := ifGray8
+      else
+        OutputImage.Format := ifR8G8B8;
     end;
+
+    if (Options.BackgroundColor and $FF000000) <> $FF000000 then
+    begin
+      // User explicitly requested some alpha in background color
+      OutputImage.Format := ifA8R8G8B8;
+    end
+    else if (OutputImage.Format = ifGray8) and not (
+      (GetRedValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor)) and
+      (GetBlueValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor))) then
+    begin
+      // Some non-grayscale background for gray image was requested
+      OutputImage.Format := ifR8G8B8;
+    end;
+
+    Time := GetTimeMicroseconds;
+    ImageUtils.RotateImageWithBackground(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor);
+    WriteTiming('Rotate image');
   end
   else
     WriteLn('Skipping deskewing step, skew angle lower than threshold of ', Options.SkipAngle:4:2);
 
-  if Options.ForcedOutputFormat <> ifUnknown then
+  if (Options.ForcedOutputFormat <> ifUnknown) and (OutputImage.Format <> Options.ForcedOutputFormat) then
   begin
     // Force output format. For example Deskew won't automatically
     // save image as binary if the input was binary since it

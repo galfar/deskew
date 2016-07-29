@@ -39,7 +39,9 @@ uses
 
 begin
 {$IFDEF DEBUG}
+{$IFNDEF FPC}
   ReportMemoryLeaksOnShutdown := True;
+{$ENDIF}
 {$ENDIF}
   RunDeskew;
 end.

@@ -102,6 +102,9 @@ type
 
 implementation
 
+uses
+  Imaging;
+
 { TCmdLineOptions }
 
 constructor TCmdLineOptions.Create;
@@ -189,6 +192,7 @@ var
   var
     StrArray: TDynStringArray;
     ValLower: string;
+    TempColor: Cardinal;
   begin
     Result := True;
     ValLower := LowerCase(Value);
@@ -211,8 +215,22 @@ var
     end
     else if Param = '-b' then
     begin
-      // Set alpha to 255 for background
-      FBackgroundColor := $FF000000 or Cardinal($FFFFFF and StrToInt('$' + ValLower));
+      TempColor := Cardinal(StrToInt64('$' + ValLower) and $FFFFFFFF);
+      if TempColor <= $FF then
+      begin
+        // Just one channel given, replicate for all channels + opaque
+        FBackgroundColor := Color32($FF, Byte(TempColor), Byte(TempColor), Byte(TempColor)).Color;
+      end
+      else if TempColor <= $FFFFFF then
+      begin
+        // RGB given, set alpha to 255 for background
+        FBackgroundColor := $FF000000 or TempColor;
+      end
+      else
+      begin
+        // Full ARGB given
+        FBackgroundColor := TempColor;
+      end;
     end
     else if Param = '-f' then
     begin
@@ -220,6 +238,8 @@ var
         FForcedOutputFormat := ifBinary
       else if ValLower = 'g8' then
         FForcedOutputFormat := ifGray8
+      else if ValLower = 'rgb24' then
+        FForcedOutputFormat := ifR8G8B8
       else if ValLower = 'rgba32' then
         FForcedOutputFormat := ifA8R8G8B8;
     end
@@ -277,15 +297,16 @@ end;
 function TCmdLineOptions.OptionsToString: string;
 begin
   Result :=
-    '  input file  =   ' + InputFile + sLineBreak +
-    '  output file =  ' + OutputFile + sLineBreak +
-    '  max angle   = ' + FloatToStr(MaxAngle) + sLineBreak +
-    '  skip angle  = ' + FloatToStr(SkipAngle) + sLineBreak +
-    '  thresholdinging method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
-    '  threshold level  = ' + IntToStr(ThresholdLevel) + sLineBreak +
-    '  background color = ' + IntToHex(BackgroundColor, 6) + sLineBreak +
-    '  content rect     = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
-    '  show info = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '')  + sLineBreak;
+    '  input file          = ' + InputFile + sLineBreak +
+    '  output file         = ' + OutputFile + sLineBreak +
+    '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
+    '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
+    '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
+    '  threshold level     = ' + IntToStr(ThresholdLevel) + sLineBreak +
+    '  content rect        = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
+    '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
+    '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
+    '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak;
 end;
 
 end.

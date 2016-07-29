@@ -58,7 +58,11 @@ uses
   If BinarizeImage is True then the Image is automatically converted to binary using
   computed threshold level.}
 function OtsuThresholding(var Image: TImageData; BinarizeImage: Boolean = False): Integer;
-{ Rotates 32bit image with a background (of outside "void" areas) of specified color. }
+
+const
+  SupportedRotationFormats: set of TImageFormat = [ifGray8, ifR8G8B8, ifA8R8G8B8];
+
+{ Rotates image with a background (of outside "void" areas) of specified color. }
 procedure RotateImageWithBackground(var Image: TImageData; Angle: Double; BackgroundColor: TColor32);
 
 implementation
@@ -149,82 +153,291 @@ begin
   Result := Level;
 end;
 
-function InterpolatePixels(const A, B: TColor32Rec; Weight: Integer): TColor32Rec; inline;
+procedure RotateMul90(var Image: TImageData; Angle, BytesPerPixel: Integer);
+var
+  RotImage: TImageData;
+  X, Y: Integer;
+  RotPix, Pix: PByte;
 begin
-  Result.A := 255;
+  InitImage(RotImage);
+
+  if ((Angle = 90) or (Angle = 270)) and (Image.Width <> Image.Height) then
+    NewImage(Image.Height, Image.Width, Image.Format, RotImage)
+  else
+    NewImage(Image.Width, Image.Height, Image.Format, RotImage);
+
+  RotPix := RotImage.Bits;
+  case Angle of
+    90:
+      begin
+        for Y := 0 to RotImage.Height - 1 do
+        begin
+          Pix := @PByteArray(Image.Bits)[(Image.Width - Y - 1) * BytesPerPixel];
+          for X := 0 to RotImage.Width - 1 do
+          begin
+            CopyPixel(Pix, RotPix, BytesPerPixel);
+            Inc(RotPix, BytesPerPixel);
+            Inc(Pix, Image.Width * BytesPerPixel);
+          end;
+        end;
+      end;
+    180:
+      begin
+        Pix := @PByteArray(Image.Bits)[((Image.Height - 1) * Image.Width +
+          (Image.Width - 1)) * BytesPerPixel];
+        for Y := 0 to RotImage.Height - 1 do
+          for X := 0 to RotImage.Width - 1 do
+          begin
+            CopyPixel(Pix, RotPix, BytesPerPixel);
+            Inc(RotPix, BytesPerPixel);
+            Dec(Pix, BytesPerPixel);
+          end;
+      end;
+    270:
+      begin
+        for Y := 0 to RotImage.Height - 1 do
+        begin
+          Pix := @PByteArray(Image.Bits)[((Image.Height - 1) * Image.Width + Y) * BytesPerPixel];
+          for X := 0 to RotImage.Width - 1 do
+          begin
+            CopyPixel(Pix, RotPix, BytesPerPixel);
+            Inc(RotPix, BytesPerPixel);
+            Dec(Pix, Image.Width * BytesPerPixel);
+          end;
+        end;
+      end;
+  end;
+
+  FreeMemNil(Image.Bits);
+  RotImage.Palette := Image.Palette;
+  Image := RotImage;
+end;
+
+procedure XShearGray8(const Src, Dst: TImageData; Row, Offset, Weight: Integer; const BackColor: TColor32Rec);
+var
+  I, XPos: Integer;
+  PixWork, PixLeft, PixOldLeft: Byte;
+  PixSrc: PByte;
+  LineDst: PByteArray;
+begin
+  PixSrc := @PByteArray(Src.Bits)[Row * Src.Width];
+  LineDst := @PByteArray(Dst.Bits)[Row * Dst.Width];
+  PixOldLeft := BackColor.B;
+
+  for I := 0 to Src.Width - 1 do
+  begin
+    PixWork := PixSrc^;
+    PixLeft := BackColor.B + (PixWork - BackColor.B) * Weight div 256;
+
+    XPos := I + Offset;
+    if (XPos >= 0) and (XPos < Dst.Width) then
+    begin
+      PixWork := ClampToByte(PixWork - (PixLeft - PixOldLeft));
+      LineDst[XPos] := PixWork;
+    end;
+    PixOldLeft := PixLeft;
+    Inc(PixSrc);
+  end;
+
+  XPos := Src.Width + Offset;
+  if XPos < Dst.Width then
+    PByteArray(Dst.Bits)[XPos] := PixOldLeft;
+end;
+
+procedure YShearGray8(const Src, Dst: TImageData; Col, Offset, Weight: Integer; const BackColor: TColor32Rec);
+var
+  I, YPos: Integer;
+  PixWork, PixLeft, PixOldLeft: Byte;
+  PixSrc: PByte;
+begin
+  PixSrc := @PByteArray(Src.Bits)[Col];
+  PixOldLeft := BackColor.B;
+
+  for I := 0 to Src.Height - 1 do
+  begin
+    PixWork := PixSrc^;
+    PixLeft := BackColor.B + (PixWork - BackColor.B) * Weight div 256;
+
+    YPos := I + Offset;
+    if (YPos >= 0) and (YPos < Dst.Height) then
+    begin
+      PixWork := ClampToByte(PixWork - (PixLeft - PixOldLeft));
+      PByteArray(Dst.Bits)[YPos * Dst.Width + Col] := PixWork;
+    end;
+    PixOldLeft := PixLeft;
+    Inc(PixSrc, Src.Width);
+  end;
+
+  YPos := Src.Height + Offset;
+  if YPos < Dst.Height then
+    PByteArray(Dst.Bits)[YPos * Dst.Width + Col] := PixOldLeft;
+end;
+
+function InterpolatePixelsRGB24(const A, B: TColor24Rec; Weight: Integer): TColor24Rec; inline;
+begin
   Result.R := B.R + (A.R - B.R) * Weight div 256;
   Result.G := B.G + (A.G - B.G) * Weight div 256;
   Result.B := B.B + (A.B - B.B) * Weight div 256;
 end;
 
+procedure XShearRGB24(const Src, Dst: TImageData; Row, Offset, Weight: Integer; const BackColor: TColor32Rec);
+var
+  I, J, XPos: Integer;
+  PixWork, PixLeft, PixOldLeft: TColor24Rec;
+  PixSrc: PColor24Rec;
+  LineDst: PColor24RecArray;
+begin
+  PixSrc := @PColor24RecArray(Src.Bits)[Row * Src.Width];
+  LineDst := @PColor24RecArray(Dst.Bits)[Row * Dst.Width];
+  PixOldLeft := BackColor.Color24Rec;
+
+  for I := 0 to Src.Width - 1 do
+  begin
+    PixWork := PixSrc^;
+    PixLeft := InterpolatePixelsRGB24(PixWork, BackColor.Color24Rec, Weight);
+
+    XPos := I + Offset;
+    if (XPos >= 0) and (XPos < Dst.Width) then
+    begin
+      for J := 0 to 2 do
+        PixWork.Channels[J] := ClampToByte(PixWork.Channels[J] - (PixLeft.Channels[J] - PixOldLeft.Channels[J]));
+      LineDst[XPos] := PixWork;
+    end;
+    PixOldLeft := PixLeft;
+    Inc(PixSrc);
+  end;
+
+  XPos := Src.Width + Offset;
+  if XPos < Dst.Width then
+    PColor24RecArray(Dst.Bits)[XPos] := PixOldLeft;
+end;
+
+procedure YShearRGB24(const Src, Dst: TImageData; Col, Offset, Weight: Integer; const BackColor: TColor32Rec);
+var
+  I, J, YPos: Integer;
+  PixWork, PixLeft, PixOldLeft: TColor24Rec;
+  PixSrc: PColor24Rec;
+begin
+  PixSrc := @PColor24RecArray(Src.Bits)[Col];
+  PixOldLeft := BackColor.Color24Rec;
+
+  for I := 0 to Src.Height - 1 do
+  begin
+    PixWork := PixSrc^;
+    PixLeft := InterpolatePixelsRGB24(PixWork, BackColor.Color24Rec, Weight);
+
+    YPos := I + Offset;
+    if (YPos >= 0) and (YPos < Dst.Height) then
+    begin
+      for J := 0 to 2 do
+        PixWork.Channels[J] := ClampToByte(PixWork.Channels[J] - (PixLeft.Channels[J] - PixOldLeft.Channels[J]));
+      PColor24RecArray(Dst.Bits)[YPos * Dst.Width + Col] := PixWork;
+    end;
+    PixOldLeft := PixLeft;
+    Inc(PixSrc, Src.Width);
+  end;
+
+  YPos := Src.Height + Offset;
+  if YPos < Dst.Height then
+    PColor24RecArray(Dst.Bits)[YPos * Dst.Width + Col] := PixOldLeft;
+end;
+
+function InterpolatePixelsARGB32(const A, B: TColor32Rec; Weight: Integer): TColor32Rec; inline;
+begin
+  Result.A := B.A + (A.A - B.A) * Weight div 256;
+  Result.R := B.R + (A.R - B.R) * Weight div 256;
+  Result.G := B.G + (A.G - B.G) * Weight div 256;
+  Result.B := B.B + (A.B - B.B) * Weight div 256;
+end;
+
+procedure XShearARGB32(const Src, Dst: TImageData; Row, Offset, Weight: Integer; const BackColor: TColor32Rec);
+var
+  I, J, XPos: Integer;
+  PixWork, PixLeft, PixOldLeft: TColor32Rec;
+  PixSrc: PColor32Rec;
+  LineDst: PColor32RecArray;
+begin
+  PixSrc := @PColor32RecArray(Src.Bits)[Row * Src.Width];
+  LineDst := @PColor32RecArray(Dst.Bits)[Row * Dst.Width];
+  PixOldLeft.Color := BackColor.Color;
+
+  for I := 0 to Src.Width - 1 do
+  begin
+    PixWork := PixSrc^;
+    PixLeft := InterpolatePixelsARGB32(PixWork, BackColor, Weight);
+
+    XPos := I + Offset;
+    if (XPos >= 0) and (XPos < Dst.Width) then
+    begin
+      for J := 0 to 3 do
+        PixWork.Channels[J] := ClampToByte(PixWork.Channels[J] - (PixLeft.Channels[J] - PixOldLeft.Channels[J]));
+      LineDst[XPos] := PixWork;
+    end;
+    PixOldLeft := PixLeft;
+    Inc(PixSrc);
+  end;
+
+  XPos := Src.Width + Offset;
+  if XPos < Dst.Width then
+    PColor32RecArray(Dst.Bits)[XPos] := PixOldLeft;
+end;
+
+procedure YShearARGB32(const Src, Dst: TImageData; Col, Offset, Weight: Integer; const BackColor: TColor32Rec);
+var
+  I, J, YPos: Integer;
+  PixWork, PixLeft, PixOldLeft: TColor32Rec;
+  PixSrc: PColor32Rec;
+begin
+  PixSrc := @PColor32RecArray(Src.Bits)[Col];
+  PixOldLeft.Color := BackColor.Color;
+
+  for I := 0 to Src.Height - 1 do
+  begin
+    PixWork := PixSrc^;
+    PixLeft := InterpolatePixelsARGB32(PixWork, BackColor, Weight);
+
+    YPos := I + Offset;
+    if (YPos >= 0) and (YPos < Dst.Height) then
+    begin
+      for J := 0 to 3 do
+        PixWork.Channels[J] := ClampToByte(PixWork.Channels[J] - (PixLeft.Channels[J] - PixOldLeft.Channels[J]));
+      PColor32RecArray(Dst.Bits)[YPos * Dst.Width + Col] := PixWork;
+    end;
+    PixOldLeft := PixLeft;
+    Inc(PixSrc, Src.Width);
+  end;
+
+  YPos := Src.Height + Offset;
+  if YPos < Dst.Height then
+    PColor32RecArray(Dst.Bits)[YPos * Dst.Width + Col] := PixOldLeft;
+end;
+
 // Based on Alan Paeth's "A Fast Algorithm for General Raster Rotation"
 procedure RotateImageWithBackground(var Image: TImageData; Angle: Double; BackgroundColor: TColor32);
 type
-  TColor32Array = array[0..MaxInt div SizeOf(TColor32) - 1] of TColor32;
-  PColor32Array = ^TColor32Array;
+  TShearProc = procedure(const Src, Dst: TImageData; Row, Offset, Weight: Integer; const BackColor: TColor32Rec);
 var
   BackColorRec: TColor32Rec;
+  FormatInfo: TImageFormatInfo;
+  XShear: TShearProc;
+  YShear: TShearProc;
 
-  procedure XShear(var Src, Dst: TImageData; Row, Offset, Weight: Integer);
+  procedure ClearImage(Pixels: Pointer; SizeBytes, BytesPerPixel: Integer);
   var
-    I, J, XPos: Integer;
-    PixWork, PixLeft, PixOldLeft: TColor32Rec;
-    PixSrc: PColor32Rec;
-    LineDst: PColor32RecArray;
+    I: Integer;
   begin
-    PixSrc := @PColor32RecArray(Src.Bits)[Row * Src.Width];
-    LineDst := @PColor32RecArray(Dst.Bits)[Row * Dst.Width];
-    PixOldLeft.Color := BackgroundColor;
-
-    for I := 0 to Src.Width - 1 do
-    begin
-      PixWork := PixSrc^;
-      PixLeft := InterpolatePixels(PixWork, BackColorRec, Weight);
-
-      XPos := I + Offset;
-      if (XPos >= 0) and (XPos < Dst.Width) then
-      begin
-        for J := 0 to 3 do
-          PixWork.Channels[J] := ClampToByte(PixWork.Channels[J] - (PixLeft.Channels[J] - PixOldLeft.Channels[J]));
-        LineDst[XPos] := PixWork;
-      end;
-      PixOldLeft := PixLeft;
-      Inc(PixSrc);
+    case BytesPerPixel of
+      1: FillMemoryByte(Pixels, SizeBytes, BackColorRec.B);
+      3:
+        for I := 0 to SizeBytes div 3 - 1 do
+        begin
+          PColor24Rec(Pixels)^ := BackColorRec.Color24Rec;
+          Inc(PColor24Rec(Pixels));
+        end;
+      4: FillMemoryLongWord(Pixels, SizeBytes, BackColorRec.Color);
+      else
+        Assert(False);
     end;
-
-    XPos := Src.Width + Offset;
-    if XPos < Dst.Width then
-      PColor32RecArray(Dst.Bits)[XPos] := PixOldLeft;
-  end;
-
-  procedure YShear(var Src, Dst: TImageData; Col, Offset, Weight: Integer);
-  var
-    I, J, YPos: Integer;
-    PixWork, PixLeft, PixOldLeft: TColor32Rec;
-    PixSrc: PColor32Rec;
-  begin
-    PixSrc := @PColor32RecArray(Src.Bits)[Col];
-    PixOldLeft.Color := BackgroundColor;
-
-    for I := 0 to Src.Height - 1 do
-    begin
-      PixWork := PixSrc^;
-      PixLeft := InterpolatePixels(PixWork, BackColorRec, Weight);
-
-      YPos := I + Offset;
-      if (YPos >= 0) and (YPos < Dst.Height) then
-      begin
-        for J := 0 to 3 do
-          PixWork.Channels[J] := ClampToByte(PixWork.Channels[J] - (PixLeft.Channels[J] - PixOldLeft.Channels[J]));
-        PColor32RecArray(Dst.Bits)[YPos * Dst.Width + Col] := PixWork;
-      end;
-      PixOldLeft := PixLeft;
-      Inc(PixSrc, Src.Width);
-    end;
-
-    YPos := Src.Height + Offset;
-    if YPos < Dst.Height then
-      PColor32RecArray(Dst.Bits)[YPos * Dst.Width + Col] := PixOldLeft;
   end;
 
   procedure Rotate45(var Image: TImageData; Angle: Double);
@@ -232,6 +445,7 @@ var
     TempImage1, TempImage2: TImageData;
     AngleRad, AngleTan, AngleSin, AngleCos, Shear: Double;
     I, DstWidth, DstHeight, SrcWidth, SrcHeight: Integer;
+    Format: TImageFormat;
   begin
     AngleRad := Angle * Pi / 180;
     AngleSin := Sin(AngleRad);
@@ -239,13 +453,14 @@ var
     AngleTan := Sin(AngleRad / 2) / Cos(AngleRad / 2);
     SrcWidth := Image.Width;
     SrcHeight := Image.Height;
+    Format := Image.Format;
 
     // 1st shear (horizontal)
     DstWidth := Trunc(SrcWidth + SrcHeight * Abs(AngleTan) + 0.5);
     DstHeight := SrcHeight;
     InitImage(TempImage1);
-    NewImage(DstWidth, DstHeight, ifA8R8G8B8, TempImage1);
-    FillMemoryLongWord(TempImage1.Bits, TempImage1.Size, BackgroundColor);
+    NewImage(DstWidth, DstHeight, Format, TempImage1);
+    ClearImage(TempImage1.Bits, TempImage1.Size, FormatInfo.BytesPerPixel);
 
     for I := 0 to DstHeight - 1 do
     begin
@@ -253,15 +468,15 @@ var
         Shear := (I + 0.5) * AngleTan
       else
         Shear := (I - DstHeight + 0.5) * AngleTan;
-      XShear(Image, TempImage1, I, Floor(Shear), Trunc(255 * (Shear - Floor(Shear)) + 1));
+      XShear(Image, TempImage1, I, Floor(Shear), Trunc(255 * (Shear - Floor(Shear)) + 1), BackColorRec);
     end;
 
     // 2nd shear (vertical)
     FreeImage(Image);
     DstHeight := Trunc(SrcWidth * Abs(AngleSin) + SrcHeight * AngleCos + 0.5) + 1;
     InitImage(TempImage2);
-    NewImage(DstWidth, DstHeight, ifA8R8G8B8, TempImage2);
-    FillMemoryLongWord(TempImage2.Bits, TempImage2.Size, BackgroundColor);
+    NewImage(DstWidth, DstHeight, Format, TempImage2);
+    ClearImage(TempImage2.Bits, TempImage2.Size, FormatInfo.BytesPerPixel);
 
     if AngleSin >= 0 then
       Shear := (SrcWidth - 1) * AngleSin
@@ -270,15 +485,15 @@ var
 
     for I := 0 to DstWidth - 1 do
     begin
-      YShear(TempImage1, TempImage2, I, Floor(Shear), Trunc(255 * (Shear - Floor(Shear)) + 1));
+      YShear(TempImage1, TempImage2, I, Floor(Shear), Trunc(255 * (Shear - Floor(Shear)) + 1), BackColorRec);
       Shear := Shear - AngleSin;
     end;
 
     // 3rd shear (horizontal)
     FreeImage(TempImage1);
     DstWidth := Trunc(SrcHeight * Abs(AngleSin) + SrcWidth * AngleCos + 0.5) + 1;
-    NewImage(DstWidth, DstHeight, ifA8R8G8B8, Image);
-    FillMemoryLongWord(Image.Bits, Image.Size, BackgroundColor);
+    NewImage(DstWidth, DstHeight, Format, Image);
+    ClearImage(Image.Bits, Image.Size, FormatInfo.BytesPerPixel);
 
     if AngleSin >= 0 then
       Shear := (SrcWidth - 1) * AngleSin * -AngleTan
@@ -287,74 +502,39 @@ var
 
     for I := 0 to DstHeight - 1 do
     begin
-      XShear(TempImage2, Image, I, Floor(Shear), Trunc(255 * (Shear - Floor(Shear)) + 1));
+      XShear(TempImage2, Image, I, Floor(Shear), Trunc(255 * (Shear - Floor(Shear)) + 1), BackColorRec);
       Shear := Shear + AngleTan;
     end;
 
     FreeImage(TempImage2);
   end;
 
-  procedure RotateMul90(var Image: TImageData; Angle: Integer);
-  var
-    RotImage: TImageData;
-    X, Y: Integer;
-    RotPix, Pix: PColor32;
-  begin
-    InitImage(RotImage);
-
-    if ((Angle = 90) or (Angle = 270)) and (Image.Width <> Image.Height) then
-      NewImage(Image.Height, Image.Width, Image.Format, RotImage)
-    else
-      NewImage(Image.Width, Image.Height, Image.Format, RotImage);
-
-    RotPix := RotImage.Bits;
-    case Angle of
-      90:
-        begin
-          for Y := 0 to RotImage.Height - 1 do
-          begin
-            Pix := @PColor32Array(Image.Bits)[Image.Width - Y - 1];
-            for X := 0 to RotImage.Width - 1 do
-            begin
-              RotPix^ := Pix^;
-              Inc(RotPix);
-              Inc(Pix, Image.Width);
-            end;
-          end;
-        end;
-      180:
-        begin
-          Pix := @PColor32Array(Image.Bits)[(Image.Height - 1) * Image.Width + (Image.Width - 1)];
-          for Y := 0 to RotImage.Height - 1 do
-            for X := 0 to RotImage.Width - 1 do
-            begin
-              RotPix^ := Pix^;
-              Inc(RotPix);
-              Dec(Pix);
-            end;
-        end;
-      270:
-        begin
-          for Y := 0 to RotImage.Height - 1 do
-          begin
-            Pix := @PColor32Array(Image.Bits)[(Image.Height - 1) * Image.Width + Y];
-            for X := 0 to RotImage.Width - 1 do
-            begin
-              RotPix^ := Pix^;
-              Inc(RotPix);
-              Dec(Pix, Image.Width);
-            end;
-          end;
-        end;
-    end;
-
-    FreeMemNil(Image.Bits);
-    Image := RotImage;
-  end;
-
 begin
-  Assert(Image.Format = ifA8R8G8B8);
-  BackColorRec.Color := BackgroundColor;;
+  Assert(Image.Format in SupportedRotationFormats);
+  GetImageFormatInfo(Image.Format, FormatInfo);
+  BackColorRec.Color := BackgroundColor;
+
+  case Image.Format of
+    ifGray8:
+      begin
+        XShear := @XShearGray8;
+        YShear := @YShearGray8;
+        // B channel stores grayscale/intensity used later
+        BackColorRec.B := Color32ToGray(BackgroundColor);
+      end;
+    ifR8G8B8:
+      begin
+        XShear := @XShearRGB24;
+        YShear := @YShearRGB24;
+      end;
+    ifA8R8G8B8:
+      begin
+        XShear := @XShearARGB32;
+        YShear := @YShearARGB32;
+      end;
+    else
+      Assert(False);
+  end;
 
   if not TestImage(Image) then
     raise EImagingBadImage.Create;
@@ -369,17 +549,17 @@ begin
 
   if (Angle > 45) and (Angle <= 135) then
   begin
-    RotateMul90(Image, 90);
+    RotateMul90(Image, 90, FormatInfo.BytesPerPixel);
     Angle := Angle - 90;
   end
   else if (Angle > 135) and (Angle <= 225) then
   begin
-    RotateMul90(Image, 180);
+    RotateMul90(Image, 180, FormatInfo.BytesPerPixel);
     Angle := Angle - 180;
   end
   else if (Angle > 225) and (Angle <= 315) then
   begin
-    RotateMul90(Image, 270);
+    RotateMul90(Image, 270, FormatInfo.BytesPerPixel);
     Angle := Angle - 270;
   end;
 
