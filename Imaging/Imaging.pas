@@ -3114,8 +3114,7 @@ end;
 
 function GetVersionStr: string;
 begin
-  Result := Format('%.1d.%.2d.%.1d', [ImagingVersionMajor,
-    ImagingVersionMinor, ImagingVersionPatch]);
+  Result := Format('%.1d.%.2d.', [ImagingVersionMajor, ImagingVersionMinor]);
 end;
 
 function IffFormat(Condition: Boolean; const TruePart, FalsePart: TImageFormat): TImageFormat;
@@ -4174,6 +4173,10 @@ finalization
 
   -- TODOS ----------------------------------------------------
     - nothing now
+
+  -- 0.80 ------------------------------------------------------
+    - Added new color records constructor functions (Color24(..), Color32(..)).
+    - Added convenience channel getters for TColor32 (GetGreenValue, ...).
 
   -- 0.77.1 ---------------------------------------------------
     - Updated IO Open functions according to changes in ImagingTypes.

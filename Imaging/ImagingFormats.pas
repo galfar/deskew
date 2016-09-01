@@ -4384,8 +4384,11 @@ initialization
   -- TODOS ----------------------------------------------------
     - nothing now
 
+  -- 0.80 -------------------------------------------------------
+    - Added PaletteIsGrayScale and Color32ToGray functions.
+
   -- 0.77 Changes/Bug Fixes -------------------------------------
-    - Added support for Passtrough image data formats.
+    - NOT YET: Added support for Passtrough image data formats.
     - Added ConvertToPixel32 helper function.
 
   -- 0.26.5 Changes/Bug Fixes -----------------------------------

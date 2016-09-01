@@ -203,7 +203,7 @@ begin
       end
       else if OutputImage.FormatInfo.HasAlphaChannel then
         OutputImage.Format := ifA8R8G8B8
-      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then // TODO: or indexed with grey palette!     ***************************
+      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then
         OutputImage.Format := ifGray8
       else
         OutputImage.Format := ifR8G8B8;

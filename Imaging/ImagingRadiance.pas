@@ -164,14 +164,14 @@ var
       begin
         ValStr := Copy(NativeLine, 7, MaxInt);
         if TryStrToFloat(ValStr, ValFloat, GetFormatSettingsForFloats) then
-          FMetadata.AddMetaItem(SMetaGamma, ValFloat);
+          FMetadata.SetMetaItem(SMetaGamma, ValFloat);
       end;
 
       if StrMaskMatch(NativeLine, 'Exposure=*') then
       begin
         ValStr := Copy(NativeLine, 10, MaxInt);
         if TryStrToFloat(ValStr, ValFloat, GetFormatSettingsForFloats) then
-          FMetadata.AddMetaItem(SMetaExposure, ValFloat);
+          FMetadata.SetMetaItem(SMetaExposure, ValFloat);
       end;
 
       if StrMaskMatch(NativeLine, '?Y * ?X *') then

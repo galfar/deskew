@@ -41,6 +41,10 @@ type
     property JpegQuality: Integer read FJpegQuality write FJpegQuality;
   end;
 
+const
+  { Read only metadata info - name of compression scheme used in last loaded TIFF. }
+  SMetaTiffCompressionName = 'TiffCompressionName';
+
 implementation
 
 const

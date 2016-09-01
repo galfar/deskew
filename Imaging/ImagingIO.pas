@@ -409,7 +409,7 @@ begin
   Result := TBufferedStream(Handle).Read(Buffer^, Count);
 end;
 
-function FileWrite(Handle: TImagingHandle; Buffer: Pointer; Count: LongInt): LOngInt; cdecl;
+function FileWrite(Handle: TImagingHandle; Buffer: Pointer; Count: LongInt): LongInt; cdecl;
 begin
   Result := TBufferedStream(Handle).Write(Buffer^, Count);
 end;

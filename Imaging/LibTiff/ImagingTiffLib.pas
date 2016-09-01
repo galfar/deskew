@@ -201,19 +201,35 @@ var
 
   procedure LoadMetadata(Tiff: PTiff; TiffPage: Integer);
   var
-    TiffResUnit: Word;
+    TiffResUnit, CompressionScheme: Word;
     XRes, YRes: Single;
     ResUnit: TResolutionUnit;
+    CompressionName: string;
   begin
     TIFFGetFieldDefaulted(Tiff, TIFFTAG_RESOLUTIONUNIT, @TiffResUnit);
     TIFFGetFieldDefaulted(Tiff, TIFFTAG_XRESOLUTION, @XRes);
     TIFFGetFieldDefaulted(Tiff, TIFFTAG_YRESOLUTION, @YRes);
+    TIFFGetFieldDefaulted(Tiff, TIFFTAG_COMPRESSION, @CompressionScheme);
+
     if (TiffResUnit <> RESUNIT_NONE) and (XRes >= 0.1) and (YRes >= 0.1) then
     begin
       ResUnit := ruDpi;
       if TiffResUnit = RESUNIT_CENTIMETER then
         ResUnit := ruDpcm;
       FMetadata.SetPhysicalPixelSize(ResUnit, XRes, YRes, False, TiffPage);
+    end;
+
+    case CompressionScheme of
+      COMPRESSION_NONE: CompressionName := 'None';
+      COMPRESSION_LZW:  CompressionName := 'LZW';
+      COMPRESSION_JPEG: CompressionName := 'JPEG';
+      COMPRESSION_PACKBITS:  CompressionName := 'Packbits RLE';
+      COMPRESSION_DEFLATE:   CompressionName := 'Deflate';
+      COMPRESSION_CCITTFAX4: CompressionName := 'CCITT Group 4 Fax';
+      COMPRESSION_OJPEG: CompressionName := 'Old JPEG';
+      COMPRESSION_CCITTRLE..COMPRESSION_CCITTFAX3: CompressionName := 'CCITT';
+    else
+      CompressionName := 'Unknown';
     end;
   end;
 
@@ -575,6 +591,9 @@ initialization
 
   -- TODOS ----------------------------------------------------
     - nothing now
+
+  -- 0.77.3 ----------------------------------------------------
+
 
   -- 0.77.3 ----------------------------------------------------
     - Lot more platforms than just 32bit Delphi supported now.

@@ -4,7 +4,7 @@ by Marek Mauder
 [http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)
 [https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)
 
-**v1.20 2016-09-01**
+==**v1.20 2016-09-01**==
 
 Overview
 ------------------------
@@ -20,6 +20,8 @@ You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
 Note that scripts just call `deskew` command so you may need
 to rename binary for your platform to just `deskew`.
+
+License: MIT
 
 Usage
 ------------------------
@@ -45,8 +47,7 @@ deskew [-o output] [-a angle] [-b color] [..] input
     Output: BMP, JPG, PNG, JNG, GIF, DDS, TGA, PGM, PPM, PAM, PFM, PSD, TIF
 ```
 
-Notes
--------------------------
+#### Notes
 
 On Linux, you need to have libtiff 4.x installed (package is called libtiff5).
 
@@ -79,4 +80,30 @@ Version History
 0.90 2010-02-12:
   - Initial version
 
+Compiling Deskew
+------------------------
+
+Deskew is written in Object Pascal. You need
+Free Pascal or Delphi to recompile it.
+
+#### Tested Compilers
+There are project files for these IDEs:
+  1. Lazarus 1.4.4 (deskew.lpi)
+  2. Delphi XE 2 (deskew.dproj)
+
+Additionaly, there is compile shell script for FPC compiler 'compile.sh'.
+
+#### Target Platforms
+Deskew is precompiled and was tested on these platforms:
+Win32, Win64, Linux 32bit+64bit, Mac OSX 32bit
+
+#### Source Code
+Latest source ocde can be found here:
+https://bitbucket.org/galfar/app-deskew
+
+#### Dependencies
+------------------------
+Vampyre Imaging Library is needed for compilation.
+You can find it included in Imaging folder or get it at
+http://imaginglib.sourceforge.net
 

@@ -1476,7 +1476,7 @@ begin
     FileClose(fd);
 end;
 
-{$IF Defined(DCC) and Defined(MSWINDOWS) and Defined(CPUX86)}
+{$IF Defined(DCC) and Defined(MSWINDOWS) and not Defined(CPUX64)}
   // Delphi Win32
   {$L Compiled\tif_read.obj}
   {$L Compiled\tif_dirinfo.obj}

@@ -491,7 +491,7 @@ procedure jcopy_sample_rows(input_array: Pointer; source_row: Integer; output_ar
 function  jround_up(a: Integer; b: Integer): Integer; cdecl; external;
 procedure jcopy_block_row(input_row: Pointer; output_row: Pointer; num_blocks: Cardinal); cdecl; external;
 
-{$IF Defined(DCC) and Defined(MSWINDOWS) and Defined(CPUX86)}
+{$IF Defined(DCC) and Defined(MSWINDOWS) and not Defined(CPUX64)}
   // Windows 32bit Delphi only - OMF object format
   {$L Compiled\jmemnobs.obj}
   {$L Compiled\jmemmgr.obj}

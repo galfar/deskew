@@ -58,7 +58,7 @@ begin
   Result:=deflateInit_(strm,level,PAnsiChar(ZLIB_VERSION),SizeOf(RZStream));
 end;
 
-{$IF Defined(DCC) and Defined(MSWINDOWS) and Defined(CPUX86)}
+{$IF Defined(DCC) and Defined(MSWINDOWS) and not Defined(CPUX64)}
   // Windows 32bit Delphi only - OMF object format
   {$L Compiled\inflate.obj}
   {$L Compiled\crc32.obj}
