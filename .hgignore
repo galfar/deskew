@@ -1,6 +1,7 @@
 syntax: glob
 
 __history
+backup
 
 _internal/*
 Dcu/*

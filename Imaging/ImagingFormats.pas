@@ -164,6 +164,8 @@ function Has32BitImageAlpha(NumPixels: LongInt; Data: PLongWord): Boolean;
 { Checks if there is any relevant alpha data (any entry has alpha <> 255)
   in the given palette.}
 function PaletteHasAlpha(Palette: PPalette32; PaletteEntries: Integer): Boolean;
+{ Checks if given palette has only grayscale entries.}
+function PaletteIsGrayScale(Palette: PPalette32; PaletteEntries: Integer): Boolean;
 
 { Provides indexed access to each line of pixels. Does not work with special
   format images.}
@@ -2204,6 +2206,21 @@ begin
     end;
   end;
   Result := False;
+end;
+
+function PaletteIsGrayScale(Palette: PPalette32; PaletteEntries: Integer): Boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to PaletteEntries - 1 do
+  begin
+    if (Palette[I].R <> Palette[I].G) or (Palette[I].R <> Palette[I].B)  then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+  Result := True;
 end;
 
 function GetScanLine(ImageBits: Pointer; const FormatInfo: TImageFormatInfo;

@@ -76,8 +76,8 @@ type
   end;
   TLineArray = array of TLine;
 var
-  AlphaStart, MinD, SumAngles: Double;
-  AlphaSteps, DCount, AccumulatorSize, I, AccumulatedCounts: Integer;
+  AlphaStart, MinDist, SumAngles: Double;
+  AlphaSteps, DistCount, AccumulatorSize, I, AccumulatedCounts: Integer;
   BestLines: TLineArray;
   HoughAccumulator: array of Integer;
   PageWidth, PageHeight: Integer;
@@ -111,7 +111,7 @@ var
       // Parameter D(distance from origin) of the line y=tg(alpha)x + d
       D := Y * Cos - X * Sin;
       // Calc index into accumulator for current line
-      DIndex := Trunc(D - MinD);
+      DIndex := Trunc(D - MinDist);
       Index := DIndex * AlphaSteps + I;
       // Add one vote for current line
       HoughAccumulator[Index] := HoughAccumulator[Index] + 1;
@@ -138,7 +138,7 @@ var
   // Chooses "best" lines (with the most votes) from the accumulator
   function GetBestLines(Count: Integer): TLineArray;
   var
-    I, J, DIndex, AlphaIndex: Integer;
+    I, J, DistIndex, AlphaIndex: Integer;
     Temp: TLine;
   begin
     AccumulatedCounts := 0;
@@ -170,10 +170,10 @@ var
     for I := 0 to Count - 1 do
     begin
       // Caculate line angle and distance according to index in the accumulator
-      DIndex := Result[I].Index div AlphaSteps;
-      AlphaIndex := Result[I].Index - DIndex * AlphaSteps;
+      DistIndex := Result[I].Index div AlphaSteps;
+      AlphaIndex := Result[I].Index - DistIndex * AlphaSteps;
       Result[I].Alpha := GetFinalAngle(AlphaIndex);
-      Result[I].Distance := DIndex + MinD;
+      Result[I].Distance := DistIndex + MinDist;
     end;
   end;
 
@@ -188,14 +188,16 @@ begin
 
   PageWidth := ContentRect.Right - ContentRect.Left;
   PageHeight := ContentRect.Bottom - ContentRect.Top;
+  if (ContentRect.Bottom = Height) then
+    Dec(PageHeight); // Don't check for black pixels outsize of image in CalcHoughTransform()
 
   AlphaStart := -MaxAngle;
-  AlphaSteps := Round(2 * MaxAngle / AlphaStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
-  MinD := -Max(PageWidth, PageHeight);
-  DCount := 2 * (PageWidth + PageHeight);
+  AlphaSteps := Ceil(2 * MaxAngle / AlphaStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
+  MinDist := -Max(PageWidth, PageHeight);
+  DistCount := 2 * (PageWidth + PageHeight);
 
   // Determine the size of line accumulator
-  AccumulatorSize := DCount * AlphaSteps;
+  AccumulatorSize := DistCount * AlphaSteps;
   SetLength(HoughAccumulator, AccumulatorSize);
 
   // Calculate Hough transform

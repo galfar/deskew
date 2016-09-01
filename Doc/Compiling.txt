@@ -8,7 +8,7 @@ Tested Compilers
 ------------------------
 There are project files for these IDEs:
 
-  1) Lazarus 1.0.14 (deskew.lpi)
+  1) Lazarus 1.4.4 (deskew.lpi)
   2) Delphi XE 2 (deskew.dproj)
 
 Additionaly, there is compile shell script for FPC compiler 'compile.sh'.

@@ -114,7 +114,7 @@ begin
   FSkipAngle := 0.01;
   FThresholdingMethod := tmOtsu;
   FContentRect := Rect(0, 0, 0, 0); // whole page
-  FBackgroundColor := 0;
+  FBackgroundColor := $FF000000;
   FOutputFile := SDefaultOutputFile;
   FShowStats := False;
   FShowParams := False;

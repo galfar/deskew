@@ -29,6 +29,10 @@ unit MainUnit;
 
 interface
 
+procedure RunDeskew;
+
+implementation
+
 uses
   Types,
   SysUtils,
@@ -36,18 +40,16 @@ uses
   ImagingTypes,
   Imaging,
   ImagingClasses,
+  ImagingFormats,
   ImagingUtility,
   // Project units
   CmdLineOptions,
   ImageUtils,
   RotationDetector;
 
-procedure RunDeskew;
-
-implementation
-
 const
-  SAppTitle = 'Deskew 1.16 (2016-07-29) by Marek Mauder'{$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF};
+  SAppTitle = 'Deskew 1.20 (2016-09-01) by Marek Mauder'
+    {$IF Defined (CPUX86_64) and not Defined(CPUX64)} + ' x64'{$IFEND}{$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF};
   SAppHome = 'http://galfar.vevb.net/deskew/';
 
 var
@@ -71,7 +73,7 @@ begin
   WriteLn('  Options:');
   WriteLn('    -o output:     Output image file (default: out.png)');
   WriteLn('    -a angle:      Maximal skew angle in degrees (default: 10)');
-  WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: trns. black)');
+  WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
   WriteLn('  Ext. options:');
   WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: a)');
   WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
@@ -80,7 +82,6 @@ begin
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
-
 
   Count := GetFileFormatCount;
   for I := 0 to Count - 1 do
@@ -191,9 +192,18 @@ begin
     // Rotation is optimized for Gray8, RGB24, and ARGB32 formats at this time
     if not (OutputImage.Format in ImageUtils.SupportedRotationFormats) then
     begin
-      if OutputImage.FormatInfo.HasAlphaChannel then
+      if OutputImage.Format = ifIndex8 then
+      begin
+        if PaletteHasAlpha(OutputImage.Palette, OutputImage.PaletteEntries) then
+          OutputImage.Format := ifA8R8G8B8
+        else if PaletteIsGrayScale(OutputImage.Palette, OutputImage.PaletteEntries) then
+          OutputImage.Format := ifGray8
+        else
+          OutputImage.Format := ifR8G8B8;
+      end
+      else if OutputImage.FormatInfo.HasAlphaChannel then
         OutputImage.Format := ifA8R8G8B8
-      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then
+      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then // TODO: or indexed with grey palette!     ***************************
         OutputImage.Format := ifGray8
       else
         OutputImage.Format := ifR8G8B8;
