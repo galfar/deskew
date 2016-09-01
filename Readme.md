@@ -1,10 +1,10 @@
 Deskew
-------------------------
-by Marek Mauder
-[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)
-[https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)
+=======================
+by Marek Mauder  
+[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)  
+[https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)  
 
-==**v1.20 2016-09-01**==
+**v1.20 2016-09-01**
 
 Overview
 ------------------------
@@ -54,6 +54,7 @@ On Linux, you need to have libtiff 4.x installed (package is called libtiff5).
 Version History
 ------------------------
 1.20 2016-09-01:
+
   - much faster rotation, especially when background color is set (>2x faster, 2x less memory)
   - can skip deskewing step if detected skew angle is lower than parameter
   - new option for timing of individual steps
@@ -61,12 +62,14 @@ Version History
   - misc: default back color is now opaque black, new forced ouput format "rgb24",  background color can define also alpha channel, nicer formatting of text output
 
 1.10 2014-03-04:
+
   - TIFF support for Win64 and 32/64bit Linux
   - forced output formats
   - fix: output file names were always lowercase
   - fix: preserves resolution metadata (e.g. 300dpi) of input when writing output
 
 1.00 2012-06-04:
+
   - background color
   - "area of interest" content rect
   - 64bit and Mac OSX support
@@ -74,10 +77,12 @@ Version History
   - show skew detection stats and program parameters
 
 0.95 2010-12-28:
+
   - Added auto thresholding
   - Imaging library updated.
 
 0.90 2010-02-12:
+
   - Initial version
 
 Compiling Deskew
@@ -88,6 +93,7 @@ Free Pascal or Delphi to recompile it.
 
 #### Tested Compilers
 There are project files for these IDEs:
+
   1. Lazarus 1.4.4 (deskew.lpi)
   2. Delphi XE 2 (deskew.dproj)
 
@@ -102,8 +108,6 @@ Latest source ocde can be found here:
 https://bitbucket.org/galfar/app-deskew
 
 #### Dependencies
-------------------------
 Vampyre Imaging Library is needed for compilation.
 You can find it included in Imaging folder or get it at
 http://imaginglib.sourceforge.net
-
