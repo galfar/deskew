@@ -97,11 +97,12 @@ There are project files for these IDEs:
   1. Lazarus 1.4.4 (deskew.lpi)
   2. Delphi XE 2 (deskew.dproj)
 
-Additionaly, there is compile shell script for FPC compiler 'compile.sh'.
+Additionaly, there is compile shell/batch scripts for FPC compiler `compile.sh` and
+`Compile.bat`.
 
 #### Target Platforms
 Deskew is precompiled and was tested on these platforms:
-Win32, Win64, Linux 32bit+64bit, Mac OSX 32bit
+Win32, Win64, Linux 64bit
 
 #### Source Code
 Latest source ocde can be found here:
