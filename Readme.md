@@ -1,7 +1,7 @@
 Deskew
 =======================
-by Marek Mauder  
-[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)  
+by Marek Mauder   
+[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)   
 [https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)  
 
 **v1.20 2016-09-01**
@@ -14,7 +14,7 @@ It uses Hough transform to detect "text lines" in the image. As an output, you g
 an image rotated so that the lines are horizontal.
 
 There are binaries built for these platforms (located in Bin folder):
-Win32 (deskew.exe), Win64 (deskew64.exe), Linux 64bit (deskew).
+Win32 (deskew.exe), Win64 (deskew64.exe), Linux 64bit (deskew), Mac OS X (deskew-osx).
 
 You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
@@ -102,10 +102,10 @@ Additionaly, there is compile shell/batch scripts for FPC compiler `compile.sh` 
 
 #### Target Platforms
 Deskew is precompiled and was tested on these platforms:
-Win32, Win64, Linux 64bit
+Win32, Win64, Linux 64bit, Mac OS X 32bit
 
 #### Source Code
-Latest source ocde can be found here:
+Latest source code can be found here:
 https://bitbucket.org/galfar/app-deskew
 
 #### Dependencies
