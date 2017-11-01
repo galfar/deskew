@@ -451,7 +451,7 @@ type
   PTIFF = Pointer;
   PTIFFRGBAImage = Pointer;
 
-  TIFFErrorHandler = procedure(Module: PAnsiChar; Format: PAnsiChar; c: Pointer); cdecl;
+  TIFFErrorHandler = procedure(Module: PAnsiChar; Format: PAnsiChar; Params: va_list); cdecl;
   LibTiffDelphiErrorHandler = procedure(const a,b: AnsiString);
   TIFFReadWriteProc = function(Fd: THandle; Buffer: Pointer; Size: tmsize_t): Integer; cdecl;
   TIFFCloseProc = function(Fd: THandle): Integer; cdecl;
@@ -497,14 +497,16 @@ function  TIFFIsCODECConfigured(Scheme: Word): Integer; cdecl; external;
 function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
 
 function  TIFFOpen(const Name: AnsiString; const Mode: AnsiString): PTIFF;
-function  TIFFClientOpen(Name: PAnsiChar; Mode: PAnsiChar; ClientData: THandle;
-          ReadProc: TIFFReadWriteProc;
-          WriteProc: TIFFReadWriteProc;
-          SeekProc: TIFFSeekProc;
-          CloseProc: TIFFCloseProc;
-          SizeProc: TIFFSizeProc;
-          MapProc: TIFFMapFileProc;
-          UnmapProc: TIFFUnmapFileProc): PTIFF; cdecl; external;
+function  TIFFClientOpen(Name: PAnsiChar;
+                         Mode: PAnsiChar;
+                         ClientData: THandle;
+                         ReadProc: TIFFReadWriteProc;
+                         WriteProc: TIFFReadWriteProc;
+                         SeekProc: TIFFSeekProc;
+                         CloseProc: TIFFCloseProc;
+                         SizeProc: TIFFSizeProc;
+                         MapProc: TIFFMapFileProc;
+                         UnmapProc: TIFFUnmapFileProc): PTIFF; cdecl; external;
 procedure TIFFCleanup(Handle: PTIFF); cdecl; external;
 procedure TIFFClose(Handle: PTIFF); cdecl; external;
 function  TIFFFileno(Handle: PTIFF): Integer; cdecl; external;
@@ -634,7 +636,7 @@ procedure SetUserMessageHandlers(ErrorHandler, WarningHandler: TUserTiffErrorHan
 implementation
 
 uses
-  {$IFDEF MSWINDOWS}Windows,{$ENDIF} Math, LibJpegDelphi, ZLibDelphi;
+  Math, LibJpegDelphi, ZLibDelphi;
 
 var
   _TIFFwarningHandler: TIFFErrorHandler; {$ifdef FPC}cvar;{$endif}
@@ -769,30 +771,18 @@ begin
   if num<2 then exit;
 
   m:=AllocMem(num*width);
-  {$ifndef FPC}
+
   if compare(base,Pointer(Ptruint(base)+width))<=0 then
-  {$else}
-  if compare(base,base+width)<=0 then
-  {$endif}
-    system.Move(base^,m^,(width shl 1))
+    Move(base^,m^,(width shl 1))
   else
   begin
-    {$ifndef FPC}
-    system.Move(Pointer(Ptruint(base)+width)^,m^,width);
-    system.Move(base^,Pointer(Ptruint(m)+width)^,width);
-    {$else}
-    system.Move((base+width)^,m^,width);
-    system.Move(base^,(m+width)^,width);
-    {$endif}
+    Move(Pointer(Ptruint(base)+width)^,m^,width);
+    Move(base^,Pointer(Ptruint(m)+width)^,width);
   end;
   n:=2;
   while Ptruint(n)<num do
   begin
-    {$ifndef FPC}
     o:=Pointer(Ptruint(base)+Ptruint(n)*width);
-    {$else}
-    o:=base+Ptruint(n)*width;
-    {$endif}
     if compare(m,o)>=0 then
       ob:=0
     else
@@ -802,11 +792,7 @@ begin
       while oa+1<ob do
       begin
         oc:=((oa+ob) shr 1);
-        {$ifndef FPC}
         p:=compare(Pointer(Ptruint(m)+Ptruint(oc)*width),o);
-        {$else}
-        p:=compare(m+Ptruint(oc)*width,o);
-        {$endif}
         if p<0 then
           oa:=oc
         else if p=0 then
@@ -820,29 +806,15 @@ begin
     end;
     if ob=0 then
     begin
-      {$ifndef FPC}
-      system.Move(m^,Pointer(Ptruint(m)+width)^,Ptruint(n)*width);
-      system.Move(o^,m^,width);
-      {$else}
-      system.Move(m^,(m+width)^,Ptruint(n)*width);
-      system.Move(o^,m^,width);
-      {$endif}
+      Move(m^,Pointer(Ptruint(m)+width)^,Ptruint(n)*width);
+      Move(o^,m^,width);
     end
     else if ob=n then
-      {$ifndef FPC}
-      system.Move(o^,Pointer(Ptruint(m)+Ptruint(n)*width)^,width)
-      {$else}
-      system.Move(o^,(m+Ptruint(n)*width)^,width)
-      {$endif}
+      Move(o^,Pointer(Ptruint(m)+Ptruint(n)*width)^,width)
     else
     begin
-      {$ifndef FPC}
-      system.Move(Pointer(Ptruint(m)+Ptruint(ob)*width)^,Pointer(Ptruint(m)+Ptruint(ob+1)*width)^,Ptruint(n-ob)*width);
-      system.Move(o^,Pointer(Ptruint(m)+Ptruint(ob)*width)^,width);
-      {$else}
-      system.Move((m+Ptruint(ob)*width)^,(m+Ptruint(ob+1)*width)^,Ptruint(n-ob)*width);
-      system.Move(o^,(m+Ptruint(ob)*width)^,width);
-      {$endif}
+      Move(Pointer(Ptruint(m)+Ptruint(ob)*width)^,Pointer(Ptruint(m)+Ptruint(ob+1)*width)^,Ptruint(n-ob)*width);
+      Move(o^,Pointer(Ptruint(m)+Ptruint(ob)*width)^,width);
     end;
     Inc(n);
   end;
@@ -969,26 +941,26 @@ begin
   UserTiffWarningHandler := WarningHandler;
 end;
 
-procedure FormatAndCallHandler(Handler: TUserTiffErrorHandler; Module: PAnsiChar; Format: PAnsiChar; Params: Pointer);
+procedure FormatAndCallHandler(Handler: TUserTiffErrorHandler; Module: PAnsiChar; Format: PAnsiChar; Params: va_list);
 var
   Len: Integer;
+  Buffer: array[0..511] of AnsiChar;
   Msg: AnsiString;
 begin
-  Len := sprintf(nil, Format, @Params);
-  SetLength(Msg, Len);
-  sprintf(PAnsiChar(Msg), Format, @Params);
+  Len := snprintf(@Buffer, 512, Format, Params);
+  SetString(Msg, Buffer, Len);
   Handler(Module, Msg);
 end;
 
-procedure InternalTIFFWarning(Module: PAnsiChar; Format: PAnsiChar; Params: Pointer); cdecl;
+procedure InternalTIFFWarning(Module: PAnsiChar; Format: PAnsiChar; Params: va_list); cdecl;
 begin
-  if @UserTiffWarningHandler <> nil then
+  if Assigned(UserTiffWarningHandler) then
     FormatAndCallHandler(UserTiffWarningHandler, Module, Format, Params);
 end;
 
-procedure InternallTIFFError(Module: PAnsiChar; Format: PAnsiChar; Params: Pointer); cdecl;
+procedure InternallTIFFError(Module: PAnsiChar; Format: PAnsiChar; Params: va_list); cdecl;
 begin
-  if @UserTiffErrorHandler <> nil then
+  if Assigned(UserTiffErrorHandler) then
     FormatAndCallHandler(UserTiffErrorHandler, Module, Format, Params);
 end;
 
@@ -1095,9 +1067,6 @@ function  TIFFInitCCITTFax4(tif: PTIFF; scheme: Integer): Integer; cdecl; extern
 {tif_fax3sm}
 
 {tif_jpeg}
-
-var
-  LastMsg:string;
 
 procedure TIFFjpeg_error_exit_raise(errcode:Integer); cdecl; {$ifdef FPC}[public];{$endif}
 begin

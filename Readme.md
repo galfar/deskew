@@ -4,7 +4,7 @@ by Marek Mauder
 [http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)   
 [https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)  
 
-**v1.20 2016-09-01**
+**v1.21 2017-11-01**
 
 Overview
 ------------------------
@@ -53,13 +53,16 @@ On Linux, you need to have libtiff 4.x installed (package is called libtiff5).
 
 Version History
 ------------------------
+1.21 2017-11-01:
+  - fix: #7 - Windows FPC build fails with *Access violation exception* when loading certain TIFFs (especially those saved by Windows Photo Viewer etc.)  
+
 1.20 2016-09-01:
 
   - much faster rotation, especially when background color is set (>2x faster, 2x less memory)
   - can skip deskewing step if detected skew angle is lower than parameter
   - new option for timing of individual steps
   - fix: crash when last row of page is classified as text
-  - misc: default back color is now opaque black, new forced ouput format "rgb24",  background color can define also alpha channel, nicer formatting of text output
+  - misc: default back color is now opaque black, new forced output format "rgb24",  background color can define also alpha channel, nicer formatting of text output
 
 1.10 2014-03-04:
 

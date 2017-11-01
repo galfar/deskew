@@ -9,8 +9,10 @@ interface
 uses
   {$ifndef FPC}windows,{$endif} SysUtils;
 
-{$IFNDEF FPC}
 type
+  va_list = Pointer;
+
+{$IFNDEF FPC}
 {$IF CompilerVersion <= 18.5}
   SizeInt = Integer;
   PtrUInt = LongWord;
@@ -27,8 +29,9 @@ const
   SRuntimeLib = 'libc.so';
 {$ENDIF}
 
-function  fprintf(stream: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl; {$ifdef FPC}[public];{$endif}
-function  sprintf(buffer: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl; {$ifdef FPC}[public];{$endif}
+function  fprintf(stream: Pointer; format: Pointer; arguments: va_list): Integer; cdecl; {$ifdef FPC}[public];{$endif}
+function  sprintf(buffer: Pointer; format: Pointer; arguments: va_list): Integer; cdecl; {$ifdef FPC}[public];{$endif}
+function  snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl; {$ifdef FPC}[public];{$endif}
 function  fputs(s: Pointer; stream: Pointer): Integer; cdecl; external SRuntimeLib;
 function  fputc(c: Integer; stream: Pointer): Integer; cdecl; external SRuntimeLib;
 function  isprint(c: Integer): Integer; cdecl; external SRuntimeLib;
@@ -115,7 +118,7 @@ begin
   system.FillChar(a^,c,b);
 end;
 
-function  memcmp(a, b: Pointer; c: SizeInt): Integer; cdecl; {$ifdef FPC}[public];{$endif}
+function memcmp(a, b: Pointer; c: SizeInt): Integer; cdecl; {$ifdef FPC}[public];{$endif}
 {$ifndef FPC}
 var
   ma,mb: PByte;
@@ -152,7 +155,14 @@ begin
   Result := __sprintf(buffer, format, arguments);
 end;
 
-function fprintf(stream: Pointer; format: Pointer; arguments: Pointer): Integer; cdecl;
+function __snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl; external SRuntimeLib name '_snprintf';
+
+function snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl;
+begin
+  Result := __snprintf(buffer, n, format, arguments);
+end;
+
+function fprintf(stream: Pointer; format: Pointer; arguments: va_list): Integer; cdecl;
 var
   m: Integer;
   n: Pointer;

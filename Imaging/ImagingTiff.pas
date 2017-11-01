@@ -42,7 +42,8 @@ type
   end;
 
 const
-  { Read only metadata info - name of compression scheme used in last loaded TIFF. }
+  { Read only metadata info - name of compression scheme (LZW, none, JPEG, G4, ...)
+    used in last loaded TIFF. }
   SMetaTiffCompressionName = 'TiffCompressionName';
 
 implementation
@@ -52,7 +53,6 @@ const
   STiffMasks      = '*.tif,*.tiff';
   TiffDefaultCompression = 1;
   TiffDefaultJpegQuality = 90;
-  TiffDefaultAppendMode = False;
 
 const
   TiffBEMagic: TChar4 = 'MM'#0#42;

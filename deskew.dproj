@@ -7,26 +7,11 @@
 			<DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
 			<FrameworkType>None</FrameworkType>
 			<Base>True</Base>
-			<Platform Condition="'$(Platform)'==''">Win32</Platform>
 			<TargetedPlatforms>7</TargetedPlatforms>
 			<AppType>Console</AppType>
+			<Platform>Win32</Platform>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Base)'=='true') or '$(Base_Win64)'!=''">
-			<Base_Win64>true</Base_Win64>
-			<CfgParent>Base</CfgParent>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='OSX32' and '$(Base)'=='true') or '$(Base_OSX32)'!=''">
-			<Base_OSX32>true</Base_OSX32>
-			<CfgParent>Base</CfgParent>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
-			<Base_Win32>true</Base_Win32>
-			<CfgParent>Base</CfgParent>
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Release' or '$(Cfg_1)'!=''">
@@ -34,33 +19,9 @@
 			<CfgParent>Base</CfgParent>
 			<Base>true</Base>
 		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='OSX32' and '$(Cfg_1)'=='true') or '$(Cfg_1_OSX32)'!=''">
-			<Cfg_1_OSX32>true</Cfg_1_OSX32>
-			<CfgParent>Cfg_1</CfgParent>
-			<Cfg_1>true</Cfg_1>
-			<Base>true</Base>
-		</PropertyGroup>
 		<PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
 			<Cfg_2>true</Cfg_2>
 			<CfgParent>Base</CfgParent>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
-			<Cfg_2_Win64>true</Cfg_2_Win64>
-			<CfgParent>Cfg_2</CfgParent>
-			<Cfg_2>true</Cfg_2>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='OSX32' and '$(Cfg_2)'=='true') or '$(Cfg_2_OSX32)'!=''">
-			<Cfg_2_OSX32>true</Cfg_2_OSX32>
-			<CfgParent>Cfg_2</CfgParent>
-			<Cfg_2>true</Cfg_2>
-			<Base>true</Base>
-		</PropertyGroup>
-		<PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
-			<Cfg_2_Win32>true</Cfg_2_Win32>
-			<CfgParent>Cfg_2</CfgParent>
-			<Cfg_2>true</Cfg_2>
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
@@ -75,20 +36,8 @@
 			<DCC_DependencyCheckOutputName>deskew.exe</DCC_DependencyCheckOutputName>
 			<DCC_ImageBase>00400000</DCC_ImageBase>
 		</PropertyGroup>
-		<PropertyGroup Condition="'$(Base_Win64)'!=''">
-			<VerInfo_Locale>1033</VerInfo_Locale>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Base_OSX32)'!=''">
-			<VerInfo_Keys>CFBundleName=$(MSBuildProjectName);CFBundleDisplayName=$(MSBuildProjectName);CFBundleIdentifier=$(MSBuildProjectName);CFBundleVersion=1.0.0.0;CFBundlePackageType=APPL;CFBundleSignature=????;CFBundleAllowMixedLocalizations=YES;CFBundleExecutable=$(MSBuildProjectName)</VerInfo_Keys>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Base_Win32)'!=''">
-			<Debugger_RunParams>-t 8 -a 10 F1550.jpg</Debugger_RunParams>
-		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_1)'!=''">
 			<DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_1_OSX32)'!=''">
-			<DCC_RemoteDebug>true</DCC_RemoteDebug>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2)'!=''">
 			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
@@ -96,19 +45,8 @@
 			<DCC_DebugDCUs>true</DCC_DebugDCUs>
 			<DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
 		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
-			<VerInfo_Locale>1033</VerInfo_Locale>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_2_OSX32)'!=''">
-			<DCC_RemoteDebug>true</DCC_RemoteDebug>
-		</PropertyGroup>
-		<PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-			<DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
-			<DCC_Optimize>false</DCC_Optimize>
-			<Debugger_RunParams>deskew -t a -a 5 -o TestOut/Outa1.tif ../TestImages/1.tif</Debugger_RunParams>
-		</PropertyGroup>
 		<ItemGroup>
-			<DelphiCompile Include="$(MainSource)">
+			<DelphiCompile Include="deskew.dpr">
 				<MainSource>MainSource</MainSource>
 			</DelphiCompile>
 			<DCCReference Include="RotationDetector.pas"/>
@@ -130,6 +68,7 @@
 			</BuildConfiguration>
 		</ItemGroup>
 		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" Project="$(BDS)\Bin\CodeGear.Delphi.Targets"/>
+		<Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
 		<ProjectExtensions>
 			<Borland.Personality>Delphi.Personality.12</Borland.Personality>
 			<Borland.ProjectType/>
@@ -139,9 +78,6 @@
 						<Source Name="MainSource">deskew.dpr</Source>
 					</Source>
 					<Parameters>
-						<Parameters Name="UseLauncher">False</Parameters>
-						<Parameters Name="LoadAllSymbols">True</Parameters>
-						<Parameters Name="LoadUnspecifiedSymbols">False</Parameters>
 						<Parameters Name="RunParams">-t 8 -a 10 F1550.jpg</Parameters>
 					</Parameters>
 					<VersionInfo>
@@ -173,97 +109,17 @@
 					</VersionInfoKeys>
 				</Delphi.Personality>
 				<Platforms>
-					<Platform value="Win64">True</Platform>
-					<Platform value="OSX32">True</Platform>
 					<Platform value="Win32">True</Platform>
 				</Platforms>
-				<Deployment>
-					<DeployFile LocalName="Bin\deskew.rsm" Configuration="Debug" Class="DebugSymbols">
-						<Platform Name="OSX32">
-							<RemoteName>deskew.rsm</RemoteName>
-						</Platform>
-					</DeployFile>
-					<DeployFile LocalName="Bin\deskew" Configuration="Debug" Class="ProjectOutput">
-						<Platform Name="OSX32"/>
-					</DeployFile>
-					<DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
-						<Platform Name="OSX32"/>
-					</DeployFile>
-					<DeployClass Name="ProjectOutput" Required="true">
-						<Platform Name="OSX32">
-							<Operation>1</Operation>
-						</Platform>
-						<Platform Name="Win32">
-							<Operation>0</Operation>
-						</Platform>
-					</DeployClass>
-					<DeployClass Name="DependencyPackage" Required="true">
-						<Platform Name="OSX32">
-							<Operation>1</Operation>
-							<Extensions>.dylib</Extensions>
-						</Platform>
-						<Platform Name="Win32">
-							<Operation>0</Operation>
-							<Extensions>.bpl</Extensions>
-						</Platform>
-					</DeployClass>
-					<DeployClass Name="DependencyModule">
-						<Platform Name="OSX32">
-							<Operation>1</Operation>
-							<Extensions>.dylib</Extensions>
-						</Platform>
-						<Platform Name="Win32">
-							<Operation>0</Operation>
-							<Extensions>.dll;.bpl</Extensions>
-						</Platform>
-					</DeployClass>
-					<DeployClass Name="ProjectOSXInfoPList"/>
-					<DeployClass Name="File">
-						<Platform Name="OSX32">
-							<Operation>0</Operation>
-						</Platform>
-						<Platform Name="Win32">
-							<Operation>0</Operation>
-						</Platform>
-					</DeployClass>
-					<DeployClass Name="DebugSymbols">
-						<Platform Name="OSX32">
-							<Operation>1</Operation>
-						</Platform>
-						<Platform Name="Win32">
-							<Operation>0</Operation>
-						</Platform>
-					</DeployClass>
-					<DeployClass Name="DependencyFramework">
-						<Platform Name="OSX32">
-							<Operation>1</Operation>
-							<Extensions>.framework</Extensions>
-						</Platform>
-						<Platform Name="Win32">
-							<Operation>0</Operation>
-						</Platform>
-					</DeployClass>
-					<DeployClass Name="AdditionalDebugSymbols">
-						<Platform Name="OSX32">
-							<Operation>1</Operation>
-						</Platform>
-						<Platform Name="Win32">
-							<Operation>0</Operation>
-						</Platform>
-					</DeployClass>
-					<DeployClass Name="ProjectOSXResource">
-						<Platform Name="OSX32">
-							<RemoteDir>Contents\Resources</RemoteDir>
-							<Operation>1</Operation>
-						</Platform>
-					</DeployClass>
-					<ProjectRoot Name="$(PROJECTNAME)" Platform="OSX32"/>
-					<ProjectRoot Name="$(PROJECTNAME)" Platform="Win64"/>
-					<ProjectRoot Name="$(PROJECTNAME)" Platform="Win32"/>
-				</Deployment>
 			</BorlandProject>
 			<ProjectFileVersion>12</ProjectFileVersion>
 		</ProjectExtensions>
-		<Import Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')" Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj"/>
-		<Import Condition="Exists('$(MSBuildProjectName).deployproj')" Project="$(MSBuildProjectName).deployproj"/>
 	</Project>
+
+<!-- EurekaLog First Line
+[Exception Log]
+EurekaLog Version=7007
+Activate=0
+DeleteMapAfterCompile=0
+Encrypt Password=""
+EurekaLog Last Line -->

@@ -50,6 +50,8 @@ unit ImagingTiffLib;
   {$DEFINE HANDLE_NOT_POINTER_SIZED}
 {$IFEND}
 
+{.$DEFINE USE_DYN_LIB}
+
 interface
 
 uses
@@ -231,6 +233,8 @@ var
     else
       CompressionName := 'Unknown';
     end;
+
+    FMetadata.SetMetaItem(SMetaTiffCompressionName, CompressionName);
   end;
 
 begin
