@@ -54,7 +54,9 @@ On Linux, you need to have libtiff 4.x installed (package is called libtiff5).
 Version History
 ------------------------
 1.21 2017-11-01:
-  - fix: #7 - Windows FPC build fails with *Access violation exception* when loading certain TIFFs (especially those saved by Windows Photo Viewer etc.)  
+
+  - fix #8: Cannot compile in Free Pascal 3.0+ (Windows) - Fails to link precompiled LibTiff library 
+  - fix #7: Windows FPC build fails with *Access violation exception* when loading certain TIFFs (especially those saved by Windows Photo Viewer etc.)  
 
 1.20 2016-09-01:
 
@@ -97,8 +99,8 @@ Free Pascal or Delphi to recompile it.
 #### Tested Compilers
 There are project files for these IDEs:
 
-  1. Lazarus 1.4.4 (deskew.lpi)
-  2. Delphi XE 2 (deskew.dproj)
+  1. Lazarus 1.8 (deskew.lpi)
+  2. Delphi XE (deskew.dproj)
 
 Additionaly, there is compile shell/batch scripts for FPC compiler `compile.sh` and
 `Compile.bat`.

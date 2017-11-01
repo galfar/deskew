@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="9"/>
+    <Version Value="10"/>
     <PathDelim Value="\"/>
     <General>
       <Flags>
@@ -17,7 +17,7 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <BuildModes Count="3" Active="Debug">
+    <BuildModes Count="4" Active="ReleaseWin64">
       <Item1 Name="Release" Default="True"/>
       <Item2 Name="Debug">
         <CompilerOptions>
@@ -92,6 +92,41 @@
           </Linking>
         </CompilerOptions>
       </Item3>
+      <Item4 Name="ReleaseWin32">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="Bin\deskew"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+            <Libraries Value="Imaging\LibTiff\Compiled"/>
+            <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+            <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="Delphi"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <SmartLinkUnit Value="True"/>
+            <TargetCPU Value="i386"/>
+            <TargetOS Value="win32"/>
+            <Optimizations>
+              <OptimizationLevel Value="3"/>
+              <VariablesInRegisters Value="True"/>
+            </Optimizations>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <GenerateDebugInfo Value="False"/>
+            </Debugging>
+            <LinkSmart Value="True"/>
+          </Linking>
+        </CompilerOptions>
+      </Item4>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -181,8 +216,8 @@
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="5"/>
-        <TopLine Value="923"/>
-        <CursorPos Y="950"/>
+        <TopLine Value="605"/>
+        <CursorPos X="51" Y="642"/>
         <UsageCount Value="124"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
@@ -287,123 +322,123 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="985" Column="27" TopLine="958"/>
+        <Caret Line="985" TopLine="960"/>
       </Position1>
       <Position2>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="1524" TopLine="1479"/>
+        <Caret Line="986" TopLine="960"/>
       </Position2>
       <Position3>
-        <Filename Value="Imaging\LibTiff\ImagingTiffLib.pas"/>
-        <Caret Line="242" TopLine="221"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="976" TopLine="960"/>
       </Position3>
       <Position4>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="985" TopLine="960"/>
+        <Caret Line="977" TopLine="960"/>
       </Position4>
       <Position5>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="986" TopLine="960"/>
+        <Caret Line="978" TopLine="960"/>
       </Position5>
       <Position6>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="976" TopLine="960"/>
+        <Caret Line="979" TopLine="960"/>
       </Position6>
       <Position7>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="977" TopLine="960"/>
+        <Caret Line="980" TopLine="960"/>
       </Position7>
       <Position8>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="978" TopLine="960"/>
+        <Caret Line="981" TopLine="960"/>
       </Position8>
       <Position9>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="979" TopLine="960"/>
+        <Caret Line="985" TopLine="960"/>
       </Position9>
       <Position10>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="980" TopLine="960"/>
+        <Caret Line="988" Column="48" TopLine="966"/>
       </Position10>
       <Position11>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="981" TopLine="960"/>
+        <Caret Line="1533" Column="32" TopLine="1488"/>
       </Position11>
       <Position12>
-        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="985" TopLine="960"/>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <Caret Line="17"/>
       </Position12>
       <Position13>
-        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="988" Column="48" TopLine="966"/>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <Caret Line="23" Column="9"/>
       </Position13>
       <Position14>
-        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="1533" Column="32" TopLine="1488"/>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="47"/>
       </Position14>
       <Position15>
         <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
-        <Caret Line="17"/>
+        <Caret Line="58" Column="3" TopLine="24"/>
       </Position15>
       <Position16>
-        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
-        <Caret Line="23" Column="9"/>
-      </Position16>
-      <Position17>
         <Filename Value="deskew.lpr"/>
         <Caret Line="47"/>
+      </Position16>
+      <Position17>
+        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
+        <Caret Line="164" Column="12" TopLine="124"/>
       </Position17>
       <Position18>
         <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
-        <Caret Line="58" Column="3" TopLine="24"/>
+        <Caret Line="34" Column="132" TopLine="9"/>
       </Position18>
       <Position19>
-        <Filename Value="deskew.lpr"/>
-        <Caret Line="47"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="1526" TopLine="1481"/>
       </Position19>
       <Position20>
-        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
-        <Caret Line="164" Column="12" TopLine="124"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="643" Column="3" TopLine="618"/>
       </Position20>
       <Position21>
-        <Filename Value="Imaging\LibTiff\LibDelphi.pas"/>
-        <Caret Line="34" Column="132" TopLine="9"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="980" TopLine="951"/>
       </Position21>
       <Position22>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="1526" TopLine="1481"/>
+        <Caret Line="981" TopLine="951"/>
       </Position22>
       <Position23>
-        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="643" Column="3" TopLine="618"/>
+        <Filename Value="Imaging\LibTiff\ImagingTiffLib.pas"/>
+        <Caret Line="242" Column="33" TopLine="221"/>
       </Position23>
       <Position24>
-        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="980" TopLine="951"/>
+        <Filename Value="Imaging\LibTiff\ImagingTiffLib.pas"/>
+        <Caret Line="372" Column="31" TopLine="222"/>
       </Position24>
       <Position25>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="981" TopLine="951"/>
+        <Caret Line="980" TopLine="951"/>
       </Position25>
       <Position26>
-        <Filename Value="Imaging\LibTiff\ImagingTiffLib.pas"/>
-        <Caret Line="242" Column="33" TopLine="221"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="1072" Column="10" TopLine="1047"/>
       </Position26>
       <Position27>
-        <Filename Value="Imaging\LibTiff\ImagingTiffLib.pas"/>
-        <Caret Line="372" Column="31" TopLine="222"/>
+        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
+        <Caret Line="946" Column="22" TopLine="930"/>
       </Position27>
       <Position28>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="980" TopLine="951"/>
+        <Caret Line="952" TopLine="923"/>
       </Position28>
       <Position29>
-        <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="1072" Column="10" TopLine="1047"/>
+        <Filename Value="deskew.lpr"/>
+        <Caret Line="47" TopLine="13"/>
       </Position29>
       <Position30>
         <Filename Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Caret Line="946" Column="22" TopLine="930"/>
+        <Caret Line="638" Column="77" TopLine="605"/>
       </Position30>
     </JumpHistory>
   </ProjectOptions>
@@ -439,7 +474,7 @@
     </Linking>
   </CompilerOptions>
   <Debugging>
-    <BreakPoints Count="3">
+    <BreakPoints Count="1">
       <Item1>
         <Kind Value="bpkSource"/>
         <WatchScope Value="wpsLocal"/>
@@ -447,20 +482,6 @@
         <Source Value="Imaging\LibTiff\ImagingLibTiff.pas"/>
         <Line Value="260"/>
       </Item1>
-      <Item2>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Line Value="952"/>
-      </Item2>
-      <Item3>
-        <Kind Value="bpkSource"/>
-        <WatchScope Value="wpsLocal"/>
-        <WatchKind Value="wpkWrite"/>
-        <Source Value="Imaging\LibTiff\LibTiffDelphi.pas"/>
-        <Line Value="950"/>
-      </Item3>
     </BreakPoints>
     <Watches Count="1">
       <Item1>

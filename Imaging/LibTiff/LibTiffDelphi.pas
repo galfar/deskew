@@ -639,8 +639,9 @@ uses
   Math, LibJpegDelphi, ZLibDelphi;
 
 var
-  _TIFFwarningHandler: TIFFErrorHandler; {$ifdef FPC}cvar;{$endif}
-  _TIFFerrorHandler: TIFFErrorHandler; {$ifdef FPC}cvar;{$endif}
+  { For FPC 3.0+ these must be marked as exported  }
+  _TIFFwarningHandler: TIFFErrorHandler; {$ifdef FPC}cvar; export;{$endif}
+  _TIFFerrorHandler: TIFFErrorHandler; {$ifdef FPC}cvar; export;{$endif}
 
 type
   TCompareFunc = function(a,b: Pointer): Integer; cdecl;
