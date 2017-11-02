@@ -41,14 +41,8 @@ uses
   ImagingTypes,
   Imaging,
   ImagingClasses,
-{$IF not Defined(MACOS) and (Defined(FPC) or
-  (Defined(DCC) and Defined(MSWINDOWS) and Defined(CPUX86)))}
-  ImagingTiffLib,
-{$ELSEIF Defined(MACOS)}
-  // Not yet ready
-  //ImagingTiffMac,
-{$IFEND}
-  ImagingPsd, // PSD support
+  ImagingTiff,
+  ImagingPsd,
   ImagingFormats,
   ImagingUtility;
 

@@ -2,18 +2,6 @@ unit ImagingTiff;
 
 {$I ImagingOptions.inc}
 
-{$IF Defined(LINUX) or Defined(BSD)}
-  // Use LibTiff dynamic library in Linux/BSD instead of precompiled objects.
-  // It's installed on most systems so let's use it and keep the binary smaller.
-  {$DEFINE USE_DYN_LIB}
-{$IFEND}
-
-{$IF Defined(POSIX) and Defined(CPUX64)}
-  // Workaround for problem on 64bit Linux where thandle_t in libtiff is
-  // still 32bit so it cannot be used to pass pointers (for IO functions).
-  {$DEFINE HANDLE_NOT_POINTER_SIZED}
-{$IFEND}
-
 interface
 
 uses
@@ -21,7 +9,7 @@ uses
 
 type
   { TIFF (Tag Image File Format) loader/saver base class.}
-  TTiffFileFormat = class(TImageFileFormat)
+  TBaseTiffFileFormat = class(TImageFileFormat)
   protected
     FCompression: Integer;
     FJpegQuality: Integer;
@@ -48,6 +36,12 @@ const
 
 implementation
 
+// So far we have only one TIFF support implementation - libtiff
+{$IF (Defined(DELPHI) and not Defined(CPUX64) or (Defined(FPC) and not Defined(MACOS)))}
+uses
+  ImagingTiffLib;
+{$IFEND}
+
 const
   STiffFormatName = 'Tagged Image File Format';
   STiffMasks      = '*.tif,*.tiff';
@@ -59,10 +53,10 @@ const
   TiffLEMagic: TChar4 = 'II'#42#0;
 
 {
-  TTiffFileFormat implementation
+  TBaseTiffFileFormat implementation
 }
 
-procedure TTiffFileFormat.Define;
+procedure TBaseTiffFileFormat.Define;
 begin
   inherited;
   FName := STiffFormatName;
@@ -75,7 +69,7 @@ begin
   RegisterOption(ImagingTiffJpegQuality, @FJpegQuality);
 end;
 
-function TTiffFileFormat.TestFormat(Handle: TImagingHandle): Boolean;
+function TBaseTiffFileFormat.TestFormat(Handle: TImagingHandle): Boolean;
 var
   Magic: TChar4;
   ReadCount: LongInt;
@@ -89,6 +83,5 @@ begin
       ((Magic = TiffBEMagic) or (Magic = TiffLEMagic));
   end;
 end;
-
 
 end.

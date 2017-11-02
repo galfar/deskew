@@ -6,8 +6,9 @@ unit LibTiffDynLib;
 
 interface
 
-{$IFNDEF FPC}
 type
+  va_list = Pointer;
+{$IFNDEF FPC}
 {$IF CompilerVersion <= 18.5}
   SizeInt = Integer;
 {$ELSE}
@@ -457,7 +458,7 @@ type
   TIFFMapFileProc = function(fd: thandle_t; var pbase: tdata_t; var psize: toff_t): Integer; cdecl;
   TIFFUnmapFileProc = procedure(fd: thandle_t; base: tdata_t; size: toff_t); cdecl;
   TIFFExtendProc = procedure(Handle: PTIFF); cdecl;
-  TIFFErrorHandler = procedure(Module: PAnsiChar; const Format: PAnsiChar; Params: Pointer); cdecl;
+  TIFFErrorHandler = procedure(Module: PAnsiChar; const Format: PAnsiChar; Params: va_list); cdecl;
   TIFFInitMethod = function(Handle: PTIFF; Scheme: Integer): Integer; cdecl;
 
   PTIFFCodec = ^TIFFCodec;
@@ -633,28 +634,28 @@ const
   SRuntimeLib = 'libc.so';
 {$ENDIF}
 
-function sprintf(S: PAnsiChar; const Format: PAnsiChar): Integer; cdecl; varargs; external SRuntimeLib;
+function snprintf(S: PAnsiChar; N: Integer; const Format: PAnsiChar): Integer; cdecl; varargs; external SRuntimeLib name {$IFDEF MSWINDOWS}'_snprintf'{$ELSE}'snprintf'{$ENDIF};
 
-procedure FormatAndCallHandler(Handler: TUserTiffErrorHandler; Module: PAnsiChar; Format: PAnsiChar; Params: Pointer);
+procedure FormatAndCallHandler(Handler: TUserTiffErrorHandler; Module: PAnsiChar; Format: PAnsiChar; Params: va_list);
 var
   Len: Integer;
+  Buffer: array[0..511] of AnsiChar;
   Msg: AnsiString;
 begin
-  Len := sprintf(nil, Format, @Params);
-  SetLength(Msg, Len);
-  sprintf(PAnsiChar(Msg), Format, @Params);
+  Len := snprintf(@Buffer, 512, Format, Params);
+  SetString(Msg, Buffer, Len);
   Handler(Module, Msg);
 end;
 
-procedure InternalTIFFWarning(Module: PAnsiChar; Format: PAnsiChar; Params: Pointer); cdecl;
+procedure InternalTIFFWarning(Module: PAnsiChar; Format: PAnsiChar; Params: va_list); cdecl;
 begin
-  if @UserTiffWarningHandler <> nil then
+  if Assigned(UserTiffWarningHandler) then
     FormatAndCallHandler(UserTiffWarningHandler, Module, Format, Params);
 end;
 
-procedure InternallTIFFError(Module: PAnsiChar; Format: PAnsiChar; Params: Pointer); cdecl;
+procedure InternallTIFFError(Module: PAnsiChar; Format: PAnsiChar; Params: va_list); cdecl;
 begin
-  if @UserTiffErrorHandler <> nil then
+  if Assigned(UserTiffErrorHandler) then
     FormatAndCallHandler(UserTiffErrorHandler, Module, Format, Params);
 end;
 
@@ -667,4 +668,4 @@ initialization
     WriteLn('Warning: installed libtiff seems to be version 3.x. TIFF functions will probably fail. Install libtiff5 package to get libtiff 4.x.');
 {$ENDIF}
 end.
-
+

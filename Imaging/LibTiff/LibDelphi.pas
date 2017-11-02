@@ -155,7 +155,7 @@ begin
   Result := __sprintf(buffer, format, arguments);
 end;
 
-function __snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl; external SRuntimeLib name '_snprintf';
+function __snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl; external SRuntimeLib name {$IFDEF MSWINDOWS}'_snprintf'{$ELSE}'snprintf'{$ENDIF};
 
 function snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl;
 begin

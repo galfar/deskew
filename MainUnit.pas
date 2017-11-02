@@ -27,6 +27,8 @@
 
 unit MainUnit;
 
+{$I ImagingOptions.inc}
+
 interface
 
 procedure RunDeskew;
@@ -49,7 +51,7 @@ uses
 
 const
   SAppTitle = 'Deskew 1.21 (2017-11-01)'
-    {$IF Defined (CPUX86_64) and not Defined(CPUX64)} + ' x64'{$IFEND}{$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF}
+    {$IFDEF CPUX64} + ' x64'{$ENDIF}{$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF}
     + ' by Marek Mauder';
   SAppHome = 'http://galfar.vevb.net/deskew/';
 

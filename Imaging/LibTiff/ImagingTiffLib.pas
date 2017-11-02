@@ -66,7 +66,7 @@ uses
 type
   { TIFF (Tag Image File Format) loader/saver class. Uses LibTiff so
     it can handle most types of TIFF files.}
-  TTiffLibFileFormat = class(TTiffFileFormat)
+  TTiffLibFileFormat = class(TBaseTiffFileFormat)
   protected
     procedure Define; override;
     function LoadData(Handle: TImagingHandle; var Images: TDynImageDataArray;

@@ -39,8 +39,9 @@ unit ImagingExtras;
 //{$DEFINE DONT_LINK_PSD}         // link support for PSD images
 {$DEFINE DONT_LINK_PCX}         // link support for PCX images
 {$DEFINE DONT_LINK_XPM}         // link support for XPM images
+
 {$IFNDEF FULL_FEATURE_SET}
-  {$DEFINE DONT_LINK_ELDER}        // link support for Elder Imagery images
+  {$DEFINE DONT_LINK_ELDER}     // link support for Elder Imagery images
 {$ENDIF}
 
 {$IF not (
@@ -51,10 +52,6 @@ unit ImagingExtras;
   )}
   // JPEG2000 only for 32bit Windows/Linux/OSX and for 64bit Unix with FPC
   {$DEFINE DONT_LINK_JPEG2000}
-{$IFEND}
-
-{$IF not (Defined(DCC) and Defined(CPUX86) and not Defined(MACOS))}
-  {$DEFINE DONT_LINK_TIFF} // Only for Delphi now
 {$IFEND}
 
 interface
@@ -98,7 +95,7 @@ uses
   ImagingJpeg2000,
 {$ENDIF}
 {$IFNDEF DONT_LINK_TIFF}
-  ImagingTiffLib,
+  ImagingTiff,
 {$ENDIF}
 {$IFNDEF DONT_LINK_PSD}
   ImagingPsd,
