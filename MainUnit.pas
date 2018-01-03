@@ -298,6 +298,8 @@ begin
         Changed := DoDeskew();
         // Make sure output folders are ready
         EnsureOutputLocation(Options.OutputFile);
+        // In case no change to image was done by deskewing we still need to resave if requested file format differs from input
+        Changed := Changed or not SameText(GetFileExt(Options.InputFile), GetFileExt(Options.OutputFile));
 
         Time := GetTimeMicroseconds;
         if Changed then
