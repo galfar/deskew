@@ -51,7 +51,11 @@ uses
 
 const
   SAppTitle = 'Deskew 1.21 (2017-11-01)'
-    {$IFDEF CPUX64} + ' x64'{$ENDIF}{$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF}
+    {$IF Defined(CPUX64)} + ' x64'
+    {$ELSEIF Defined(CPUX86)} + ' x86'
+    {$ELSEIF Defined(CPUARM)} + ' ARM'
+    {$IFEND}
+    {$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF}
     + ' by Marek Mauder';
   SAppHome = 'http://galfar.vevb.net/deskew/';
 

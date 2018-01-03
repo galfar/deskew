@@ -37,7 +37,7 @@ const
 implementation
 
 // So far we have only one TIFF support implementation - libtiff
-{$IF (Defined(DELPHI) and not Defined(CPUX64) or (Defined(FPC) and not Defined(MACOS)))}
+{$IF (Defined(DELPHI) and not Defined(CPUX64) or (Defined(FPC) and not Defined(MACOS) and not Defined(CPUARM)))}
 uses
   ImagingTiffLib;
 {$IFEND}
