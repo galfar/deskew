@@ -50,7 +50,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.21 (2017-11-01)'
+  SAppTitle = 'Deskew 1.22 (2018-05-17)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -104,6 +104,20 @@ begin
   WriteLn('  Supported file formats');
   WriteLn('    Input:  ', UpperCase(InFilter));
   WriteLn('    Output: ', UpperCase(OutFilter));
+end;
+
+procedure ReportBadInput(const Msg: string; ShowUsage: Boolean = True);
+begin
+  WriteLn;
+  WriteLn('Error: ' + Msg);
+  if Options.ErrorMessage <> '' then
+    WriteLn(Options.ErrorMessage);
+  WriteLn;
+
+  if ShowUsage then
+    WriteUsage;
+
+  ExitCode := 1;
 end;
 
 function FormatNiceNumber(const X: Int64; Width : Integer = 16): string;
@@ -289,10 +303,22 @@ begin
         if Options.ShowParams then
           WriteLn(Options.OptionsToString);
 
+        if not IsFileFormatSupported(Options.InputFile) then
+        begin
+          ReportBadInput('File format not supported: ' + Options.InputFile);
+          Exit;
+        end;
+
         // Load input image
         Time := GetTimeMicroseconds;
         InputImage.LoadFromFile(Options.InputFile);
         WriteTiming('Load input file');
+
+        if not InputImage.Valid then
+        begin
+          ReportBadInput('Loaded input image is not valid: ' + Options.InputFile, False);
+          Exit;
+        end;
 
         // Do the magic
         Changed := DoDeskew();
@@ -321,18 +347,13 @@ begin
       else
       begin
         // Bad input
-        WriteLn('Invalid parameters!');
-        if Options.ErrorMessage <> '' then
-          WriteLn(Options.ErrorMessage);
-        WriteLn;
-
-        WriteUsage;
-        ExitCode := 1;
+        ReportBadInput('Invalid parameters!');
       end;
 
     except
       on E: Exception do
       begin
+        WriteLn;
         WriteLn(E.ClassName, ': ', E.Message);
         ExitCode := 1;
       end;
@@ -341,11 +362,11 @@ begin
     Options.Free;
     InputImage.Free;
     OutputImage.Free;
-  end;
 
 {$IFDEF DEBUG}
   ReadLn;
 {$ENDIF}
+  end;
 end;
 
 end.
