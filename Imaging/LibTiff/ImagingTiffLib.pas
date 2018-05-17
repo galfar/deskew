@@ -32,15 +32,16 @@
     Win32 Delphi: obj, dll
     Win64 Delphi: dll
     Win32, Win64 FPC: obj, dll
-    Linux/Unix 32/64 FPC: dll
+    Linux/Unix/macOS 32/64 FPC: dll
 }
 unit ImagingTiffLib;
 
 {$I ImagingOptions.inc}
 
-{$IF Defined(LINUX) or Defined(BSD)}
+{$IF Defined(LINUX) or Defined(BSD) or Defined(MACOS)}
   // Use LibTiff dynamic library in Linux/BSD instead of precompiled objects.
   // It's installed on most systems so let's use it and keep the binary smaller.
+  // In macOS it's usually not installed but if it is let's use it.
   {$DEFINE USE_DYN_LIB}
 {$IFEND}
 
@@ -588,6 +589,11 @@ begin
 end;
 
 initialization
+{$IFDEF USE_DYN_LIB}
+  // If using dynamic library only register the format if
+  // the library loads successfully.
+  if LibTiffDynLib.LoadTiffLibrary then
+{$ENDIF}
   RegisterImageFileFormat(TTiffLibFileFormat);
 
 {
@@ -595,9 +601,6 @@ initialization
 
   -- TODOS ----------------------------------------------------
     - nothing now
-
-  -- 0.77.3 ----------------------------------------------------
-
 
   -- 0.77.3 ----------------------------------------------------
     - Lot more platforms than just 32bit Delphi supported now.

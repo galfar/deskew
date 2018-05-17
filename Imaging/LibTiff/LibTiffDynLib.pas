@@ -4,7 +4,15 @@ unit LibTiffDynLib;
   {$MODE DELPHI}
 {$ENDIF}
 
+// We prefer dynamic loading of the library (GetProcAddress/dlsym way)
+// so that we don't get a crash with "libtiff not found!" message on startup
+// if libtiff is not found in user's system.
+{$DEFINE DYNAMIC_DLL_LOADING}
+
 interface
+
+uses
+  SysUtils;
 
 type
   va_list = Pointer;
@@ -33,9 +41,11 @@ type
 
 const
   // LibTiff 4.0
-{$IFDEF MSWINDOWS}
+{$IF Defined(MSWINDOWS)}
   SLibName = 'libtiff.dll'; // make sure you have DLL with the same bitness as your app!
-{$ELSE}
+{$ELSEIF  Defined(DARWIN)} // macOS
+  SLibName = 'libtiff.dylib';
+{$ELSE} // Linux, BSD
   SLibName = 'libtiff.so.5'; // yes, SONAME for libtiff v4.0 is actually libtiff5 (and libtiff.so.4 is libtiff v3.9)
 {$ENDIF}
 
@@ -487,6 +497,40 @@ type
     Value: Pointer;
   end;
 
+{$IFDEF DYNAMIC_DLL_LOADING}
+var
+  TIFFGetVersion: function(): PAnsiChar; cdecl;
+  TIFFOpen: function (const FileName: PAnsiChar; const Mode: PAnsiChar): PTIFF; cdecl;
+  TIFFClientOpen: function(
+    const Name: PAnsiChar;
+    const Mode: PAnsiChar;
+    ClientData: Cardinal;
+    ReadProc: TIFFReadWriteProc;
+    WriteProc: TIFFReadWriteProc;
+    SeekProc: TIFFSeekProc;
+    CloseProc: TIFFCloseProc;
+    SizeProc: TIFFSizeProc;
+    MapProc: TIFFMapFileProc;
+    UnmapProc: TIFFUnmapFileProc): PTIFF; cdecl;
+  TIFFClose: procedure(Handle: PTIFF); cdecl;
+  TIFFSetFileno: function(Handle: PTIFF; Newvalue: Integer): Integer; cdecl;
+  TIFFSetField: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl varargs;
+  TIFFGetField: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; varargs;
+  TIFFGetFieldDefaulted: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; varargs;
+  TIFFReadRGBAImageOriented: function(Handle: PTIFF; RWidth,RHeight: Cardinal; Raster: Pointer; Orientation: Integer; Stop: Integer): Integer; cdecl;
+  TIFFReadScanline: function(Handle: PTIFF; Buf: Pointer; Row: Cardinal; Sample: tsample_t): Integer; cdecl;
+  TIFFWriteScanline: function(Handle: PTIFF; Buf: Pointer; Row: Cardinal; Sample: tsample_t): Integer; cdecl;
+  TIFFScanlineSize: function(Handle: PTIFF): tmsize_t; cdecl;
+  TIFFDefaultStripSize: function(Handle: PTIFF; Request: Cardinal): Cardinal; cdecl;
+  TIFFNumberOfDirectories: function(Handle: PTIFF): Word; cdecl;
+  TIFFSetDirectory: function(Handle: PTIFF; Dirn: Word): Integer; cdecl;
+  TIFFWriteDirectory: function(Handle: PTIFF): Integer; cdecl;
+  TIFFReadEXIFDirectory: function(Handle: PTIFF; Diroff: toff_t): Integer; cdecl;
+  TIFFSetErrorHandler: function(Handler: TIFFErrorHandler): TIFFErrorHandler; cdecl;
+  TIFFSetWarningHandler: function(Handler: TIFFErrorHandler): TIFFErrorHandler; cdecl;
+
+function LoadTiffLibrary: Boolean;
+{$ELSE}
 function  TIFFGetVersion: PAnsiChar; cdecl; external SLibName;
 function  TIFFFindCODEC(Scheme: Word): PTIFFCodec; cdecl; external SLibName;
 function  TIFFRegisterCODEC(Scheme: Word; Name: PAnsiChar; InitMethod: TIFFInitMethod): PTIFFCodec; cdecl; external SLibName;
@@ -600,6 +644,7 @@ procedure TIFFSwabArrayOfLong(Lp: PCardinal; N: tmsize_t); cdecl; external SLibN
 procedure TIFFSwabArrayOfDouble(Dp: PDouble; N: tmsize_t); cdecl; external SLibName;
 procedure TIFFReverseBits(Cp: Pointer; N: tmsize_t); cdecl; external SLibName;
 function  TIFFGetBitRevTable(Reversed: Integer): Pointer; cdecl; external SLibName;
+{$ENDIF}
 
 type
   TUserTiffErrorHandler = procedure(const Module, Message: AnsiString);
@@ -608,6 +653,11 @@ procedure SetUserMessageHandlers(ErrorHandler, WarningHandler: TUserTiffErrorHan
 function IsVersion4: Boolean;
 
 implementation
+
+{$IFDEF FPC}
+uses
+  dynlibs;
+{$ENDIF}
 
 var
   UserTiffWarningHandler: TUserTiffErrorHandler;
@@ -619,12 +669,10 @@ begin
   UserTiffWarningHandler := WarningHandler;
 end;
 
-function IsVersion4: Boolean;
-var
-  Version: PAnsiChar;
+procedure SetInternalMessageHandlers(ErrorHandler, WarningHandler: TIFFErrorHandler);
 begin
-    Version := TIFFGetVersion;
-    Result := Pos('Version 4', Version) > 0;
+  TIFFSetWarningHandler(@WarningHandler);
+  TIFFSetErrorHandler(@ErrorHandler);
 end;
 
 const
@@ -659,13 +707,90 @@ begin
     FormatAndCallHandler(UserTiffErrorHandler, Module, Format, Params);
 end;
 
-initialization
-  TIFFSetWarningHandler(@InternalTIFFWarning);
-  TIFFSetErrorHandler(@InternallTIFFError);
+function IsVersion4: Boolean;
+var
+  Version: PAnsiChar;
+begin
+    Version := TIFFGetVersion;
+    Result := Pos('Version 4', Version) > 0;
+end;
 
+procedure CheckVersion;
+begin
 {$IFDEF UNIX}
   if not IsVersion4 then
     WriteLn('Warning: installed libtiff seems to be version 3.x. TIFF functions will probably fail. Install libtiff5 package to get libtiff 4.x.');
+{$ENDIF}
+end;
+
+{$IFDEF DYNAMIC_DLL_LOADING}
+var
+  TiffLibHandle: THandle = 0;
+
+function GetProcAddr(const AProcName: PAnsiChar): Pointer;
+begin
+  Result := GetProcAddress(TiffLibHandle, AProcName);
+  if Addr(Result) = nil then begin
+    RaiseLastOSError;
+  end;
+end;
+
+function LoadTiffLibrary: Boolean;
+begin
+  Result := False;
+
+  if TiffLibHandle = 0 then
+  begin
+    TiffLibHandle := LoadLibrary(SLibName);
+
+    if TiffLibHandle <> 0 then
+    begin
+      TIFFGetVersion := GetProcAddr('TIFFGetVersion');
+      TIFFOpen := GetProcAddr('TIFFOpen');
+      TIFFClientOpen := GetProcAddr('TIFFClientOpen');
+      TIFFClose := GetProcAddr('TIFFClose');
+      TIFFSetFileno := GetProcAddr('TIFFSetFileno');
+      TIFFSetField := GetProcAddr('TIFFSetField');
+      TIFFGetField := GetProcAddr('TIFFGetField');
+      TIFFGetFieldDefaulted := GetProcAddr('TIFFGetFieldDefaulted');
+      TIFFReadRGBAImageOriented := GetProcAddr('TIFFReadRGBAImageOriented');
+      TIFFReadScanline := GetProcAddr('TIFFReadScanline');
+      TIFFWriteScanline := GetProcAddr('TIFFWriteScanline');
+      TIFFScanlineSize := GetProcAddr('TIFFScanlineSize');
+      TIFFDefaultStripSize := GetProcAddr('TIFFDefaultStripSize');
+      TIFFNumberOfDirectories := GetProcAddr('TIFFNumberOfDirectories');
+      TIFFSetDirectory := GetProcAddr('TIFFSetDirectory');
+      TIFFWriteDirectory := GetProcAddr('TIFFWriteDirectory');
+      TIFFReadEXIFDirectory := GetProcAddr('TIFFReadEXIFDirectory');
+      TIFFSetErrorHandler := GetProcAddr('TIFFSetErrorHandler');
+      TIFFSetWarningHandler := GetProcAddr('TIFFSetWarningHandler');
+
+      SetInternalMessageHandlers(@InternallTIFFError, @InternalTIFFWarning);
+      CheckVersion;
+
+      Result := True;
+    end;
+  end;
+end;
+
+procedure FreeTiffLibrary;
+begin
+  if TiffLibHandle <> 0 then begin
+    FreeLibrary(TiffLibHandle);
+    TiffLibHandle := 0;
+  end;
+end;
+{$ENDIF}
+
+initialization
+{$IFNDEF DYNAMIC_DLL_LOADING}
+  SetInternalMessageHandlers(@InternallTIFFError, @InternalTIFFWarning);
+  CheckVersion;
+{$ENDIF}
+
+finalization
+{$IFDEF DYNAMIC_DLL_LOADING}
+  FreeTiffLibrary;
 {$ENDIF}
 end.
 
