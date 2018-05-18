@@ -214,6 +214,8 @@ var
     TIFFGetFieldDefaulted(Tiff, TIFFTAG_YRESOLUTION, @YRes);
     TIFFGetFieldDefaulted(Tiff, TIFFTAG_COMPRESSION, @CompressionScheme);
 
+    FMetadata.SetMetaItem(SMetaTiffResolutionUnit, TiffResUnit);
+
     if (TiffResUnit <> RESUNIT_NONE) and (XRes >= 0.1) and (YRes >= 0.1) then
     begin
       ResUnit := ruDpi;
@@ -444,18 +446,35 @@ var
   procedure SaveMetadata(Tiff: PTiff; TiffPage: Integer);
   var
     XRes, YRes: Single;
+    ResUnit: TResolutionUnit;
+    TiffResUnit, StoredTiffResUnit: Word;
   begin
     XRes := -1;
     YRes := -1;
 
+    ResUnit := ruDpcm;
+    TiffResUnit := RESUNIT_CENTIMETER;
+
+    if FMetadata.HasMetaItemForSaving(SMetaTiffResolutionUnit) then
+    begin
+      // Check if DPI resolution unit is requested to be used (e.g. to
+      // use the same unit when just resaving files - also some )
+      StoredTiffResUnit := FMetadata.MetaItemsForSaving[SMetaTiffResolutionUnit];
+      if StoredTiffResUnit = RESUNIT_INCH then
+      begin
+        ResUnit := ruDpi;
+        TiffResUnit := RESUNIT_INCH;
+      end;
+    end;
+
     // First try to find phys. size for current TIFF page index. If not found then
     // try size for main image (index 0).
-    if not FMetadata.GetPhysicalPixelSize(ruDpcm, XRes, YRes, True, TiffPage) then
-      FMetadata.GetPhysicalPixelSize(ruDpcm, XRes, YRes, True, 0);
+    if not FMetadata.GetPhysicalPixelSize(ResUnit, XRes, YRes, True, TiffPage) then
+      FMetadata.GetPhysicalPixelSize(ResUnit, XRes, YRes, True, 0);
 
     if (XRes > 0) and (YRes > 0) then
     begin
-      TIFFSetField(Tiff, TIFFTAG_RESOLUTIONUNIT, RESUNIT_CENTIMETER);
+      TIFFSetField(Tiff, TIFFTAG_RESOLUTIONUNIT, TiffResUnit);
       TIFFSetField(Tiff, TIFFTAG_XRESOLUTION, XRes);
       TIFFSetField(Tiff, TIFFTAG_YRESOLUTION, YRes);
     end;

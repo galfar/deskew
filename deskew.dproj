@@ -78,7 +78,7 @@
 						<Source Name="MainSource">deskew.dpr</Source>
 					</Source>
 					<Parameters>
-						<Parameters Name="RunParams">-t 8 -a 10 F1550.jpg</Parameters>
+						<Parameters Name="RunParams">-o out.jpg &quot;18 (source-300dpi).jpg&quot;</Parameters>
 					</Parameters>
 					<VersionInfo>
 						<VersionInfo Name="IncludeVerInfo">False</VersionInfo>
@@ -115,11 +115,3 @@
 			<ProjectFileVersion>12</ProjectFileVersion>
 		</ProjectExtensions>
 	</Project>
-
-<!-- EurekaLog First Line
-[Exception Log]
-EurekaLog Version=7007
-Activate=0
-DeleteMapAfterCompile=0
-Encrypt Password=""
-EurekaLog Last Line -->

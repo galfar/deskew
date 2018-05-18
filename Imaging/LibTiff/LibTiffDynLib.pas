@@ -12,6 +12,9 @@ unit LibTiffDynLib;
 interface
 
 uses
+{$IFDEF MSWINDOWS}
+  Windows,
+{$ENDIF}
   SysUtils;
 
 type
@@ -47,7 +50,7 @@ const
   SLibName = 'libtiff.dylib';
 {$ELSE} // Linux, BSD
   SLibName = 'libtiff.so.5'; // yes, SONAME for libtiff v4.0 is actually libtiff5 (and libtiff.so.4 is libtiff v3.9)
-{$ENDIF}
+{$IFEND}
 
   TIFF_NOTYPE                           = 0;
   TIFF_BYTE                             = 1;       { 8-bit unsigned integer }
@@ -515,8 +518,8 @@ var
   TIFFClose: procedure(Handle: PTIFF); cdecl;
   TIFFSetFileno: function(Handle: PTIFF; Newvalue: Integer): Integer; cdecl;
   TIFFSetField: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl varargs;
-  TIFFGetField: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; varargs;
-  TIFFGetFieldDefaulted: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl; varargs;
+  TIFFGetField: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl varargs;
+  TIFFGetFieldDefaulted: function(Handle: PTIFF; Tag: Cardinal): Integer; cdecl varargs;
   TIFFReadRGBAImageOriented: function(Handle: PTIFF; RWidth,RHeight: Cardinal; Raster: Pointer; Orientation: Integer; Stop: Integer): Integer; cdecl;
   TIFFReadScanline: function(Handle: PTIFF; Buf: Pointer; Row: Cardinal; Sample: tsample_t): Integer; cdecl;
   TIFFWriteScanline: function(Handle: PTIFF; Buf: Pointer; Row: Cardinal; Sample: tsample_t): Integer; cdecl;
@@ -712,7 +715,7 @@ var
   Version: PAnsiChar;
 begin
     Version := TIFFGetVersion;
-    Result := Pos('Version 4', Version) > 0;
+    Result := Pos(AnsiString('Version 4'), Version) > 0;
 end;
 
 procedure CheckVersion;
@@ -725,7 +728,7 @@ end;
 
 {$IFDEF DYNAMIC_DLL_LOADING}
 var
-  TiffLibHandle: THandle = 0;
+  TiffLibHandle: {$IFDEF FPC}TLibHandle{$ELSE}THandle{$ENDIF} = 0;
 
 function GetProcAddr(const AProcName: PAnsiChar): Pointer;
 begin
