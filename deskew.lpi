@@ -17,7 +17,7 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <BuildModes Count="4" Active="Debug">
+    <BuildModes Count="5" Active="Debug">
       <Item1 Name="Release" Default="True"/>
       <Item2 Name="Debug">
         <CompilerOptions>
@@ -127,6 +127,41 @@
           </Linking>
         </CompilerOptions>
       </Item4>
+      <Item5 Name="ReleaseMacOS">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="Bin\deskew-osx"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+            <Libraries Value="Imaging\LibTiff\Compiled"/>
+            <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+            <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="Delphi"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <SmartLinkUnit Value="True"/>
+            <TargetCPU Value="x86_64"/>
+            <TargetOS Value="darwin"/>
+            <Optimizations>
+              <OptimizationLevel Value="3"/>
+              <VariablesInRegisters Value="True"/>
+            </Optimizations>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <GenerateDebugInfo Value="False"/>
+            </Debugging>
+            <LinkSmart Value="True"/>
+          </Linking>
+        </CompilerOptions>
+      </Item5>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -139,7 +174,7 @@
         <CommandLineParams Value="-o out.tif -b ff8000 -s s -t a 1-wpv.tif"/>
       </local>
     </RunParams>
-    <Units Count="26">
+    <Units Count="22">
       <Unit0>
         <Filename Value="deskew.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -201,7 +236,7 @@
         <Filename Value="Imaging\ImagingUtility.pas"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="24" Y="31"/>
-        <UsageCount Value="136"/>
+        <UsageCount Value="123"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit6>
       <Unit7>
@@ -217,7 +252,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="737"/>
         <CursorPos X="15" Y="759"/>
-        <UsageCount Value="120"/>
+        <UsageCount Value="107"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit8>
       <Unit9>
@@ -225,14 +260,14 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="134"/>
         <CursorPos X="107" Y="134"/>
-        <UsageCount Value="114"/>
+        <UsageCount Value="101"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit9>
       <Unit10>
         <Filename Value="Imaging\LibTiff\ImagingLibTiff.pas"/>
         <TopLine Value="242"/>
         <CursorPos X="15" Y="261"/>
-        <UsageCount Value="94"/>
+        <UsageCount Value="81"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit10>
       <Unit11>
@@ -249,115 +284,84 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="506"/>
         <CursorPos X="23" Y="520"/>
-        <UsageCount Value="94"/>
+        <UsageCount Value="81"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit12>
       <Unit13>
         <Filename Value="Imaging\JpegLib\imjdhuff.pas"/>
         <TopLine Value="1154"/>
         <CursorPos X="115" Y="1166"/>
-        <UsageCount Value="85"/>
+        <UsageCount Value="72"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit13>
       <Unit14>
         <Filename Value="Imaging\LibTiff\LibJpegDelphi.pas"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="62" Y="22"/>
-        <UsageCount Value="89"/>
+        <UsageCount Value="76"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit14>
       <Unit15>
         <Filename Value="Imaging\LibTiff\ImagingTiffLib.pas"/>
         <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
-        <TopLine Value="442"/>
-        <CursorPos X="26" Y="451"/>
-        <UsageCount Value="62"/>
+        <TopLine Value="443"/>
+        <CursorPos X="27" Y="447"/>
+        <UsageCount Value="128"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
       </Unit15>
       <Unit16>
-        <Filename Value="..\..\Libs\Imaging\Source\ImagingUtility.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="1602"/>
-        <CursorPos X="35" Y="1617"/>
-        <UsageCount Value="8"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit16>
-      <Unit17>
         <Filename Value="Imaging\ImagingTypes.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="399"/>
         <CursorPos X="5" Y="427"/>
-        <UsageCount Value="36"/>
+        <UsageCount Value="23"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit17>
-      <Unit18>
+      </Unit16>
+      <Unit17>
         <Filename Value="Imaging\ImagingFormats.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="261"/>
         <CursorPos X="24" Y="272"/>
-        <UsageCount Value="64"/>
+        <UsageCount Value="51"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit18>
-      <Unit19>
+      </Unit17>
+      <Unit18>
         <Filename Value="E:\Downloads\ImgRotate.h"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="553"/>
         <CursorPos X="10" Y="585"/>
-        <UsageCount Value="16"/>
+        <UsageCount Value="3"/>
         <DefaultSyntaxHighlighter Value="C++"/>
-      </Unit19>
-      <Unit20>
+      </Unit18>
+      <Unit19>
         <Filename Value="Imaging\ImagingTiff.pas"/>
         <EditorIndex Value="4"/>
         <TopLine Value="16"/>
         <CursorPos X="25" Y="38"/>
-        <UsageCount Value="62"/>
+        <UsageCount Value="128"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit20>
-      <Unit21>
+      </Unit19>
+      <Unit20>
         <Filename Value="Imaging\ImagingExtras.pas"/>
         <EditorIndex Value="7"/>
         <TopLine Value="35"/>
         <CursorPos X="12" Y="44"/>
-        <UsageCount Value="36"/>
+        <UsageCount Value="102"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit21>
-      <Unit22>
-        <Filename Value="E:\Downloads\LibTiffDyn.pas.txt"/>
-        <EditorIndex Value="-1"/>
-        <CursorPos X="17" Y="4"/>
-        <UsageCount Value="6"/>
-        <DefaultSyntaxHighlighter Value="None"/>
-      </Unit22>
-      <Unit23>
-        <Filename Value="E:\Downloads\LibTiffDyn.pas"/>
-        <UnitName Value="libtiff"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="548"/>
-        <CursorPos Y="542"/>
-        <UsageCount Value="9"/>
-        <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit23>
-      <Unit24>
-        <Filename Value="C:\Programs\Lazarus\fpc\3.0.4\source\rtl\inc\dynlibs.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="120"/>
-        <CursorPos X="24" Y="58"/>
-        <UsageCount Value="7"/>
-      </Unit24>
-      <Unit25>
+      </Unit20>
+      <Unit21>
         <Filename Value="Imaging\ImagingClasses.pas"/>
         <EditorIndex Value="10"/>
         <TopLine Value="140"/>
         <CursorPos X="22" Y="118"/>
-        <UsageCount Value="30"/>
+        <UsageCount Value="96"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
-      </Unit25>
+      </Unit21>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
