@@ -53,8 +53,6 @@
 			<DCCReference Include="CmdLineOptions.pas"/>
 			<DCCReference Include="ImageUtils.pas"/>
 			<DCCReference Include="MainUnit.pas"/>
-			<None Include="Doc\Readme.txt"/>
-			<None Include="Doc\Compiling.txt"/>
 			<BuildConfiguration Include="Debug">
 				<Key>Cfg_2</Key>
 				<CfgParent>Base</CfgParent>

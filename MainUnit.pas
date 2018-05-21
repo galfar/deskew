@@ -50,7 +50,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.22 (2018-05-17)'
+  SAppTitle = 'Deskew 1.25 (2018-05-19)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -198,7 +198,7 @@ begin
     InputImage.Width, InputImage.Height, InputImage.Bits,
     @ContentRect, @Stats);
   WriteTiming('Skew detection');
-  WriteLn('Skew angle found: ', SkewAngle:4:2);
+  WriteLn('Skew angle found [deg]: ', SkewAngle:4:3);
 
   // Check if detected skew angle is higher than "skip" threshold - may not
   // want to do rotation needlessly.

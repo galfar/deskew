@@ -1,10 +1,10 @@
 Deskew
 =======================
-by Marek Mauder   
-[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)   
-[https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)  
+by Marek Mauder
+[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)
+[https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)
 
-**v1.21 2017-11-01**
+**v1.25 2018-05-19**
 
 Overview
 ------------------------
@@ -14,7 +14,8 @@ It uses Hough transform to detect "text lines" in the image. As an output, you g
 an image rotated so that the lines are horizontal.
 
 There are binaries built for these platforms (located in Bin folder):
-Win32 (deskew.exe), Win64 (deskew64.exe), Linux 64bit (deskew), Mac OS X (deskew-osx).
+Win32 (deskew.exe), Win64 (deskew64.exe), Linux 64bit (deskew), macOS (deskew-osx),
+Linux ARMv7 (deskew-arm).
 
 You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
@@ -49,14 +50,20 @@ deskew [-o output] [-a angle] [-b color] [..] input
 
 #### Notes
 
-On Linux, you need to have libtiff 4.x installed (package is called libtiff5).
+For TIFF support in Linux and macOS you need to have libtiff 4.x installed (package is usually called libtiff5).
 
 Version History
 ------------------------
+1.25 2018-05-19:
+
+  - fix #6: Preserve DPI measurement system (TIFF)
+  - fix #4: Output image not saved in requested format (when deskewing is skipped)
+  - dynamic loading of libtiff library - adds TIFF support in macOS when libtiff is installed
+
 1.21 2017-11-01:
 
-  - fix #8: Cannot compile in Free Pascal 3.0+ (Windows) - Fails to link precompiled LibTiff library 
-  - fix #7: Windows FPC build fails with *Access violation exception* when loading certain TIFFs (especially those saved by Windows Photo Viewer etc.)  
+  - fix #8: Cannot compile in Free Pascal 3.0+ (Windows) - Fails to link precompiled LibTiff library
+  - fix #7: Windows FPC build fails with *Access violation exception* when loading certain TIFFs (especially those saved by Windows Photo Viewer etc.)
 
 1.20 2016-09-01:
 
@@ -99,7 +106,7 @@ Free Pascal or Delphi to recompile it.
 #### Tested Compilers
 There are project files for these IDEs:
 
-  1. Lazarus 1.8 (deskew.lpi)
+  1. Lazarus 1.8.2 (deskew.lpi)
   2. Delphi XE (deskew.dproj)
 
 Additionaly, there is compile shell/batch scripts for FPC compiler `compile.sh` and
@@ -107,7 +114,7 @@ Additionaly, there is compile shell/batch scripts for FPC compiler `compile.sh` 
 
 #### Target Platforms
 Deskew is precompiled and was tested on these platforms:
-Win32, Win64, Linux 64bit, Mac OS X 32bit
+Win32, Win64, Linux 64b, macOS 64b, Linux ARMv7
 
 #### Source Code
 Latest source code can be found here:
