@@ -249,7 +249,7 @@ type
     ifBTC            = 203,
     ifATI1N          = 204,
     ifATI2N          = 205,
-    ifBinary         = 206
+    ifBinary         = 206,
     { Passtrough formats }
     {ifETC1           = 220,
     ifETC2RGB        = 221,
@@ -257,6 +257,7 @@ type
     ifETC2PA         = 223,
     ifDXBC6          = 224,
     ifDXBC7          = 225}
+    ifLast           = 255
   );
 
   { Color value for 32 bit images.}

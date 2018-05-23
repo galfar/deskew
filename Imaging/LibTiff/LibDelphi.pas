@@ -7,7 +7,7 @@ unit LibDelphi;
 interface
 
 uses
-  {$ifndef FPC}windows,{$endif} SysUtils;
+  SysUtils;
 
 type
   va_list = Pointer;
@@ -83,6 +83,11 @@ var
 
 implementation
 
+{$ifndef FPC}
+uses
+  Windows;
+{$endif}
+
 {$ifdef FPC}
 function __udivdi3(a, b: int64): int64; cdecl;
 begin
@@ -155,7 +160,7 @@ begin
   Result := __sprintf(buffer, format, arguments);
 end;
 
-function __snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl; external SRuntimeLib name {$IFDEF MSWINDOWS}'_snprintf'{$ELSE}'snprintf'{$ENDIF};
+function __snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl; external SRuntimeLib name '_snprintf';
 
 function snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_list): Integer; cdecl;
 begin

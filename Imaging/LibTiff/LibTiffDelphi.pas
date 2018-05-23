@@ -1430,17 +1430,23 @@ begin
   InvalidHandle := feInvalidHandle;
 {$ENDIF}
 
-  fd:=FileOpen(Name,fmShareDenyWrite or DesiredAccess);
+  if DesiredAccess = fmCreate then
+    fd := FileCreate(Name, fmShareDenyWrite)
+  else
+    fd := FileOpen(Name, fmShareDenyWrite or DesiredAccess);
+
   if fd = InvalidHandle then
   begin
-    TiffError(PAnsiChar(Module),PAnsiChar('%s: Cannot open'),PAnsiChar(Name));
+    TiffError(PAnsiChar(Module), PAnsiChar('Cannot open file: ' + Name), nil);
     Result:=nil;
     exit;
   end;
 
-  Result:=TIFFClientOpen(PAnsiChar(Name),PAnsiChar(Mode),fd,TIFFReadWriteProc(@TIFFFileReadProc),TIFFReadWriteProc(@TIFFFileWriteProc),TIFFSeekProc(@TIFFFileSeekProc),TIFFCloseProc(@TIFFFileCloseProc),
-              TIFFSizeProc(@TIFFFileSizeProc),TIFFMapFileProc(@TIFFNoMapProc),TIFFUnmapFileProc(@TIFFNoUnmapProc));
-  if Result<>nil then
+  Result := TIFFClientOpen(PAnsiChar(Name), PAnsiChar(Mode), fd,
+              TIFFReadWriteProc(@TIFFFileReadProc), TIFFReadWriteProc(@TIFFFileWriteProc), TIFFSeekProc(@TIFFFileSeekProc), TIFFCloseProc(@TIFFFileCloseProc),
+              TIFFSizeProc(@TIFFFileSizeProc), TIFFMapFileProc(@TIFFNoMapProc), TIFFUnmapFileProc(@TIFFNoUnmapProc));
+
+  if Result <> nil then
     TIFFSetFileno(Result,fd)
   else
     FileClose(fd);

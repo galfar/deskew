@@ -98,7 +98,13 @@ type
       negative X and Y coordinates.
       Note that copying is fastest for images in the same data format
       (and slowest for images in special formats).}
-    procedure CopyTo(SrcX, SrcY, Width, Height: Integer; DstImage: TBaseImage; DstX, DstY: Integer);
+    procedure CopyTo(SrcX, SrcY, Width, Height: Integer; DstImage: TBaseImage; DstX, DstY: Integer); overload;
+    { Copies whole image to DstImage. No blending is performed -
+      alpha is simply copied to destination image. Operates also with
+      negative X and Y coordinates.
+      Note that copying is fastest for images in the same data format
+      (and slowest for images in special formats).}
+    procedure CopyTo(DstImage: TBaseImage; DstX, DstY: Integer); overload;
     { Stretches the contents of the source rectangle to the destination rectangle
       with optional resampling. No blending is performed - alpha is
       simply copied/resampled to destination image. Note that stretching is
@@ -525,6 +531,15 @@ begin
   if Valid and Assigned(DstImage) and DstImage.Valid then
   begin
     Imaging.CopyRect(FPData^, SrcX, SrcY, Width, Height, DstImage.FPData^, DstX, DstY);
+    DstImage.DoPixelsChanged;
+  end;
+end;
+
+procedure TBaseImage.CopyTo(DstImage: TBaseImage; DstX, DstY: Integer);
+begin
+  if Valid and Assigned(DstImage) and DstImage.Valid then
+  begin
+    Imaging.CopyRect(FPData^, 0, 0, Width, Height, DstImage.FPData^, DstX, DstY);
     DstImage.DoPixelsChanged;
   end;
 end;

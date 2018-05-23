@@ -86,13 +86,11 @@ type
   TRgbe = packed record
     R, G, B, E: Byte;
   end;
-  PRgbe = ^TRgbe;
   TDynRgbeArray = array of TRgbe;
 
 const
   RadianceSignature: TSignature = '#?RADIANCE';
   RgbeSignature: TSignature = '#?RGBE';
-  MaxLineLength = 256;
   SFmtRgbeRle = '32-bit_rle_rgbe';
   SFmtXyzeRle = '32-bit_rle_xyze';
 

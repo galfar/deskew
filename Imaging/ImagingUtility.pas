@@ -228,7 +228,9 @@ function MinFloat(A, B: Single): Single; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns greater of two integer numbers.}
 function Max(A, B: LongInt): LongInt; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns greater of two float numbers.}
-function MaxFloat(A, B: Single): Single; {$IFDEF USE_INLINE}inline;{$ENDIF}
+function MaxFloat(A, B: Single): Single; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Returns greater of two float numbers.}
+function MaxFloat(const A, B: Double): Double; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns result from multiplying Number by Numerator and then dividing by Denominator.
   Denominator must be greater than 0.}
 function MulDiv(Number, Numerator, Denominator: Word): Word; {$IFDEF USE_INLINE}inline;{$ENDIF}
@@ -340,6 +342,7 @@ function DpiToPixelSize(Dpi: Single): Single;
 function FloatRect(ALeft, ATop, ARight, ABottom: Single): TFloatRect;
 function FloatRectWidth(const R: TFloatRect): Single;
 function FloatRectHeight(const R: TFloatRect): Single;
+function FloatRectFromRect(const R: TRect): TFloatRect;
 
 { Formats given message for usage in Exception.Create(..). Use only
   in except block - returned message contains message of last raised exception.}
@@ -450,7 +453,7 @@ begin
     System.GetModuleFileName(MainInstance, FileName, SizeOf(FileName)));
 {$ELSE}
 begin
-  Result := ParamStr(0);
+  Result := ExpandFileName(ParamStr(0));
 {$IFEND}
 end;
 
@@ -1073,6 +1076,14 @@ begin
     Result := B;
 end;
 
+function MaxFloat(const A, B: Double): Double;
+begin
+  if A > B then
+    Result := A
+  else
+    Result := B;
+end;
+
 function MulDiv(Number, Numerator, Denominator: Word): Word;
 {$IF Defined(USE_ASM) and (not Defined(USE_INLINE))}
 asm
@@ -1574,6 +1585,11 @@ end;
 function FloatRectHeight(const R: TFloatRect): Single;
 begin
   Result := R.Bottom - R.Top;
+end;
+
+function FloatRectFromRect(const R: TRect): TFloatRect;
+begin
+  Result := FloatRect(R.Left, R.Top, R.Right, R.Bottom);
 end;
 
 function FormatExceptMsg(const Msg: string; const Args: array of const): string;

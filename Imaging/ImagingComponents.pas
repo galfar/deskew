@@ -96,6 +96,10 @@ type
     procedure AssignFromImageData(const ImageData: TImageData);
     { Copies the current image to TImageData structure.}
     procedure AssignToImageData(var ImageData: TImageData);
+
+  {$IFDEF FPC}
+    class function IsStreamFormatSupported(Stream: TStream): boolean; override;
+  {$ENDIF}
   end;
 
   TImagingGraphicClass = class of TImagingGraphic;
@@ -915,6 +919,13 @@ begin
   else
     inherited AssignTo(Dest);
 end;
+
+{$IFDEF FPC}
+class function TImagingGraphic.IsStreamFormatSupported(Stream: TStream): Boolean;
+begin
+  Result := DetermineStreamFormat(Stream) <> '';
+end;
+{$ENDIF}
 
 procedure TImagingGraphic.Assign(Source: TPersistent);
 begin
