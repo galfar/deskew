@@ -66,6 +66,8 @@ type
     FShowTimings: Boolean;
     FFormatSettings: TFormatSettings;
     FErrorMessage: string;
+    FJpegCompressionQuality: Integer;
+    FTiffCompressionScheme: Integer;
     function GetIsValid: Boolean;
   public
     constructor Create;
@@ -95,6 +97,10 @@ type
     property ShowParams: Boolean read FShowParams;
     // Show timing of processing steps to user
     property ShowTimings: Boolean read FShowTimings;
+    // Compression quality of JPEG outputs (also embedded) in range [1, 100(best)]
+    property JpegCompressionQuality: Integer read FJpegCompressionQuality;
+    // Compression scheme of TIFF outputs. Values and default in imaginglib.
+    property TiffCompressionScheme: Integer read FTiffCompressionScheme;
 
     property IsValid: Boolean read GetIsValid;
     property ErrorMessage: string read FErrorMessage;
@@ -103,7 +109,12 @@ type
 implementation
 
 uses
-  Imaging;
+  Imaging, ImagingTiff;
+
+const
+  TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
+    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4'
+  );
 
 { TCmdLineOptions }
 
@@ -120,6 +131,8 @@ begin
   FShowParams := False;
   FShowTimings:= False;
   FForcedOutputFormat := ifUnknown;
+  FJpegCompressionQuality := -1; // use imaginglib default
+  FTiffCompressionScheme := -1; // use imaginglib default
   FFormatSettings := ImagingUtility.GetFormatSettingsForFloats;
 end;
 
@@ -191,8 +204,9 @@ var
   function CheckParam(const Param, Value: string): Boolean;
   var
     StrArray: TDynStringArray;
-    ValLower: string;
+    ValLower, S: string;
     TempColor: Cardinal;
+    I, J: Integer;
   begin
     Result := True;
     ValLower := LowerCase(Value);
@@ -263,6 +277,30 @@ var
         FContentRect.Bottom := StrToInt(StrArray[3]);
       end;
     end
+    else if Param = '-c' then
+    begin
+      StrArray := SplitString(ValLower, ',');
+      for I := 0 to High(StrArray) do
+      begin
+        S := StrArray[I];
+        if Pos('t', S) = 1 then
+        begin
+          S := Copy(S, 2);
+          for J := Low(TiffCompressionNames) to High(TiffCompressionNames) do
+          begin
+            if S = TiffCompressionNames[J] then
+            begin
+              FTiffCompressionScheme := J;
+              Break;
+            end;
+          end;
+        end
+        else if Pos('j', S) = 1 then
+        begin
+          FJpegCompressionQuality := StrToIntDef(Copy(S, 2), -1)
+        end;
+      end;
+    end
     else
     begin
       FErrorMessage := 'Unknown parameter: ' + Param;
@@ -295,7 +333,14 @@ begin
 end;
 
 function TCmdLineOptions.OptionsToString: string;
+var
+  CompJpegStr, CompTiffStr: string;
 begin
+  CompJpegStr := Iff(JpegCompressionQuality = -1, 'default', IntToStr(JpegCompressionQuality));
+  CompTiffStr := 'default';
+  if TiffCompressionScheme >= 0 then
+    CompTiffStr := TiffCompressionNames[TiffCompressionScheme];
+
   Result :=
     '  input file          = ' + InputFile + sLineBreak +
     '  output file         = ' + OutputFile + sLineBreak +
@@ -306,7 +351,8 @@ begin
     '  content rect        = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
-    '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak;
+    '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +
+    '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;
 end;
 
 end.

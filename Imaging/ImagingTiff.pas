@@ -30,6 +30,13 @@ type
   end;
 
 const
+  TiffCompressionOptionNone        = 0;
+  TiffCompressionOptionLzw         = 1;
+  TiffCompressionOptionPackbitsRle = 2;
+  TiffCompressionOptionDeflate     = 3;
+  TiffCompressionOptionJpeg        = 4;
+  TiffCompressionOptionGroup4      = 5;
+
   { Read only metadata info - name of compression scheme (LZW, none, JPEG, G4, ...)
     used in last loaded TIFF. }
   SMetaTiffCompressionName = 'TiffCompressionName';

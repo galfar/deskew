@@ -44,13 +44,14 @@ uses
   ImagingClasses,
   ImagingFormats,
   ImagingUtility,
+  ImagingExtras,
   // Project units
   CmdLineOptions,
   ImageUtils,
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.25 (2018-05-19)'
+  SAppTitle = 'Deskew 1.26 (2018-09-07)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -89,6 +90,11 @@ begin
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
+  WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
+  WriteLn('                   can be defined - delimited by commas. Supported specs:');
+  WriteLn('                   jXX - JPEG compression quality, XX is in range [1,100(best)]');
+  WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4');
+
 
   Count := GetFileFormatCount;
   for I := 0 to Count - 1 do
@@ -289,6 +295,18 @@ procedure RunDeskew;
     SrcStream.Free;
   end;
 
+  procedure SetImagingOptions;
+  begin
+    if Options.JpegCompressionQuality <> -1 then
+    begin
+      Imaging.SetOption(ImagingJpegQuality, Options.JpegCompressionQuality);
+      Imaging.SetOption(ImagingTiffJpegQuality, Options.JpegCompressionQuality);
+      Imaging.SetOption(ImagingJNGQuality, Options.JpegCompressionQuality);
+    end;
+    if Options.TiffCompressionScheme <> -1 then
+      Imaging.SetOption(ImagingTiffCompression, Options.TiffCompressionScheme);
+  end;
+
 var
   Changed: Boolean;
 begin
@@ -303,6 +321,7 @@ begin
     try
       if Options.ParseCommnadLine and Options.IsValid then
       begin
+        SetImagingOptions;
         if Options.ShowParams then
           WriteLn(Options.OptionsToString);
 
