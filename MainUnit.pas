@@ -279,6 +279,9 @@ procedure RunDeskew;
   var
     SrcStream, DestStream: TFileStream;
   begin
+    if SameText(SrcPath, DestPath) then
+      Exit; // No need to copy anything
+
     SrcStream := TFileStream.Create(SrcPath, fmOpenRead);
     DestStream := TFileStream.Create(DestPath, fmCreate);
     DestStream.CopyFrom(SrcStream, SrcStream.Size);
