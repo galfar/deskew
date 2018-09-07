@@ -214,9 +214,15 @@ var
     if Param = '-o' then
       FOutputFile := Value
     else if Param = '-a' then
-      FMaxAngle := StrToFloatDef(Value, -1, FFormatSettings)
+    begin
+      if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) then
+        FErrorMessage := 'Invalid value for max angle parameter: ' + Value;
+    end
     else if Param = '-l' then
-      FSkipAngle := StrToFloatDef(Value, -1, FFormatSettings)
+    begin
+      if not TryStrToFloat(Value, FSkipAngle, FFormatSettings) then
+        FErrorMessage := 'Invalid value for skip angle parameter: ' + Value;
+    end
     else if Param = '-t' then
     begin
       if ValLower = 'a' then
@@ -224,7 +230,8 @@ var
       else
       begin
         FThresholdingMethod := tmExplicit;
-        FThresholdLevel := StrToIntDef(Value, -1);
+        if not TryStrToInt(Value, FThresholdLevel) then
+          FErrorMessage := 'Invalid value for treshold parameter: ' + Value;
       end;
     end
     else if Param = '-b' then
@@ -255,7 +262,9 @@ var
       else if ValLower = 'rgb24' then
         FForcedOutputFormat := ifR8G8B8
       else if ValLower = 'rgba32' then
-        FForcedOutputFormat := ifA8R8G8B8;
+        FForcedOutputFormat := ifA8R8G8B8
+      else
+        FErrorMessage := 'Invalid value for format parameter: ' + Value;
     end
     else if Param = '-s' then
     begin
@@ -286,6 +295,8 @@ var
         if Pos('t', S) = 1 then
         begin
           S := Copy(S, 2);
+          FTiffCompressionScheme := -1;
+
           for J := Low(TiffCompressionNames) to High(TiffCompressionNames) do
           begin
             if S = TiffCompressionNames[J] then
@@ -294,18 +305,36 @@ var
               Break;
             end;
           end;
+
+          if FTiffCompressionScheme = -1 then
+          begin
+            FErrorMessage := 'Invalid TIFF output compression spec: ' + S;
+            Exit(False);
+          end;
         end
         else if Pos('j', S) = 1 then
         begin
-          FJpegCompressionQuality := StrToIntDef(Copy(S, 2), -1)
+          S := Copy(S, 2);
+          if not TryStrToInt(S,FJpegCompressionQuality) then
+          begin
+            FErrorMessage := 'Invalid JPEG output compression spec: ' + S;
+            Exit(False);
+          end;
+        end
+        else
+        begin
+          FErrorMessage := 'Invalid output compression parameter: ' + S;
+          Exit(False);
         end;
       end;
     end
     else
     begin
       FErrorMessage := 'Unknown parameter: ' + Param;
-      Result := False;
     end;
+
+    if FErrorMessage <> '' then
+      Result := False;
   end;
 
 begin
