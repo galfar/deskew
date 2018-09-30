@@ -5,7 +5,6 @@ backup
 
 _internal/*
 Dcu/*
-Gui/*
 Releases/*
 Bin/TestOut/*
 

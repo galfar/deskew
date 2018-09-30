@@ -1,0 +1,402 @@
+object FormMain: TFormMain
+  Left = 676
+  Height = 744
+  Top = 189
+  Width = 521
+  AllowDropFiles = True
+  Caption = 'Deskew GUI'
+  ClientHeight = 744
+  ClientWidth = 521
+  Color = clWhite
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnDropFiles = FormDropFiles
+  Position = poWorkAreaCenter
+  SessionProperties = 'Position'
+  LCLVersion = '1.8.4.0'
+  object Notebook: TNotebook
+    Left = 8
+    Height = 728
+    Top = 8
+    Width = 505
+    PageIndex = 1
+    Align = alClient
+    BorderSpacing.Around = 8
+    TabOrder = 0
+    object PageIn: TPage
+      Color = clWhite
+      object BtnDeskew: TButton
+        Left = 0
+        Height = 57
+        Top = 671
+        Width = 505
+        Align = alBottom
+        Anchors = [akLeft]
+        Caption = 'Deskew!'
+        Font.Height = -32
+        OnClick = BtnDeskewClick
+        ParentFont = False
+        TabOrder = 2
+      end
+      object PanelFiles: TPanel
+        Left = 0
+        Height = 465
+        Top = 0
+        Width = 505
+        Align = alClient
+        BevelOuter = bvNone
+        ClientHeight = 465
+        ClientWidth = 505
+        TabOrder = 0
+        object Label1: TLabel
+          Left = 0
+          Height = 23
+          Top = 4
+          Width = 505
+          Align = alTop
+          BorderSpacing.Top = 4
+          BorderSpacing.Bottom = 4
+          Caption = 'Input Files'
+          Font.Color = 11428096
+          Font.Height = 24
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object MemoFiles: TMemo
+          Left = 0
+          Height = 380
+          Top = 31
+          Width = 505
+          Align = alClient
+          BorderSpacing.Bottom = 54
+          ScrollBars = ssAutoBoth
+          TabOrder = 0
+          WordWrap = False
+        end
+        object BtnAddFiles: TButton
+          Left = 0
+          Height = 37
+          Top = 417
+          Width = 103
+          Anchors = [akLeft, akBottom]
+          Caption = 'Add files...'
+          Default = True
+          Font.Height = -16
+          OnClick = BtnAddFilesClick
+          ParentFont = False
+          TabOrder = 1
+        end
+        object BtnClear: TButton
+          Left = 402
+          Height = 37
+          Top = 417
+          Width = 103
+          Anchors = [akRight, akBottom]
+          Caption = 'Clear'
+          Font.Height = -16
+          OnClick = BtnClearClick
+          ParentFont = False
+          TabOrder = 2
+        end
+      end
+      object PanelOptions: TPanel
+        Left = 0
+        Height = 188
+        Top = 465
+        Width = 505
+        Align = alBottom
+        AutoSize = True
+        BorderSpacing.Bottom = 18
+        BevelOuter = bvNone
+        ClientHeight = 188
+        ClientWidth = 505
+        TabOrder = 1
+        object Label2: TLabel
+          Left = 0
+          Height = 23
+          Top = 4
+          Width = 505
+          Align = alTop
+          BorderSpacing.Top = 4
+          BorderSpacing.Bottom = 4
+          Caption = 'Options && Parameters'
+          Font.Color = 11428096
+          Font.Height = 24
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object Panel1: TPanel
+          Left = 0
+          Height = 67
+          Top = 31
+          Width = 505
+          Align = alClient
+          BorderSpacing.Bottom = 8
+          BevelOuter = bvNone
+          ClientHeight = 67
+          ClientWidth = 505
+          TabOrder = 0
+          object ColorButton1: TColorButton
+            Left = 112
+            Height = 25
+            Top = 42
+            Width = 48
+            BorderWidth = 2
+            ButtonColorSize = 16
+            ButtonColor = clBlack
+          end
+          object Label4: TLabel
+            Left = 8
+            Height = 15
+            Top = 8
+            Width = 75
+            Caption = 'Output folder:'
+            ParentColor = False
+          end
+          object Label5: TLabel
+            Left = 8
+            Height = 15
+            Top = 48
+            Width = 97
+            Caption = 'Background color:'
+            ParentColor = False
+          end
+          object Label6: TLabel
+            Left = 248
+            Height = 15
+            Top = 48
+            Width = 112
+            Caption = 'Max. angle [degrees]:'
+            ParentColor = False
+          end
+          object FloatSpinEdit1: TFloatSpinEdit
+            Left = 368
+            Height = 23
+            Top = 44
+            Width = 64
+            Increment = 1
+            MaxValue = 100
+            MinValue = 0
+            TabOrder = 0
+            Value = 10
+          end
+          object DirectoryEdit1: TDirectoryEdit
+            Left = 96
+            Height = 23
+            Top = 2
+            Width = 408
+            Directory = 'DirectoryEdit1'
+            ShowHidden = False
+            ButtonWidth = 23
+            NumGlyphs = 1
+            MaxLength = 0
+            TabOrder = 1
+            Text = 'DirectoryEdit1'
+          end
+        end
+        object PanelAdvOptions: TPanel
+          Left = 0
+          Height = 58
+          Top = 130
+          Width = 505
+          Align = alBottom
+          BevelOuter = bvNone
+          TabOrder = 1
+        end
+        object LabAdvOptions: TLabel
+          Cursor = crHandPoint
+          Left = 8
+          Height = 20
+          Top = 106
+          Width = 497
+          Align = alBottom
+          BorderSpacing.Left = 8
+          BorderSpacing.Top = 4
+          BorderSpacing.Bottom = 4
+          Caption = '△△ Advanced Options'
+          Font.Color = 11428096
+          Font.Height = 20
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+          OnClick = LabAdvOptionsClick
+        end
+      end
+    end
+    object PageOut: TPage
+      object Panel2: TPanel
+        Left = 0
+        Height = 96
+        Top = 0
+        Width = 505
+        Align = alTop
+        BevelOuter = bvNone
+        ClientHeight = 96
+        ClientWidth = 505
+        TabOrder = 0
+        object LabDeskewProgressTitle: TLabel
+          Left = 0
+          Height = 23
+          Top = 4
+          Width = 505
+          Align = alTop
+          BorderSpacing.Top = 4
+          BorderSpacing.Bottom = 4
+          Caption = 'Deskew in Progress'
+          Font.Color = 11428096
+          Font.Height = 24
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object ProgressBar: TProgressBar
+          Left = 8
+          Height = 20
+          Top = 68
+          Width = 489
+          Align = alBottom
+          BorderSpacing.Left = 8
+          BorderSpacing.Right = 8
+          BorderSpacing.Bottom = 8
+          Max = 10
+          Position = 4
+          Smooth = True
+          TabOrder = 0
+        end
+        object FlowPanel1: TFlowPanel
+          Left = 0
+          Height = 37
+          Top = 31
+          Width = 505
+          Align = alClient
+          BevelOuter = bvNone
+          ControlList = <          
+            item
+              Control = LabProgressTitle
+              WrapAfter = waAuto
+              Index = 0
+            end          
+            item
+              Control = LabCurrentFile
+              WrapAfter = waAuto
+              Index = 1
+            end>
+          FlowLayout = tlTop
+          FlowStyle = fsLeftRightTopBottom
+          TabOrder = 1
+          object LabProgressTitle: TLabel
+            Left = 8
+            Height = 15
+            Top = 10
+            Width = 62
+            Anchors = []
+            BorderSpacing.Left = 8
+            BorderSpacing.Top = 10
+            BorderSpacing.Right = 4
+            Caption = 'Current file:'
+            Layout = tlBottom
+            ParentColor = False
+          end
+          object LabCurrentFile: TLabel
+            Left = 74
+            Height = 21
+            Top = 5
+            Width = 424
+            Anchors = []
+            AutoSize = False
+            BorderSpacing.Top = 5
+            Caption = 'FileName.ext [22/152]'
+            Font.Height = -15
+            Font.Style = [fsBold]
+            Layout = tlBottom
+            ParentColor = False
+            ParentFont = False
+          end
+        end
+      end
+      object Panel3: TPanel
+        Left = 0
+        Height = 557
+        Top = 96
+        Width = 505
+        Align = alClient
+        BorderSpacing.Bottom = 18
+        BevelOuter = bvNone
+        ClientHeight = 557
+        ClientWidth = 505
+        TabOrder = 1
+        object Label3: TLabel
+          Left = 0
+          Height = 23
+          Top = 4
+          Width = 505
+          Align = alTop
+          BorderSpacing.Top = 4
+          BorderSpacing.Bottom = 4
+          Caption = 'Output Log'
+          Font.Color = 11428096
+          Font.Height = 24
+          Font.Style = [fsBold]
+          ParentColor = False
+          ParentFont = False
+        end
+        object MemoOutput: TMemo
+          Left = 0
+          Height = 526
+          Top = 31
+          Width = 505
+          Align = alClient
+          Font.Height = -12
+          Font.Name = 'Courier New'
+          ParentFont = False
+          ScrollBars = ssAutoBoth
+          TabOrder = 0
+          WordWrap = False
+        end
+      end
+      object BtnFinish: TButton
+        Left = 0
+        Height = 57
+        Top = 671
+        Width = 505
+        Align = alBottom
+        Anchors = [akLeft]
+        Caption = 'Stop'
+        Font.Height = -32
+        OnClick = BtnFinishClick
+        ParentFont = False
+        TabOrder = 2
+      end
+    end
+  end
+  object ApplicationProperties: TApplicationProperties
+    Title = 'Deskew GUI'
+    left = 96
+    top = 280
+  end
+  object AsyncProcess: TAsyncProcess
+    PipeBufferSize = 2048
+    Active = False
+    Options = [poUsePipes, poStderrToOutPut, poNoConsole]
+    Priority = ppNormal
+    StartupOptions = []
+    ShowWindow = swoShowNormal
+    WindowColumns = 0
+    WindowHeight = 0
+    WindowLeft = 0
+    WindowRows = 0
+    WindowTop = 0
+    WindowWidth = 0
+    FillAttribute = 0
+    left = 104
+    top = 184
+  end
+  object OpenPictureDialog: TOpenPictureDialog
+    Filter = 'Graphic (*.png;*.xpm;*.bmp;*.cur;*.ico;*.icns;*.jpeg;*.jpg;*.jpe;*.jfif;*.tif;*.tiff;*.gif;*.pbm;*.pgm;*.ppm)|*.png;*.xpm;*.bmp;*.cur;*.ico;*.icns;*.jpeg;*.jpg;*.jpe;*.jfif;*.tif;*.tiff;*.gif;*.pbm;*.pgm;*.ppm|Portable Network Graphic (*.png)|*.png|Pixmap (*.xpm)|*.xpm|Bitmaps (*.bmp)|*.bmp|Cursor (*.cur)|*.cur|Icon (*.ico)|*.ico|Mac OS X Icon (*.icns)|*.icns|Joint Picture Expert Group (*.jpeg;*.jpg;*.jpe;*.jfif)|*.jpeg;*.jpg;*.jpe;*.jfif|Tagged Image File Format (*.tif;*.tiff)|*.tif;*.tiff|Graphics Interchange Format (*.gif)|*.gif|Portable PixMap (*.pbm;*.pgm;*.ppm)|*.pbm;*.pgm;*.ppm|All files (*.*)|*.*'
+    Options = [ofAllowMultiSelect, ofPathMustExist, ofFileMustExist, ofEnableSizing, ofViewDetail, ofAutoPreview]
+    left = 248
+    top = 120
+  end
+end
