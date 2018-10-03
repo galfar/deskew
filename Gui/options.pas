@@ -9,10 +9,23 @@ uses
 
 type
   TForcedOutputFormat = (
+    fofNone,
     fofBinary1,
     fofGray8,
     fofRgb24,
     forRgba32
+  );
+
+  TFileFormat = (
+    ffSameAsInput,
+    ffPng,
+    ffJpeg,
+    ffTiff,
+    ffBmp,
+    ffPsd,
+    ffTga,
+    ffJng,
+    ffPpm
   );
 
   { TOptions }
@@ -21,10 +34,9 @@ type
   private
     FFiles: TStrings;
   public
-    DefaultOutput: Boolean;
+    DefaultOutputFileOptions: Boolean;
     OutputFolder: string;
-    OutputName: string;
-    OutputFileFormat: string;
+    OutputFileFormat: TFileFormat;
     BackgroundColor: TColor32;
     MaxAngle: Double;
     ThresholdLevel: Integer; // -1 = auto

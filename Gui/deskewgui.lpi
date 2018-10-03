@@ -14,7 +14,7 @@
     <VersionInfo>
       <UseVersionInfo Value="True"/>
       <MinorVersionNr Value="50"/>
-      <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI" ProductVersion=""/>
+      <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI"/>
     </VersionInfo>
     <BuildModes Count="2">
       <Item1 Name="Debug" Default="True"/>
@@ -47,6 +47,12 @@
               </Win32>
             </Options>
           </Linking>
+          <Other>
+            <CustomOptions Value="-dDONT_LINK_FILE_FORMATS"/>
+            <OtherDefines Count="1">
+              <Define0 Value="DONT_LINK_FILE_FORMATS"/>
+            </OtherDefines>
+          </Other>
         </CompilerOptions>
       </Item2>
     </BuildModes>
@@ -138,6 +144,12 @@
         </Win32>
       </Options>
     </Linking>
+    <Other>
+      <CustomOptions Value="-dDONT_LINK_FILE_FORMATS"/>
+      <OtherDefines Count="1">
+        <Define0 Value="DONT_LINK_FILE_FORMATS"/>
+      </OtherDefines>
+    </Other>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

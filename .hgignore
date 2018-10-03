@@ -7,6 +7,7 @@ _internal/*
 Dcu/*
 Releases/*
 Bin/TestOut/*
+Gui/lib/*
 
 *.identcache
 *.local
@@ -16,7 +17,7 @@ Bin/TestOut/*
 *.rsm
 *.deployproj
 *.info.plist
-
-
+*.lps
+*.dbg
 
 

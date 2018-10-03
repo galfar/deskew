@@ -1,11 +1,11 @@
 object FormMain: TFormMain
   Left = 676
-  Height = 744
-  Top = 189
+  Height = 792
+  Top = 141
   Width = 521
   AllowDropFiles = True
   Caption = 'Deskew GUI'
-  ClientHeight = 744
+  ClientHeight = 792
   ClientWidth = 521
   Color = clWhite
   OnCreate = FormCreate
@@ -16,10 +16,10 @@ object FormMain: TFormMain
   LCLVersion = '1.8.4.0'
   object Notebook: TNotebook
     Left = 8
-    Height = 728
+    Height = 776
     Top = 8
     Width = 505
-    PageIndex = 1
+    PageIndex = 0
     Align = alClient
     BorderSpacing.Around = 8
     TabOrder = 0
@@ -28,24 +28,23 @@ object FormMain: TFormMain
       object BtnDeskew: TButton
         Left = 0
         Height = 57
-        Top = 671
+        Top = 719
         Width = 505
+        Action = ActDeskew
         Align = alBottom
         Anchors = [akLeft]
-        Caption = 'Deskew!'
         Font.Height = -32
-        OnClick = BtnDeskewClick
         ParentFont = False
         TabOrder = 2
       end
       object PanelFiles: TPanel
         Left = 0
-        Height = 465
+        Height = 440
         Top = 0
         Width = 505
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 465
+        ClientHeight = 440
         ClientWidth = 505
         TabOrder = 0
         object Label1: TLabel
@@ -65,7 +64,7 @@ object FormMain: TFormMain
         end
         object MemoFiles: TMemo
           Left = 0
-          Height = 380
+          Height = 355
           Top = 31
           Width = 505
           Align = alClient
@@ -77,7 +76,7 @@ object FormMain: TFormMain
         object BtnAddFiles: TButton
           Left = 0
           Height = 37
-          Top = 417
+          Top = 392
           Width = 103
           Anchors = [akLeft, akBottom]
           Caption = 'Add files...'
@@ -90,7 +89,7 @@ object FormMain: TFormMain
         object BtnClear: TButton
           Left = 402
           Height = 37
-          Top = 417
+          Top = 392
           Width = 103
           Anchors = [akRight, akBottom]
           Caption = 'Clear'
@@ -102,14 +101,13 @@ object FormMain: TFormMain
       end
       object PanelOptions: TPanel
         Left = 0
-        Height = 188
-        Top = 465
+        Height = 261
+        Top = 440
         Width = 505
         Align = alBottom
-        AutoSize = True
         BorderSpacing.Bottom = 18
         BevelOuter = bvNone
-        ClientHeight = 188
+        ClientHeight = 261
         ClientWidth = 505
         TabOrder = 1
         object Label2: TLabel
@@ -129,28 +127,28 @@ object FormMain: TFormMain
         end
         object Panel1: TPanel
           Left = 0
-          Height = 67
+          Height = 140
           Top = 31
           Width = 505
           Align = alClient
           BorderSpacing.Bottom = 8
           BevelOuter = bvNone
-          ClientHeight = 67
+          ClientHeight = 140
           ClientWidth = 505
           TabOrder = 0
-          object ColorButton1: TColorButton
+          object ColorBtnBackground: TColorButton
             Left = 112
-            Height = 25
-            Top = 42
-            Width = 48
+            Height = 28
+            Top = 102
+            Width = 64
             BorderWidth = 2
             ButtonColorSize = 16
-            ButtonColor = clBlack
+            ButtonColor = clWhite
           end
-          object Label4: TLabel
+          object LabOptOutputFolder: TLabel
             Left = 8
             Height = 15
-            Top = 8
+            Top = 40
             Width = 75
             Caption = 'Output folder:'
             ParentColor = False
@@ -158,23 +156,72 @@ object FormMain: TFormMain
           object Label5: TLabel
             Left = 8
             Height = 15
-            Top = 48
+            Top = 110
             Width = 97
             Caption = 'Background color:'
             ParentColor = False
           end
-          object Label6: TLabel
-            Left = 248
+          object DirEditOutput: TDirectoryEdit
+            Left = 96
+            Height = 23
+            Top = 36
+            Width = 400
+            ShowHidden = False
+            ButtonWidth = 23
+            NumGlyphs = 1
+            MaxLength = 0
+            TabOrder = 0
+          end
+          object CheckBox1: TCheckBox
+            Left = 8
+            Height = 19
+            Top = 8
+            Width = 180
+            Action = ActUseDefaultOutput
+            Checked = True
+            State = cbChecked
+            TabOrder = 1
+          end
+          object LabOptFileFormat: TLabel
+            Left = 8
             Height = 15
-            Top = 48
+            Top = 68
+            Width = 60
+            Caption = 'File format:'
+            ParentColor = False
+          end
+          object ComboFileFormat: TComboBox
+            Left = 96
+            Height = 23
+            Top = 64
+            Width = 256
+            ItemHeight = 15
+            Style = csDropDownList
+            TabOrder = 2
+          end
+        end
+        object PanelAdvOptions: TPanel
+          Left = 0
+          Height = 58
+          Top = 203
+          Width = 505
+          Align = alBottom
+          BevelOuter = bvNone
+          ClientHeight = 58
+          ClientWidth = 505
+          TabOrder = 1
+          object Label6: TLabel
+            Left = 8
+            Height = 15
+            Top = 8
             Width = 112
             Caption = 'Max. angle [degrees]:'
             ParentColor = False
           end
           object FloatSpinEdit1: TFloatSpinEdit
-            Left = 368
+            Left = 128
             Height = 23
-            Top = 44
+            Top = 4
             Width = 64
             Increment = 1
             MaxValue = 100
@@ -182,34 +229,12 @@ object FormMain: TFormMain
             TabOrder = 0
             Value = 10
           end
-          object DirectoryEdit1: TDirectoryEdit
-            Left = 96
-            Height = 23
-            Top = 2
-            Width = 408
-            Directory = 'DirectoryEdit1'
-            ShowHidden = False
-            ButtonWidth = 23
-            NumGlyphs = 1
-            MaxLength = 0
-            TabOrder = 1
-            Text = 'DirectoryEdit1'
-          end
-        end
-        object PanelAdvOptions: TPanel
-          Left = 0
-          Height = 58
-          Top = 130
-          Width = 505
-          Align = alBottom
-          BevelOuter = bvNone
-          TabOrder = 1
         end
         object LabAdvOptions: TLabel
           Cursor = crHandPoint
           Left = 8
           Height = 20
-          Top = 106
+          Top = 179
           Width = 497
           Align = alBottom
           BorderSpacing.Left = 8
@@ -398,5 +423,24 @@ object FormMain: TFormMain
     Options = [ofAllowMultiSelect, ofPathMustExist, ofFileMustExist, ofEnableSizing, ofViewDetail, ofAutoPreview]
     left = 248
     top = 120
+  end
+  object IdleTimer: TIdleTimer
+    left = 248
+    top = 188
+  end
+  object ActionList: TActionList
+    left = 248
+    top = 288
+    object ActDeskew: TAction
+      Caption = 'Deskew!'
+      OnExecute = ActDeskewExecute
+      OnUpdate = ActDeskewUpdate
+    end
+    object ActUseDefaultOutput: TAction
+      AutoCheck = True
+      Caption = 'Use default output file options'
+      Checked = True
+      OnExecute = ActUseDefaultOutputExecute
+    end
   end
 end

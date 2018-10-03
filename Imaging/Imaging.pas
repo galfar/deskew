@@ -697,6 +697,7 @@ const
 implementation
 
 uses
+{$IFNDEF DONT_LINK_FILE_FORMATS}
 {$IFNDEF DONT_LINK_BITMAP}
   ImagingBitmap,
 {$ENDIF}
@@ -723,6 +724,7 @@ uses
 {$ENDIF}
 {$IFNDEF DONT_LINK_EXTRAS}
   ImagingExtras,
+{$ENDIF}
 {$ENDIF}
   //ImagingDebug,
   ImagingFormats, ImagingUtility, ImagingIO, Variants;

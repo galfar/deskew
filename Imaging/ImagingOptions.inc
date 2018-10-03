@@ -20,7 +20,8 @@
 
 
 (* File format support linking options.
-  Define formats which you don't want to be registred automatically.
+  Define formats which you don't want to be registred automatically (by adding
+  Imaging.pas unit to your uses clause).
   Default: all formats are registered = no symbols defined.
   Example: If you want to disable JPEG support just uncomment //{$DEFINE DONT_LINK_JPEG} line
 *)
@@ -40,6 +41,8 @@
                              // Extras package. Exactly which formats will be
                              // registered depends on settings in
                              // ImagingExtras.pas unit.
+
+{$DEFINE DONT_LINK_FILE_FORMATS} // no auto link support of any file format
 
 { Component set used in ImagignComponents.pas unit. You usually don't need
   to be concerned with this - proper component library is selected automatically
@@ -213,4 +216,4 @@
   {$INLINE ON}             // turns inlining on for compilers that support it
 {$ENDIF}
 
-
+
