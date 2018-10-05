@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, AsyncProcess, ExtDlgs, Spin, EditBtn, ComCtrls, ActnList, IniFiles,
+  StdCtrls, ExtDlgs, Spin, EditBtn, ComCtrls, ActnList, IniFiles,
   // Units needed for file info reading
   fileinfo, winpeimagereader, elfreader, machoreader,
   // App units
@@ -21,7 +21,6 @@ type
     ActUseDefaultOutput: TAction;
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
-    AsyncProcess: TAsyncProcess;
     BtnAddFiles: TButton;
     BtnDeskew: TButton;
     BtnClear: TButton;
@@ -32,7 +31,6 @@ type
     DirEditOutput: TDirectoryEdit;
     FloatSpinEdit1: TFloatSpinEdit;
     FlowPanel1: TFlowPanel;
-    IdleTimer: TIdleTimer;
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
@@ -47,7 +45,7 @@ type
     MemoOutput: TMemo;
     MemoFiles: TMemo;
     Notebook: TNotebook;
-    OpenPictureDialog: TOpenPictureDialog;
+    OpenDialog: TOpenDialog;
     PageIn: TPage;
     PageOut: TPage;
     Panel1: TPanel;
@@ -70,7 +68,6 @@ type
   private
     FRunner: TRunner;
     FOptions: TOptions;
-    FFileFormats: TStringList;
 
     procedure RunnerFinished(Sender: TObject; Reason: TFinishReason);
     procedure RunnerProgress(Sender: TObject; Index: Integer);
@@ -99,7 +96,7 @@ const
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
-  FRunner := TRunner.Create(AsyncProcess, MemoOutput);
+  FRunner := TRunner.Create(MemoOutput);
   FRunner.OnFinished := @RunnerFinished;
   FRunner.OnProgress := @RunnerProgress;
   FOptions := TOptions.Create;
@@ -207,10 +204,10 @@ procedure TFormMain.BtnAddFilesClick(Sender: TObject);
 var
   I: Integer;
 begin
-  if OpenPictureDialog.Execute then
+  if OpenDialog.Execute then
   begin
-    for I := 0 to OpenPictureDialog.Files.Count - 1 do
-      MemoFiles.Append(OpenPictureDialog.Files[I]);
+    for I := 0 to OpenDialog.Files.Count - 1 do
+      MemoFiles.Append(OpenDialog.Files[I]);
   end;
 end;
 

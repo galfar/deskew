@@ -5,7 +5,7 @@ unit Runner;
 interface
 
 uses
-  Classes, SysUtils, AsyncProcess, StdCtrls, Options;
+  Classes, SysUtils, Process, StdCtrls, ExtCtrls, Options;
 
 type
   TFinishReason = (
@@ -21,7 +21,8 @@ type
 
   TRunner = class
   private
-    FProcess: TAsyncProcess;
+    FProcess: TProcess;
+    FTimer: TTimer;
     FOutputMemo: TCustomMemo;
     FOnFinished: TFinishedEvent;
     FOnProgress: TProgressEvent;
@@ -32,13 +33,13 @@ type
     FRunning: Boolean;
     FStopped: Boolean;
 
-    procedure ProcessReadData(Sender: TObject);
-    procedure ProcessTerminate(Sender: TObject);
-
-    procedure RunNextItem(CheckLastResult: Boolean);
+    procedure ReadProcessOutput;
+    procedure TimerTicked(Sender: TObject);
+    procedure RunNextItem(IsFirstRun: Boolean = False);
     procedure Finish(Reason: TFinishReason);
   public
-    constructor Create(AProcess: TAsyncProcess; AOutputMemo: TCustomMemo);
+    constructor Create(AOutputMemo: TCustomMemo);
+    destructor Destroy; override;
 
     procedure Run(AOptions: TOptions);
     procedure Stop;
@@ -52,22 +53,30 @@ type
 
 implementation
 
-uses
-  Process;
-
 { TRunner }
 
-constructor TRunner.Create(AProcess: TAsyncProcess; AOutputMemo: TCustomMemo);
+constructor TRunner.Create(AOutputMemo: TCustomMemo);
 begin
-  FProcess := AProcess;
-  FProcess.Options := [poUsePipes, poNoConsole, poStderrToOutPut];
-  FProcess.OnReadData := @ProcessReadData;
-  FProcess.OnTerminate := @ProcessTerminate;
+  // Unfortunatelly, we cannot use TAsyncProcess since it does not work reliably on all platforms
+  FProcess := TProcess.Create(nil);
+  FProcess.Options := [poUsePipes, {$IFDEF MSWINDOWS}poNoConsole{$ENDIF}, poStderrToOutPut];
+
+  FTimer := TTimer.Create(nil);
+  FTimer.Enabled := False;
+  FTimer.Interval := 50;
+  FTimer.OnTimer := @TimerTicked;
 
   FOutputMemo := AOutputMemo;
 end;
 
-procedure TRunner.ProcessReadData(Sender: TObject);
+destructor TRunner.Destroy;
+begin
+  FProcess.Free;
+  FTimer.Free;
+  inherited Destroy;
+end;
+
+procedure TRunner.ReadProcessOutput;
 var
   BufStr: string;
 begin
@@ -79,18 +88,16 @@ begin
   end;
 end;
 
-procedure TRunner.ProcessTerminate(Sender: TObject);
+procedure TRunner.TimerTicked(Sender: TObject);
 begin
-  // Check on any leftover ouput. If program terminates fast enough
-  // they may not be even one OnReadData event.
-  ProcessReadData(nil);
-
-  RunNextItem(True);
+  ReadProcessOutput;
+  if not FProcess.Running then
+    RunNextItem;
 end;
 
-procedure TRunner.RunNextItem(CheckLastResult: Boolean);
+procedure TRunner.RunNextItem(IsFirstRun: Boolean);
 begin
-  if CheckLastResult and (FProcess.ExitCode <> 0) then
+  if not IsFirstRun and (FProcess.ExitCode <> 0) then
     Inc(FFailures);
 
   Inc(FInputPos);
@@ -116,10 +123,13 @@ begin
 
   FOptions.ToCmdLineParameters(FProcess.Parameters, FInputPos);
   FProcess.Execute;
+  if IsFirstRun then
+    FTimer.Enabled := True;
 end;
 
 procedure TRunner.Finish(Reason: TFinishReason);
 begin
+  FTimer.Enabled := False;
   FRunning := False;
   if FOnFinished <> nil then
     FOnFinished(Self, Reason);
@@ -134,7 +144,7 @@ begin
   FRunning := True;
 
   FProcess.Executable := FOptions.ExecutablePath;
-  RunNextItem(False);
+  RunNextItem(True);
 end;
 
 procedure TRunner.Stop;

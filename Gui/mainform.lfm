@@ -127,13 +127,13 @@ object FormMain: TFormMain
         end
         object Panel1: TPanel
           Left = 0
-          Height = 140
+          Height = 136
           Top = 31
           Width = 505
           Align = alClient
           BorderSpacing.Bottom = 8
           BevelOuter = bvNone
-          ClientHeight = 140
+          ClientHeight = 136
           ClientWidth = 505
           TabOrder = 0
           object ColorBtnBackground: TColorButton
@@ -162,10 +162,10 @@ object FormMain: TFormMain
             ParentColor = False
           end
           object DirEditOutput: TDirectoryEdit
-            Left = 96
+            Left = 112
             Height = 23
             Top = 36
-            Width = 400
+            Width = 384
             ShowHidden = False
             ButtonWidth = 23
             NumGlyphs = 1
@@ -191,10 +191,10 @@ object FormMain: TFormMain
             ParentColor = False
           end
           object ComboFileFormat: TComboBox
-            Left = 96
+            Left = 112
             Height = 23
             Top = 64
-            Width = 256
+            Width = 240
             ItemHeight = 15
             Style = csDropDownList
             TabOrder = 2
@@ -233,10 +233,11 @@ object FormMain: TFormMain
         object LabAdvOptions: TLabel
           Cursor = crHandPoint
           Left = 8
-          Height = 20
-          Top = 179
+          Height = 24
+          Top = 175
           Width = 497
           Align = alBottom
+          AutoSize = False
           BorderSpacing.Left = 8
           BorderSpacing.Top = 4
           BorderSpacing.Bottom = 4
@@ -401,33 +402,6 @@ object FormMain: TFormMain
     left = 96
     top = 280
   end
-  object AsyncProcess: TAsyncProcess
-    PipeBufferSize = 2048
-    Active = False
-    Options = [poUsePipes, poStderrToOutPut, poNoConsole]
-    Priority = ppNormal
-    StartupOptions = []
-    ShowWindow = swoShowNormal
-    WindowColumns = 0
-    WindowHeight = 0
-    WindowLeft = 0
-    WindowRows = 0
-    WindowTop = 0
-    WindowWidth = 0
-    FillAttribute = 0
-    left = 104
-    top = 184
-  end
-  object OpenPictureDialog: TOpenPictureDialog
-    Filter = 'Graphic (*.png;*.xpm;*.bmp;*.cur;*.ico;*.icns;*.jpeg;*.jpg;*.jpe;*.jfif;*.tif;*.tiff;*.gif;*.pbm;*.pgm;*.ppm)|*.png;*.xpm;*.bmp;*.cur;*.ico;*.icns;*.jpeg;*.jpg;*.jpe;*.jfif;*.tif;*.tiff;*.gif;*.pbm;*.pgm;*.ppm|Portable Network Graphic (*.png)|*.png|Pixmap (*.xpm)|*.xpm|Bitmaps (*.bmp)|*.bmp|Cursor (*.cur)|*.cur|Icon (*.ico)|*.ico|Mac OS X Icon (*.icns)|*.icns|Joint Picture Expert Group (*.jpeg;*.jpg;*.jpe;*.jfif)|*.jpeg;*.jpg;*.jpe;*.jfif|Tagged Image File Format (*.tif;*.tiff)|*.tif;*.tiff|Graphics Interchange Format (*.gif)|*.gif|Portable PixMap (*.pbm;*.pgm;*.ppm)|*.pbm;*.pgm;*.ppm|All files (*.*)|*.*'
-    Options = [ofAllowMultiSelect, ofPathMustExist, ofFileMustExist, ofEnableSizing, ofViewDetail, ofAutoPreview]
-    left = 248
-    top = 120
-  end
-  object IdleTimer: TIdleTimer
-    left = 248
-    top = 188
-  end
   object ActionList: TActionList
     left = 248
     top = 288
@@ -442,5 +416,11 @@ object FormMain: TFormMain
       Checked = True
       OnExecute = ActUseDefaultOutputExecute
     end
+  end
+  object OpenDialog: TOpenDialog
+    Title = 'Select picture files'
+    Options = [ofAllowMultiSelect, ofEnableSizing, ofViewDetail, ofAutoPreview]
+    left = 120
+    top = 120
   end
 end
