@@ -12,7 +12,7 @@ function FindDeskewExePath: string;
 implementation
 
 uses
-  Forms;
+  Forms, StrUtils;
 
 function FindDeskewExePath: string;
 var
@@ -36,7 +36,21 @@ begin
     if FileExists(S) then
       Exit(S);
 {$ELSEIF Defined(DARWIN)}
+    S := ExeDir + 'deskew-osx';
+    if FileExists(S) then
+      Exit(S);
 
+    S := ExeDir + 'deskew';
+    if FileExists(S) then
+      Exit(S);
+
+    if AnsiContainsText(ExeDir, '.app/Contents/MacOS') then
+    begin
+      // Get out af the bundle
+      S := ExtractFileDir(ExtractFileDir(ExtractFileDir(ExcludeTrailingPathDelimiter(ExeDir)))) + '/deskew-osx';
+      if FileExists(S) then
+        Exit(S);
+    end;
 {$ELSEIF Defined(LINUX)}
     S := ExeDir + 'deskew';
     if FileExists(S) then

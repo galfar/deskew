@@ -206,8 +206,17 @@ end;
 procedure TFormMain.GatherOptions;
 var
   LazColor: TColor;
+  I: Integer;
+  S: string;
 begin
-  FOptions.Files.Assign(MemoFiles.Lines);
+  FOptions.Files.Clear;
+  for I := 0 to MemoFiles.Lines.Count - 1 do
+  begin
+    S := Trim(MemoFiles.Lines[I]);
+    if S <> '' then
+      FOptions.Files.Add(S);
+  end;
+
   FOptions.DefaultOutputFileOptions := CheckDefaultOutputFileOptions.Checked;
   if not FOptions.DefaultOutputFileOptions then
   begin
