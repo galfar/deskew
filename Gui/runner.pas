@@ -5,7 +5,7 @@ unit Runner;
 interface
 
 uses
-  Classes, SysUtils, Process, StdCtrls, ExtCtrls, Options;
+  Classes, SysUtils, UTF8Process, StdCtrls, ExtCtrls, Options;
 
 type
   TFinishReason = (
@@ -21,7 +21,7 @@ type
 
   TRunner = class
   private
-    FProcess: TProcess;
+    FProcess: TProcessUTF8;
     FTimer: TTimer;
     FOutputMemo: TCustomMemo;
     FOnFinished: TFinishedEvent;
@@ -53,13 +53,16 @@ type
 
 implementation
 
+uses
+  Process, Utils;
+
 { TRunner }
 
 constructor TRunner.Create(AOutputMemo: TCustomMemo);
 begin
   // Unfortunatelly, we cannot use TAsyncProcess since it does not work reliably on all platforms
-  FProcess := TProcess.Create(nil);
-  FProcess.Options := [poUsePipes, {$IFDEF MSWINDOWS}poNoConsole{$ENDIF}, poStderrToOutPut];
+  FProcess := TProcessUTF8.Create(nil);
+  FProcess.Options := [poUsePipes, {$IFDEF MSWINDOWS}poNoConsole,{$ENDIF} poStderrToOutPut];
 
   FTimer := TTimer.Create(nil);
   FTimer.Enabled := False;
@@ -143,7 +146,11 @@ begin
   FStopped := False;
   FRunning := True;
 
-  FProcess.Executable := FOptions.ExecutablePath;
+  if FOptions.DefaultExecutable then
+    FProcess.Executable := Utils.FindDeskewExePath
+  else
+    FProcess.Executable := FOptions.ExecutablePath;
+
   RunNextItem(True);
 end;
 

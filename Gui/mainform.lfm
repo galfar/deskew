@@ -1,13 +1,15 @@
 object FormMain: TFormMain
-  Left = 676
+  Left = 294
   Height = 792
-  Top = 141
+  Top = 219
   Width = 521
   AllowDropFiles = True
   Caption = 'Deskew GUI'
   ClientHeight = 792
   ClientWidth = 521
   Color = clWhite
+  Constraints.MinHeight = 520
+  Constraints.MinWidth = 520
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnDropFiles = FormDropFiles
@@ -39,12 +41,12 @@ object FormMain: TFormMain
       end
       object PanelFiles: TPanel
         Left = 0
-        Height = 440
+        Height = 396
         Top = 0
         Width = 505
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 440
+        ClientHeight = 396
         ClientWidth = 505
         TabOrder = 0
         object Label1: TLabel
@@ -64,7 +66,7 @@ object FormMain: TFormMain
         end
         object MemoFiles: TMemo
           Left = 0
-          Height = 355
+          Height = 311
           Top = 31
           Width = 505
           Align = alClient
@@ -76,38 +78,36 @@ object FormMain: TFormMain
         object BtnAddFiles: TButton
           Left = 0
           Height = 37
-          Top = 392
+          Top = 348
           Width = 103
+          Action = ActAddFiles
           Anchors = [akLeft, akBottom]
-          Caption = 'Add files...'
           Default = True
           Font.Height = -16
-          OnClick = BtnAddFilesClick
           ParentFont = False
           TabOrder = 1
         end
         object BtnClear: TButton
           Left = 402
           Height = 37
-          Top = 392
+          Top = 348
           Width = 103
+          Action = ActClearFiles
           Anchors = [akRight, akBottom]
-          Caption = 'Clear'
           Font.Height = -16
-          OnClick = BtnClearClick
           ParentFont = False
           TabOrder = 2
         end
       end
       object PanelOptions: TPanel
         Left = 0
-        Height = 261
-        Top = 440
+        Height = 309
+        Top = 396
         Width = 505
         Align = alBottom
-        BorderSpacing.Bottom = 18
+        BorderSpacing.Bottom = 14
         BevelOuter = bvNone
-        ClientHeight = 261
+        ClientHeight = 309
         ClientWidth = 505
         TabOrder = 1
         object Label2: TLabel
@@ -127,13 +127,13 @@ object FormMain: TFormMain
         end
         object Panel1: TPanel
           Left = 0
-          Height = 136
+          Height = 133
           Top = 31
           Width = 505
           Align = alClient
           BorderSpacing.Bottom = 8
           BevelOuter = bvNone
-          ClientHeight = 136
+          ClientHeight = 133
           ClientWidth = 505
           TabOrder = 0
           object ColorBtnBackground: TColorButton
@@ -172,12 +172,12 @@ object FormMain: TFormMain
             MaxLength = 0
             TabOrder = 0
           end
-          object CheckBox1: TCheckBox
+          object CheckDefaultOutputFileOptions: TCheckBox
             Left = 8
             Height = 19
             Top = 8
             Width = 180
-            Action = ActUseDefaultOutput
+            Caption = 'Use default output file options'
             Checked = True
             State = cbChecked
             TabOrder = 1
@@ -202,12 +202,12 @@ object FormMain: TFormMain
         end
         object PanelAdvOptions: TPanel
           Left = 0
-          Height = 58
-          Top = 203
+          Height = 109
+          Top = 200
           Width = 505
           Align = alBottom
           BevelOuter = bvNone
-          ClientHeight = 58
+          ClientHeight = 109
           ClientWidth = 505
           TabOrder = 1
           object Label6: TLabel
@@ -218,23 +218,93 @@ object FormMain: TFormMain
             Caption = 'Max. angle [degrees]:'
             ParentColor = False
           end
-          object FloatSpinEdit1: TFloatSpinEdit
+          object SpinEditMaxAngle: TFloatSpinEdit
             Left = 128
             Height = 23
             Top = 4
             Width = 64
+            DecimalPlaces = 1
             Increment = 1
-            MaxValue = 100
-            MinValue = 0
+            MaxValue = 90
+            MinValue = 1
             TabOrder = 0
             Value = 10
+          end
+          object Label7: TLabel
+            Left = 312
+            Height = 15
+            Top = 8
+            Width = 109
+            Caption = 'Skip angle [degrees]:'
+            ParentColor = False
+          end
+          object SpinEditSkipAngle: TFloatSpinEdit
+            Left = 432
+            Height = 23
+            Top = 4
+            Width = 64
+            Increment = 1
+            MaxValue = 45
+            MinValue = 0
+            TabOrder = 1
+            Value = 0.01
+          end
+          object LabOptFileFormat1: TLabel
+            Left = 8
+            Height = 15
+            Top = 43
+            Width = 80
+            Caption = 'Output format:'
+            ParentColor = False
+          end
+          object ComboOutputFormat: TComboBox
+            Left = 112
+            Height = 23
+            Top = 36
+            Width = 200
+            ItemHeight = 15
+            Style = csDropDownList
+            TabOrder = 2
+          end
+          object FileEditExecutable: TFileNameEdit
+            Left = 192
+            Height = 23
+            Top = 80
+            Width = 304
+            DialogTitle = 'Select Deskew binary executable'
+            DialogOptions = [ofFileMustExist, ofEnableSizing, ofViewDetail]
+            FilterIndex = 0
+            HideDirectories = False
+            ButtonWidth = 23
+            NumGlyphs = 1
+            Flat = True
+            MaxLength = 0
+            TabOrder = 3
+          end
+          object LabOptFileFormat2: TLabel
+            Left = 8
+            Height = 15
+            Top = 88
+            Width = 102
+            Caption = 'Deskew executable:'
+            ParentColor = False
+          end
+          object CheckDefaultExecutable: TCheckBox
+            Left = 120
+            Height = 19
+            Top = 84
+            Width = 58
+            Caption = 'Default'
+            Checked = True
+            State = cbChecked
+            TabOrder = 4
           end
         end
         object LabAdvOptions: TLabel
           Cursor = crHandPoint
           Left = 8
           Height = 24
-          Top = 175
+          Top = 172
           Width = 497
           Align = alBottom
           AutoSize = False
@@ -344,13 +414,13 @@ object FormMain: TFormMain
       end
       object Panel3: TPanel
         Left = 0
-        Height = 557
+        Height = 605
         Top = 96
         Width = 505
         Align = alClient
         BorderSpacing.Bottom = 18
         BevelOuter = bvNone
-        ClientHeight = 557
+        ClientHeight = 605
         ClientWidth = 505
         TabOrder = 1
         object Label3: TLabel
@@ -370,7 +440,7 @@ object FormMain: TFormMain
         end
         object MemoOutput: TMemo
           Left = 0
-          Height = 526
+          Height = 574
           Top = 31
           Width = 505
           Align = alClient
@@ -385,13 +455,12 @@ object FormMain: TFormMain
       object BtnFinish: TButton
         Left = 0
         Height = 57
-        Top = 671
+        Top = 719
         Width = 505
+        Action = ActFinish
         Align = alBottom
         Anchors = [akLeft]
-        Caption = 'Stop'
         Font.Height = -32
-        OnClick = BtnFinishClick
         ParentFont = False
         TabOrder = 2
       end
@@ -399,28 +468,35 @@ object FormMain: TFormMain
   end
   object ApplicationProperties: TApplicationProperties
     Title = 'Deskew GUI'
-    left = 96
-    top = 280
+    OnIdle = ApplicationPropertiesIdle
+    left = 264
+    top = 96
   end
   object ActionList: TActionList
-    left = 248
-    top = 288
+    left = 264
+    top = 160
     object ActDeskew: TAction
       Caption = 'Deskew!'
       OnExecute = ActDeskewExecute
       OnUpdate = ActDeskewUpdate
     end
-    object ActUseDefaultOutput: TAction
-      AutoCheck = True
-      Caption = 'Use default output file options'
-      Checked = True
-      OnExecute = ActUseDefaultOutputExecute
+    object ActFinish: TAction
+      Caption = 'Stop'
+      OnExecute = ActFinishExecute
+    end
+    object ActAddFiles: TAction
+      Caption = 'Add files...'
+      OnExecute = ActAddFilesExecute
+    end
+    object ActClearFiles: TAction
+      Caption = 'Clear'
+      OnExecute = ActClearFilesExecute
     end
   end
   object OpenDialog: TOpenDialog
     Title = 'Select picture files'
     Options = [ofAllowMultiSelect, ofEnableSizing, ofViewDetail, ofAutoPreview]
-    left = 120
-    top = 120
+    left = 152
+    top = 96
   end
 end

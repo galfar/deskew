@@ -91,6 +91,7 @@ const
 implementation
 
 uses
+{$IFNDEF DONT_LINK_FILE_FORMATS}
 {$IFNDEF DONT_LINK_JPEG2000}
   ImagingJpeg2000,
 {$ENDIF}
@@ -108,6 +109,7 @@ uses
 {$ENDIF}
 {$IFNDEF DONT_LINK_ELDER}
   ElderImagery,
+{$ENDIF}
 {$ENDIF}
   Imaging;
 

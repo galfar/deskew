@@ -13,7 +13,7 @@ type
     fofBinary1,
     fofGray8,
     fofRgb24,
-    forRgba32
+    fofRgba32
   );
 
   TFileFormat = (
@@ -44,7 +44,7 @@ type
     SkipAngle: Double;
     JpegCompressionQuality: Integer;
     TiffCompressionScheme: Integer;
-
+    DefaultExecutable: Boolean;
     ExecutablePath: string;
 
     constructor Create;
@@ -57,12 +57,14 @@ type
 
 implementation
 
+uses
+  ImagingUtility;
+
 { TOptions }
 
 constructor TOptions.Create;
 begin
   FFiles := TStringList.Create;
-  ExecutablePath := './deskew';
 end;
 
 destructor TOptions.Destroy;
@@ -72,13 +74,29 @@ begin
 end;
 
 procedure TOptions.ToCmdLineParameters(AParams: TStrings; AFileIndex: Integer);
+
+  function FloatToStrFmt(const F: Double): string;
+  begin
+    Result := Format('%.2f', [F], ImagingUtility.GetFormatSettingsForFloats);
+  end;
+
 begin
   Assert(AFileIndex < FFiles.Count);
 
   AParams.Clear;
 
- // AParams.Add('-khkhj');
+  if BackgroundColor <> $FF000000 then
+    AParams.AddStrings(['-b', IntToHex(BackgroundColor, 8)]);
 
+  // Advamced options
+  if not SameFloat(MaxAngle, 10, 0.1) then
+    AParams.AddStrings(['-a', FloatToStrFmt(MaxAngle)]);
+  if not SameFloat(SkipAngle, 0.01, 0.01) then
+    AParams.AddStrings(['-l', FloatToStrFmt(SkipAngle)]);
+
+{$IFDEF DEBUG}
+  AParams.AddStrings(['-s', 'p']);
+{$ENDIF}
   AParams.Add(FFiles[AFileIndex]);
 end;
 

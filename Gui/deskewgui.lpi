@@ -13,7 +13,7 @@
     </General>
     <VersionInfo>
       <UseVersionInfo Value="True"/>
-      <MinorVersionNr Value="55"/>
+      <MinorVersionNr Value="60"/>
       <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI" ProductVersion="0.50.0.0"/>
     </VersionInfo>
     <BuildModes Count="2">
@@ -64,13 +64,10 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <RequiredPackages Count="2">
+    <RequiredPackages Count="1">
       <Item1>
-        <PackageName Value="LazControls"/>
-      </Item1>
-      <Item2>
         <PackageName Value="LCL"/>
-      </Item2>
+      </Item1>
     </RequiredPackages>
     <Units Count="6">
       <Unit0>
@@ -145,7 +142,8 @@
       </Options>
     </Linking>
     <Other>
-      <CustomOptions Value="-dDONT_LINK_FILE_FORMATS"/>
+      <CustomOptions Value="-dDONT_LINK_FILE_FORMATS
+-dDEBUG"/>
       <OtherDefines Count="1">
         <Define0 Value="DONT_LINK_FILE_FORMATS"/>
       </OtherDefines>
