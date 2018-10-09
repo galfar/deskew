@@ -40,9 +40,6 @@ uses
   Classes,
   ImagingTypes,
   Imaging,
-  ImagingClasses,
-  ImagingTiff,
-  ImagingPsd,
   ImagingFormats,
   ImagingUtility;
 
