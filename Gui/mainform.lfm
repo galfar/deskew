@@ -4,6 +4,7 @@ object FormMain: TFormMain
   Top = 219
   Width = 521
   AllowDropFiles = True
+  BorderIcons = [biSystemMenu, biMinimize]
   Caption = 'Deskew GUI'
   ClientHeight = 792
   ClientWidth = 521

@@ -40,6 +40,7 @@ uses
 const
   DefaultThreshold = 128;
   DefaultMaxAngle = 10;
+  DefaultSkipAngle = 0.01;
   SDefaultOutputFile = 'out.png';
 
 type
@@ -122,7 +123,7 @@ constructor TCmdLineOptions.Create;
 begin
   FThresholdLevel := DefaultThreshold;
   FMaxAngle := DefaultMaxAngle;
-  FSkipAngle := 0.01;
+  FSkipAngle := DefaultSkipAngle;
   FThresholdingMethod := tmOtsu;
   FContentRect := Rect(0, 0, 0, 0); // whole page
   FBackgroundColor := $FF000000;

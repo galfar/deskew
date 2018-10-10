@@ -48,10 +48,12 @@ const
 
 implementation
 
+{$IFNDEF DONT_LINK_FILE_FORMATS}
 // So far we have only one TIFF support implementation - libtiff
 {$IF (Defined(DELPHI) and not Defined(CPUX64)) or (Defined(FPC) and not Defined(CPUARM)))}
 uses
   ImagingTiffLib;
+{$IFEND}
 {$IFEND}
 
 const

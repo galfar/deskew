@@ -54,7 +54,7 @@ type
 implementation
 
 uses
-  Process, Utils;
+  Process;
 
 { TRunner }
 
@@ -146,11 +146,7 @@ begin
   FStopped := False;
   FRunning := True;
 
-  if FOptions.DefaultExecutable then
-    FProcess.Executable := Utils.FindDeskewExePath
-  else
-    FProcess.Executable := FOptions.ExecutablePath;
-
+  FProcess.Executable := FOptions.EffectiveExecutablePath;
   RunNextItem(True);
 end;
 

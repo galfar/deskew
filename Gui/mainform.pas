@@ -233,7 +233,7 @@ begin
   FOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
   FOptions.DefaultExecutable := CheckDefaultExecutable.Checked;
   if not FOptions.DefaultExecutable then
-    FOptions.ExecutablePath := FileEditExecutable.FileName;
+    FOptions.CustomExecutablePath := FileEditExecutable.FileName;
 end;
 
 procedure TFormMain.ActDeskewUpdate(Sender: TObject);
@@ -300,8 +300,6 @@ begin
     Notebook.PageIndex := 0;
   end;
 end;
-
-
 
 
 end.
