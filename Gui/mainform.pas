@@ -83,6 +83,7 @@ type
     procedure RunnerProgress(Sender: TObject; Index: Integer);
     procedure ReadAndUseVersionInfo;
     procedure GatherOptions;
+    procedure UpdateAdvOptionsPanelState;
   public
 
   end;
@@ -114,6 +115,8 @@ begin
   ReadAndUseVersionInfo;
 
   PanelOptions.AutoSize := True; // for collapsible adv. options panel
+  PanelAdvOptions.Visible := False;
+  UpdateAdvOptionsPanelState;
 
   ComboFileFormat.Items.Clear;
   ComboFileFormat.Items.AddObject('Same as input', TObject(ffSameAsInput));
@@ -155,6 +158,15 @@ var
   Symbol: string;
 begin
   PanelAdvOptions.Visible := not PanelAdvOptions.Visible;
+  UpdateAdvOptionsPanelState;
+  Symbol := Iff(PanelAdvOptions.Visible, SCollapseSymbol, SExpandSymbol);
+  LabAdvOptions.Caption := Symbol + Symbol + ' ' + STitleAdvOptions;
+end;
+
+procedure TFormMain.UpdateAdvOptionsPanelState;
+var
+  Symbol: string;
+begin
   Symbol := Iff(PanelAdvOptions.Visible, SCollapseSymbol, SExpandSymbol);
   LabAdvOptions.Caption := Symbol + Symbol + ' ' + STitleAdvOptions;
 end;

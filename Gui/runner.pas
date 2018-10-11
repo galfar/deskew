@@ -54,7 +54,7 @@ type
 implementation
 
 uses
-  Process;
+  Process, Dialogs;
 
 { TRunner }
 
@@ -125,7 +125,24 @@ begin
     FOnProgress(Self, FInputPos);
 
   FOptions.ToCmdLineParameters(FProcess.Parameters, FInputPos);
-  FProcess.Execute;
+
+  try
+    FProcess.Execute;
+  except
+    on Ex: Exception do
+    begin
+      FOutputMemo.Append(Ex.ClassName + ': ' + Ex.Message);
+      Dialogs.MessageDlg('Failed to execute Deskew',
+        'Deskew command line executable failed to start. Check that it is in the correct location ' +
+        'and has the right permissions.' + sLineBreak + sLineBreak +
+        'Executable path used: ' + FProcess.Executable,
+        mtError, [mbOK], '');
+
+      Finish(frFailure);
+      Exit;
+    end;
+  end;
+
   if IsFirstRun then
     FTimer.Enabled := True;
 end;

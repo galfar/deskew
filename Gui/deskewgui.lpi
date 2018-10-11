@@ -13,7 +13,7 @@
     </General>
     <VersionInfo>
       <UseVersionInfo Value="True"/>
-      <MinorVersionNr Value="65"/>
+      <MinorVersionNr Value="68"/>
       <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI" ProductVersion=""/>
     </VersionInfo>
     <BuildModes Count="2">

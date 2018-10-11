@@ -1,7 +1,7 @@
 object FormMain: TFormMain
-  Left = 294
+  Left = 562
   Height = 792
-  Top = 219
+  Top = 223
   Width = 521
   AllowDropFiles = True
   BorderIcons = [biSystemMenu, biMinimize]

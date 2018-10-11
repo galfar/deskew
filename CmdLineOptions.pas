@@ -364,14 +364,20 @@ end;
 
 function TCmdLineOptions.OptionsToString: string;
 var
-  CompJpegStr, CompTiffStr: string;
+  I: Integer;
+  CompJpegStr, CompTiffStr, CmdParams: string;
 begin
+  CmdParams := '';
+  for I := 1 to ParamCount do
+    CmdParams := CmdParams + ParamStr(I) + ' ';
+
   CompJpegStr := Iff(JpegCompressionQuality = -1, 'default', IntToStr(JpegCompressionQuality));
   CompTiffStr := 'default';
   if TiffCompressionScheme >= 0 then
     CompTiffStr := TiffCompressionNames[TiffCompressionScheme];
 
   Result :=
+    'Parameters: ' + CmdParams + sLineBreak +
     '  input file          = ' + InputFile + sLineBreak +
     '  output file         = ' + OutputFile + sLineBreak +
     '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
