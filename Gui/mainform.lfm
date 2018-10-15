@@ -42,12 +42,12 @@ object FormMain: TFormMain
       end
       object PanelFiles: TPanel
         Left = 0
-        Height = 396
+        Height = 394
         Top = 0
         Width = 505
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 396
+        ClientHeight = 394
         ClientWidth = 505
         TabOrder = 0
         object Label1: TLabel
@@ -67,7 +67,7 @@ object FormMain: TFormMain
         end
         object MemoFiles: TMemo
           Left = 0
-          Height = 311
+          Height = 309
           Top = 31
           Width = 505
           Align = alClient
@@ -79,7 +79,7 @@ object FormMain: TFormMain
         object BtnAddFiles: TButton
           Left = 0
           Height = 37
-          Top = 348
+          Top = 346
           Width = 103
           Action = ActAddFiles
           Anchors = [akLeft, akBottom]
@@ -91,7 +91,7 @@ object FormMain: TFormMain
         object BtnClear: TButton
           Left = 402
           Height = 37
-          Top = 348
+          Top = 346
           Width = 103
           Action = ActClearFiles
           Anchors = [akRight, akBottom]
@@ -102,13 +102,14 @@ object FormMain: TFormMain
       end
       object PanelOptions: TPanel
         Left = 0
-        Height = 309
-        Top = 396
+        Height = 311
+        Top = 394
         Width = 505
         Align = alBottom
+        AutoSize = True
         BorderSpacing.Bottom = 14
         BevelOuter = bvNone
-        ClientHeight = 309
+        ClientHeight = 311
         ClientWidth = 505
         TabOrder = 1
         object Label2: TLabel
@@ -128,23 +129,30 @@ object FormMain: TFormMain
         end
         object Panel1: TPanel
           Left = 0
-          Height = 133
+          Height = 135
           Top = 31
           Width = 505
           Align = alClient
           BorderSpacing.Bottom = 8
           BevelOuter = bvNone
-          ClientHeight = 133
+          ClientHeight = 135
           ClientWidth = 505
           TabOrder = 0
           object ColorBtnBackground: TColorButton
-            Left = 112
+            AnchorSideLeft.Control = LabBackColor
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = LabBackColor
+            AnchorSideTop.Side = asrCenter
+            AnchorSideBottom.Side = asrCenter
+            Left = 117
             Height = 28
-            Top = 102
+            Top = 107
             Width = 64
+            BorderSpacing.Left = 12
             BorderWidth = 2
             ButtonColorSize = 16
             ButtonColor = clWhite
+            Flat = True
           end
           object LabOptOutputFolder: TLabel
             Left = 8
@@ -154,24 +162,13 @@ object FormMain: TFormMain
             Caption = 'Output folder:'
             ParentColor = False
           end
-          object Label5: TLabel
+          object LabBackColor: TLabel
             Left = 8
             Height = 15
-            Top = 110
+            Top = 114
             Width = 97
             Caption = 'Background color:'
             ParentColor = False
-          end
-          object DirEditOutput: TDirectoryEdit
-            Left = 112
-            Height = 23
-            Top = 36
-            Width = 384
-            ShowHidden = False
-            ButtonWidth = 23
-            NumGlyphs = 1
-            MaxLength = 0
-            TabOrder = 0
           end
           object CheckDefaultOutputFileOptions: TCheckBox
             Left = 8
@@ -181,37 +178,71 @@ object FormMain: TFormMain
             Caption = 'Use default output file options'
             Checked = True
             State = cbChecked
-            TabOrder = 1
+            TabOrder = 0
           end
           object LabOptFileFormat: TLabel
+            AnchorSideTop.Control = LabOptOutputFolder
+            AnchorSideTop.Side = asrBottom
             Left = 8
             Height = 15
-            Top = 68
+            Top = 73
             Width = 60
+            BorderSpacing.Top = 18
             Caption = 'File format:'
             ParentColor = False
           end
           object ComboFileFormat: TComboBox
-            Left = 112
+            AnchorSideLeft.Control = EdDirOutput
+            AnchorSideTop.Control = LabOptFileFormat
+            AnchorSideTop.Side = asrCenter
+            AnchorSideBottom.Side = asrCenter
+            Left = 95
             Height = 23
-            Top = 64
-            Width = 240
+            Top = 69
+            Width = 256
             ItemHeight = 15
             Style = csDropDownList
+            TabOrder = 1
+          end
+          object EdDirOutput: TEdit
+            AnchorSideLeft.Control = LabOptOutputFolder
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = LabOptOutputFolder
+            AnchorSideTop.Side = asrCenter
+            Left = 95
+            Height = 23
+            Top = 36
+            Width = 325
+            BorderSpacing.Left = 12
             TabOrder = 2
+          end
+          object BtnBrowseOutputDir: TButton
+            AnchorSideLeft.Control = EdDirOutput
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = EdDirOutput
+            AnchorSideTop.Side = asrCenter
+            AnchorSideBottom.Side = asrCenter
+            Left = 426
+            Height = 25
+            Top = 35
+            Width = 73
+            Action = ActBrowseOutputDir
+            AutoSize = True
+            BorderSpacing.Left = 6
+            TabOrder = 3
           end
         end
         object PanelAdvOptions: TPanel
           Left = 0
           Height = 109
-          Top = 200
+          Top = 202
           Width = 505
           Align = alBottom
           BevelOuter = bvNone
           ClientHeight = 109
           ClientWidth = 505
           TabOrder = 1
-          object Label6: TLabel
+          object LabMaxAngle: TLabel
             Left = 8
             Height = 15
             Top = 8
@@ -220,10 +251,15 @@ object FormMain: TFormMain
             ParentColor = False
           end
           object SpinEditMaxAngle: TFloatSpinEdit
+            AnchorSideLeft.Control = LabMaxAngle
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = LabMaxAngle
+            AnchorSideTop.Side = asrCenter
             Left = 128
             Height = 23
             Top = 4
             Width = 64
+            BorderSpacing.Left = 8
             DecimalPlaces = 1
             Increment = 1
             MaxValue = 90
@@ -231,26 +267,36 @@ object FormMain: TFormMain
             TabOrder = 0
             Value = 10
           end
-          object Label7: TLabel
-            Left = 312
+          object LabSkipAngle: TLabel
+            AnchorSideTop.Control = LabMaxAngle
+            AnchorSideTop.Side = asrCenter
+            AnchorSideRight.Control = SpinEditSkipAngle
+            Left = 315
             Height = 15
             Top = 8
             Width = 109
+            Anchors = [akTop, akRight]
+            BorderSpacing.Right = 8
             Caption = 'Skip angle [degrees]:'
             ParentColor = False
           end
           object SpinEditSkipAngle: TFloatSpinEdit
+            AnchorSideTop.Control = LabSkipAngle
+            AnchorSideTop.Side = asrCenter
+            AnchorSideRight.Control = BtnBrowseDeskewExepath
+            AnchorSideRight.Side = asrBottom
             Left = 432
             Height = 23
             Top = 4
             Width = 64
+            Anchors = [akTop, akRight]
             Increment = 1
             MaxValue = 45
             MinValue = 0
             TabOrder = 1
             Value = 0.01
           end
-          object LabOptFileFormat1: TLabel
+          object LabForcedFormat: TLabel
             Left = 8
             Height = 15
             Top = 43
@@ -259,30 +305,20 @@ object FormMain: TFormMain
             ParentColor = False
           end
           object ComboOutputFormat: TComboBox
-            Left = 112
+            AnchorSideLeft.Control = LabForcedFormat
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = LabForcedFormat
+            AnchorSideTop.Side = asrCenter
+            Left = 100
             Height = 23
-            Top = 36
-            Width = 200
+            Top = 39
+            Width = 256
+            BorderSpacing.Left = 12
             ItemHeight = 15
             Style = csDropDownList
             TabOrder = 2
           end
-          object FileEditExecutable: TFileNameEdit
-            Left = 192
-            Height = 23
-            Top = 80
-            Width = 304
-            DialogTitle = 'Select Deskew binary executable'
-            DialogOptions = [ofFileMustExist, ofEnableSizing, ofViewDetail]
-            FilterIndex = 0
-            HideDirectories = False
-            ButtonWidth = 23
-            NumGlyphs = 1
-            Flat = True
-            MaxLength = 0
-            TabOrder = 3
-          end
-          object LabOptFileFormat2: TLabel
+          object LabDeskewExe: TLabel
             Left = 8
             Height = 15
             Top = 88
@@ -291,21 +327,55 @@ object FormMain: TFormMain
             ParentColor = False
           end
           object CheckDefaultExecutable: TCheckBox
-            Left = 120
+            AnchorSideLeft.Control = LabDeskewExe
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = LabDeskewExe
+            AnchorSideTop.Side = asrCenter
+            AnchorSideBottom.Side = asrCenter
+            Left = 118
             Height = 19
-            Top = 84
+            Top = 86
             Width = 58
+            BorderSpacing.Left = 8
             Caption = 'Default'
             Checked = True
             State = cbChecked
+            TabOrder = 3
+          end
+          object EdDeskewExePath: TEdit
+            AnchorSideLeft.Control = CheckDefaultExecutable
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = LabDeskewExe
+            AnchorSideTop.Side = asrCenter
+            AnchorSideBottom.Side = asrCenter
+            Left = 180
+            Height = 23
+            Top = 84
+            Width = 237
+            BorderSpacing.Left = 4
             TabOrder = 4
+          end
+          object BtnBrowseDeskewExepath: TButton
+            AnchorSideLeft.Control = EdDeskewExePath
+            AnchorSideLeft.Side = asrBottom
+            AnchorSideTop.Control = EdDeskewExePath
+            AnchorSideTop.Side = asrCenter
+            AnchorSideBottom.Side = asrBottom
+            Left = 423
+            Height = 25
+            Top = 83
+            Width = 73
+            Action = AtcBrowseDeskewExe
+            AutoSize = True
+            BorderSpacing.Left = 6
+            TabOrder = 5
           end
         end
         object LabAdvOptions: TLabel
           Cursor = crHandPoint
           Left = 8
           Height = 24
-          Top = 172
+          Top = 174
           Width = 497
           Align = alBottom
           AutoSize = False
@@ -325,12 +395,13 @@ object FormMain: TFormMain
     object PageOut: TPage
       object Panel2: TPanel
         Left = 0
-        Height = 96
+        Height = 98
         Top = 0
         Width = 505
         Align = alTop
+        AutoSize = True
         BevelOuter = bvNone
-        ClientHeight = 96
+        ClientHeight = 98
         ClientWidth = 505
         TabOrder = 0
         object LabDeskewProgressTitle: TLabel
@@ -355,19 +426,22 @@ object FormMain: TFormMain
           Width = 489
           Align = alBottom
           BorderSpacing.Left = 8
+          BorderSpacing.Top = 8
           BorderSpacing.Right = 8
-          BorderSpacing.Bottom = 8
+          BorderSpacing.Bottom = 10
           Max = 10
+          ParentColor = False
           Position = 4
           Smooth = True
           TabOrder = 0
         end
         object FlowPanel1: TFlowPanel
           Left = 0
-          Height = 37
-          Top = 31
+          Height = 21
+          Top = 39
           Width = 505
           Align = alClient
+          AutoSize = True
           BevelOuter = bvNone
           ControlList = <          
             item
@@ -380,30 +454,29 @@ object FormMain: TFormMain
               WrapAfter = waAuto
               Index = 1
             end>
-          FlowLayout = tlTop
+          FlowLayout = tlBottom
           FlowStyle = fsLeftRightTopBottom
           TabOrder = 1
           object LabProgressTitle: TLabel
             Left = 8
             Height = 15
-            Top = 10
+            Top = 6
             Width = 62
-            Anchors = []
             BorderSpacing.Left = 8
-            BorderSpacing.Top = 10
             BorderSpacing.Right = 4
             Caption = 'Current file:'
             Layout = tlBottom
             ParentColor = False
           end
           object LabCurrentFile: TLabel
+            AnchorSideTop.Control = LabProgressTitle
+            AnchorSideTop.Side = asrBottom
             Left = 74
             Height = 21
-            Top = 5
+            Top = 0
             Width = 424
-            Anchors = []
+            Anchors = [akTop]
             AutoSize = False
-            BorderSpacing.Top = 5
             Caption = 'FileName.ext [22/152]'
             Font.Height = -15
             Font.Style = [fsBold]
@@ -415,13 +488,13 @@ object FormMain: TFormMain
       end
       object Panel3: TPanel
         Left = 0
-        Height = 605
-        Top = 96
+        Height = 603
+        Top = 98
         Width = 505
         Align = alClient
         BorderSpacing.Bottom = 18
         BevelOuter = bvNone
-        ClientHeight = 605
+        ClientHeight = 603
         ClientWidth = 505
         TabOrder = 1
         object Label3: TLabel
@@ -441,15 +514,17 @@ object FormMain: TFormMain
         end
         object MemoOutput: TMemo
           Left = 0
-          Height = 574
+          Height = 572
           Top = 31
           Width = 505
           Align = alClient
           Font.Height = -12
           Font.Name = 'Courier New'
           ParentFont = False
+          ReadOnly = True
           ScrollBars = ssAutoBoth
           TabOrder = 0
+          WantReturns = False
           WordWrap = False
         end
       end
@@ -493,11 +568,27 @@ object FormMain: TFormMain
       Caption = 'Clear'
       OnExecute = ActClearFilesExecute
     end
+    object ActBrowseOutputDir: TAction
+      Caption = 'Browse...'
+      OnExecute = ActBrowseOutputDirExecute
+    end
+    object AtcBrowseDeskewExe: TAction
+      Caption = 'Browse...'
+      OnExecute = AtcBrowseDeskewExeExecute
+    end
   end
-  object OpenDialog: TOpenDialog
-    Title = 'Select picture files'
+  object OpenDialogMulti: TOpenDialog
     Options = [ofAllowMultiSelect, ofEnableSizing, ofViewDetail, ofAutoPreview]
     left = 152
     top = 96
+  end
+  object OpenDialogSingle: TOpenDialog
+    Options = [ofReadOnly, ofEnableSizing, ofViewDetail, ofAutoPreview]
+    left = 152
+    top = 168
+  end
+  object SelectDirectoryDialog: TSelectDirectoryDialog
+    left = 152
+    top = 248
   end
 end

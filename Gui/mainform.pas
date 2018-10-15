@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms,
-  Controls, Graphics, Dialogs, ExtCtrls, StdCtrls, Spin, EditBtn,
+  Controls, Graphics, Dialogs, ExtCtrls, StdCtrls, Spin,
   ComCtrls, ActnList, IniFiles,
   // Units needed for file info reading
   fileinfo, winpeimagereader, elfreader, machoreader,
@@ -22,20 +22,26 @@ type
     ActFinish: TAction;
     ActAddFiles: TAction;
     ActClearFiles: TAction;
+    ActBrowseOutputDir: TAction;
+    AtcBrowseDeskewExe: TAction;
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
     BtnAddFiles: TButton;
+    BtnBrowseDeskewExepath: TButton;
     BtnDeskew: TButton;
     BtnClear: TButton;
     BtnFinish: TButton;
+    BtnBrowseOutputDir: TButton;
     CheckDefaultOutputFileOptions: TCheckBox;
     CheckDefaultExecutable: TCheckBox;
     ColorBtnBackground: TColorButton;
     ComboFileFormat: TComboBox;
     ComboOutputFormat: TComboBox;
-    DirEditOutput: TDirectoryEdit;
-    FileEditExecutable: TFileNameEdit;
-    LabOptFileFormat2: TLabel;
+    EdDirOutput: TEdit;
+    EdDeskewExePath: TEdit;
+    LabDeskewExe: TLabel;
+    OpenDialogSingle: TOpenDialog;
+    SelectDirectoryDialog: TSelectDirectoryDialog;
     SpinEditMaxAngle: TFloatSpinEdit;
     SpinEditSkipAngle: TFloatSpinEdit;
     FlowPanel1: TFlowPanel;
@@ -43,19 +49,19 @@ type
     Label2: TLabel;
     Label3: TLabel;
     LabAdvOptions: TLabel;
-    Label7: TLabel;
-    LabOptFileFormat1: TLabel;
+    LabSkipAngle: TLabel;
+    LabForcedFormat: TLabel;
     LabOptOutputFolder: TLabel;
-    Label5: TLabel;
+    LabBackColor: TLabel;
     LabDeskewProgressTitle: TLabel;
-    Label6: TLabel;
+    LabMaxAngle: TLabel;
     LabOptFileFormat: TLabel;
     LabProgressTitle: TLabel;
     LabCurrentFile: TLabel;
     MemoOutput: TMemo;
     MemoFiles: TMemo;
     Notebook: TNotebook;
-    OpenDialog: TOpenDialog;
+    OpenDialogMulti: TOpenDialog;
     PageIn: TPage;
     PageOut: TPage;
     Panel1: TPanel;
@@ -66,11 +72,13 @@ type
     PanelOptions: TPanel;
     ProgressBar: TProgressBar;
     procedure ActAddFilesExecute(Sender: TObject);
+    procedure ActBrowseOutputDirExecute(Sender: TObject);
     procedure ActClearFilesExecute(Sender: TObject);
     procedure ActDeskewExecute(Sender: TObject);
     procedure ActDeskewUpdate(Sender: TObject);
     procedure ActFinishExecute(Sender: TObject);
     procedure ApplicationPropertiesIdle(Sender: TObject; var Done: Boolean);
+    procedure AtcBrowseDeskewExeExecute(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
@@ -232,7 +240,7 @@ begin
   FOptions.DefaultOutputFileOptions := CheckDefaultOutputFileOptions.Checked;
   if not FOptions.DefaultOutputFileOptions then
   begin
-    FOptions.OutputFolder := DirEditOutput.Directory;
+    FOptions.OutputFolder := EdDirOutput.Text;
     FOptions.OutputFileFormat := TFileFormat(PtrUInt(ComboFileFormat.Items.Objects[ComboFileFormat.ItemIndex]));
   end;
 
@@ -245,7 +253,7 @@ begin
   FOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
   FOptions.DefaultExecutable := CheckDefaultExecutable.Checked;
   if not FOptions.DefaultExecutable then
-    FOptions.CustomExecutablePath := FileEditExecutable.FileName;
+    FOptions.CustomExecutablePath := EdDeskewExePath.Text;
 end;
 
 procedure TFormMain.ActDeskewUpdate(Sender: TObject);
@@ -258,12 +266,14 @@ var
   NoDefault: Boolean;
 begin
   NoDefault := not CheckDefaultOutputFileOptions.Checked;
-  DirEditOutput.Enabled := NoDefault;
+  ActBrowseOutputDir.Enabled := NoDefault;
+  EdDirOutput.Enabled := ActBrowseOutputDir.Enabled;
   ComboFileFormat.Enabled := NoDefault;
   LabOptOutputFolder.Enabled := NoDefault;
   LabOptFileFormat.Enabled := NoDefault;
 
-  FileEditExecutable.Enabled := not CheckDefaultExecutable.Checked;
+  AtcBrowseDeskewExe.Enabled := not CheckDefaultExecutable.Checked;
+  EdDeskewExePath.Enabled := AtcBrowseDeskewExe.Enabled;
 end;
 
 procedure TFormMain.ActDeskewExecute(Sender: TObject);
@@ -287,10 +297,30 @@ procedure TFormMain.ActAddFilesExecute(Sender: TObject);
 var
   I: Integer;
 begin
-  if OpenDialog.Execute then
+  OpenDialogMulti.Title := 'Select Picture Files';
+  if OpenDialogMulti.Execute then
   begin
-    for I := 0 to OpenDialog.Files.Count - 1 do
-      MemoFiles.Append(OpenDialog.Files[I]);
+    for I := 0 to OpenDialogMulti.Files.Count - 1 do
+      MemoFiles.Append(OpenDialogMulti.Files[I]);
+  end;
+end;
+
+procedure TFormMain.ActBrowseOutputDirExecute(Sender: TObject);
+begin
+  if SelectDirectoryDialog.Execute then
+  begin
+    EdDirOutput.Text := SelectDirectoryDialog.FileName;
+    EdDirOutput.SelStart := Length(EdDirOutput.Text);
+  end;
+end;
+
+procedure TFormMain.AtcBrowseDeskewExeExecute(Sender: TObject);
+begin
+  OpenDialogSingle.Title := 'Select Deskew Binary Executable';
+  if OpenDialogSingle.Execute then
+  begin
+    EdDeskewExePath.Text := OpenDialogSingle.FileName;
+    EdDeskewExePath.SelStart := Length(EdDeskewExePath.Text);
   end;
 end;
 

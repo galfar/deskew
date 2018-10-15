@@ -5,9 +5,11 @@ backup
 
 _internal/*
 Dcu/*
+dcu/*
 Releases/*
 Bin/TestOut/*
 Gui/lib/*
+Gui/deskewgui.app
 
 *.identcache
 *.local
