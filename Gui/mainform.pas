@@ -27,7 +27,7 @@ type
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
     BtnAddFiles: TButton;
-    BtnBrowseDeskewExepath: TButton;
+    BtnBrowseDeskewExePath: TButton;
     BtnDeskew: TButton;
     BtnClear: TButton;
     BtnFinish: TButton;
