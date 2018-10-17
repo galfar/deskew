@@ -1,18 +1,30 @@
 unit Utils;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, TypInfo, ImagingTypes;
+
+type
+  // Workaround for generic functions needing FPC 3.1.1+
+  TEnumUtils<T> = class
+  public
+    class function EnumToStr(const EnumValue: T): string;
+    class function StrToEnum(const Str: string): T;
+    class function GetEnumPrefix: string;
+  end;
 
 function FindDeskewExePath: string;
+function ColorToString(Color: TColor32): string;
+function StringToColorDef(const Str: string; Default: TColor32): TColor32;
 
 implementation
 
 uses
-  Forms, StrUtils;
+{$IF Defined(DARWIN)}
+  StrUtils,
+{$ENDIF}
+  Forms;
 
 function FindDeskewExePath: string;
 var
@@ -57,6 +69,53 @@ begin
       Exit(S);
 {$ENDIF}
   end;
+end;
+
+function ColorToString(Color: TColor32): string;
+begin
+  Result := '#' + HexStr(Color, 8);
+end;
+
+function StringToColorDef(const Str: string; Default: TColor32): TColor32;
+var
+  S: string;
+begin
+  S := '$' + Copy(Str, 2);
+  Result := StrToDWordDef(S, Default);
+end;
+
+class function TEnumUtils<T>.EnumToStr(const EnumValue: T): string;
+var
+  S: string;
+  L: Integer;
+begin
+  S := TypInfo.GetEnumName(TypeInfo(T), Integer(EnumValue));
+  L := Length(GetEnumPrefix);
+  Result := Copy(S, L + 1);
+end;
+
+class function TEnumUtils<T>.StrToEnum(const Str: string): T;
+var
+  S: string;
+  I: Integer;
+begin
+  S := GetEnumPrefix + Str;
+  I := TypInfo.GetEnumValue(TypeInfo(T), S);
+  if I >= 0 then
+    Result := T(I)
+  else
+    Result := Default(T);
+end;
+
+class function TEnumUtils<T>.GetEnumPrefix: string;
+var
+  S: string;
+  I: Integer;
+begin
+  S := TypInfo.GetEnumName(TypeInfo(T), Integer(Default(T)));
+  Result := Copy(S, 1, 2);
+  if S[3] in ['a'..'z'] then
+    Result := Result + S[3];
 end;
 
 end.

@@ -1,7 +1,5 @@
 unit MainForm;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
@@ -90,8 +88,11 @@ type
     procedure RunnerFinished(Sender: TObject; Reason: TFinishReason);
     procedure RunnerProgress(Sender: TObject; Index: Integer);
     procedure ReadAndUseVersionInfo;
-    procedure GatherOptions;
     procedure UpdateAdvOptionsPanelState;
+    procedure SaveOptions;
+    procedure LoadOptions;
+    procedure ApplyOptions;
+    procedure GatherOptions;
   public
 
   end;
@@ -110,14 +111,15 @@ const
   SExpandSymbol   = '▽';
   SCollapseSymbol = '△';
   STitleAdvOptions = 'Advanced Options';
+  SOptionsFileName = 'deskewgui.ini';
 
 { TFormMain }
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
   FRunner := TRunner.Create(MemoOutput);
-  FRunner.OnFinished := @RunnerFinished;
-  FRunner.OnProgress := @RunnerProgress;
+  FRunner.OnFinished := RunnerFinished;
+  FRunner.OnProgress := RunnerProgress;
   FOptions := TOptions.Create;
 
   ReadAndUseVersionInfo;
@@ -145,10 +147,13 @@ begin
   ComboOutputFormat.Items.AddObject('24bit RGB', TObject(fofRgb24));
   ComboOutputFormat.Items.AddObject('32bit RGB + opacity', TObject(fofRgba32));
   ComboOutputFormat.ItemIndex := 0;
+
+  LoadOptions;
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
+  SaveOptions;
   FOptions.Free;
   FRunner.Free;
 end;
@@ -177,6 +182,77 @@ var
 begin
   Symbol := Iff(PanelAdvOptions.Visible, SCollapseSymbol, SExpandSymbol);
   LabAdvOptions.Caption := Symbol + Symbol + ' ' + STitleAdvOptions;
+end;
+
+procedure TFormMain.SaveOptions;
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(SOptionsFileName, [ifoFormatSettingsActive]);
+  try
+    GatherOptions;
+    FOptions.SaveToIni(Ini);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TFormMain.LoadOptions;
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(SOptionsFileName, [ifoFormatSettingsActive]);
+  try
+    FOptions.LoadFromIni(Ini);
+    ApplyOptions;
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TFormMain.ApplyOptions;
+begin
+  CheckDefaultOutputFileOptions.Checked := FOptions.DefaultOutputFileOptions;
+  EdDirOutput.Text := FOptions.OutputFolder;
+  EdDirOutput.SelStart := Length(EdDirOutput.Text);
+  ComboFileFormat.ItemIndex := Integer(FOptions.OutputFileFormat);
+  ColorBtnBackground.ButtonColor := RGBToColor(GetRedValue(FOptions.BackgroundColor), GetGreenValue(FOptions.BackgroundColor), GetBlueValue(FOptions.BackgroundColor));
+
+  CheckDefaultExecutable.Checked := FOptions.DefaultExecutable;
+  EdDeskewExePath.Text := FOptions.CustomExecutablePath;
+  EdDeskewExePath.SelStart := Length(EdDeskewExePath.Text);
+  SpinEditMaxAngle.Value := FOptions.MaxAngle;
+  SpinEditSkipAngle.Value := FOptions.SkipAngle;
+  ComboOutputFormat.ItemIndex := Integer(FOptions.ForcedOutputFormat);
+end;
+
+procedure TFormMain.GatherOptions;
+var
+  LazColor: TColor;
+  I: Integer;
+  S: string;
+begin
+  FOptions.Files.Clear;
+  for I := 0 to MemoFiles.Lines.Count - 1 do
+  begin
+    S := Trim(MemoFiles.Lines[I]);
+    if S <> '' then
+      FOptions.Files.Add(S);
+  end;
+
+  FOptions.DefaultOutputFileOptions := CheckDefaultOutputFileOptions.Checked;
+  FOptions.OutputFolder := EdDirOutput.Text;
+  FOptions.OutputFileFormat := TFileFormat(PtrUInt(ComboFileFormat.Items.Objects[ComboFileFormat.ItemIndex]));
+
+  LazColor := ColorBtnBackground.ButtonColor;
+  FOptions.BackgroundColor := Color32(255, Red(LazColor), Green(LazColor), Blue(LazColor)).Color;
+
+  // Advanced options
+  FOptions.MaxAngle := SpinEditMaxAngle.Value;
+  FOptions.SkipAngle := SpinEditSkipAngle.Value;
+  FOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
+  FOptions.DefaultExecutable := CheckDefaultExecutable.Checked;
+  FOptions.CustomExecutablePath := EdDeskewExePath.Text;
 end;
 
 procedure TFormMain.RunnerFinished(Sender: TObject; Reason: TFinishReason);
@@ -221,39 +297,6 @@ begin
   finally
     FileVerInfo.Free;
   end;
-end;
-
-procedure TFormMain.GatherOptions;
-var
-  LazColor: TColor;
-  I: Integer;
-  S: string;
-begin
-  FOptions.Files.Clear;
-  for I := 0 to MemoFiles.Lines.Count - 1 do
-  begin
-    S := Trim(MemoFiles.Lines[I]);
-    if S <> '' then
-      FOptions.Files.Add(S);
-  end;
-
-  FOptions.DefaultOutputFileOptions := CheckDefaultOutputFileOptions.Checked;
-  if not FOptions.DefaultOutputFileOptions then
-  begin
-    FOptions.OutputFolder := EdDirOutput.Text;
-    FOptions.OutputFileFormat := TFileFormat(PtrUInt(ComboFileFormat.Items.Objects[ComboFileFormat.ItemIndex]));
-  end;
-
-  LazColor := ColorBtnBackground.ButtonColor;
-  FOptions.BackgroundColor := Color32(255, Red(LazColor), Green(LazColor), Blue(LazColor)).Color;
-
-  // Advanced options
-  FOptions.MaxAngle := SpinEditMaxAngle.Value;
-  FOptions.SkipAngle := SpinEditSkipAngle.Value;
-  FOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
-  FOptions.DefaultExecutable := CheckDefaultExecutable.Checked;
-  if not FOptions.DefaultExecutable then
-    FOptions.CustomExecutablePath := EdDeskewExePath.Text;
 end;
 
 procedure TFormMain.ActDeskewUpdate(Sender: TObject);

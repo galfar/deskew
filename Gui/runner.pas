@@ -1,7 +1,5 @@
 unit Runner;
 
-{$mode objfpc}{$H+}
-
 interface
 
 uses
@@ -67,7 +65,7 @@ begin
   FTimer := TTimer.Create(nil);
   FTimer.Enabled := False;
   FTimer.Interval := 50;
-  FTimer.OnTimer := @TimerTicked;
+  FTimer.OnTimer := TimerTicked;
 
   FOutputMemo := AOutputMemo;
 end;
@@ -121,7 +119,7 @@ begin
     Exit;
   end;
 
-  if FOnProgress <> nil then
+  if Assigned(FOnProgress) then
     FOnProgress(Self, FInputPos);
 
   FOptions.ToCmdLineParameters(FProcess.Parameters, FInputPos);
@@ -151,7 +149,7 @@ procedure TRunner.Finish(Reason: TFinishReason);
 begin
   FTimer.Enabled := False;
   FRunning := False;
-  if FOnFinished <> nil then
+  if Assigned(FOnFinished) then
     FOnFinished(Self, Reason);
 end;
 

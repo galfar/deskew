@@ -1,7 +1,5 @@
 program deskewgui;
 
-{$mode objfpc}{$H+}
-
 uses
   {$IFDEF UNIX}
   {$IFDEF UseCThreads}
@@ -10,7 +8,7 @@ uses
   clocale,
   {$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, lazcontrols,
+  Forms,
   { you can add units after this }
   MainForm, Runner, Utils, Options;
 
