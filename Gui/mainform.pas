@@ -70,8 +70,9 @@ type
     procedure RunnerFinished(Sender: TObject; Reason: TFinishReason);
     procedure RunnerProgress(Sender: TObject; Index: Integer);
 
-    procedure ApplyOptions(AOptions: TOptions);
     procedure GatherOptions(AOptions: TOptions);
+  public
+    procedure ApplyOptions(AOptions: TOptions);
   end;
 
 var

@@ -45,7 +45,7 @@ implementation
 {$R *.lfm}
 
 uses
-  DataModule;
+  DataModule, MainForm;
 
 { TFormAdvOptions }
 
@@ -104,7 +104,13 @@ end;
 
 procedure TFormAdvOptions.ActResetOptionsExecute(Sender: TObject);
 begin
-  Module.Options.Reset;
+  if Dialogs.QuestionDlg('Reset Options', 'Do you really want to reset the options to default?',
+    mtConfirmation, [mrOk, 'Reset', mrCancel], 0) = mrOk then
+  begin
+    Module.Options.Reset;
+    ApplyOptions(Module.Options);
+    FormMain.ApplyOptions(Module.Options);
+  end;
 end;
 
 end.

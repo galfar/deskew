@@ -105,6 +105,7 @@ const
 constructor TOptions.Create;
 begin
   FFiles := TStringList.Create;
+  Reset;
 end;
 
 destructor TOptions.Destroy;
@@ -211,7 +212,19 @@ end;
 
 procedure TOptions.Reset;
 begin
+  DefaultOutputFileOptions := True;
+  OutputFolder := '';
+  OutputFileFormat := ffSameAsInput;
+  BackgroundColor := DefaultBackgroundColor;
 
+  MaxAngle := DefaultMaxAngle;
+  ThresholdLevel := DefaultThresholdLevel;
+  ForcedOutputFormat := fofNone;
+  SkipAngle := DefaultSkipAngle;
+  JpegCompressionQuality := DefaultJpegCompressionQuality;
+  TiffCompressionScheme := DefaultTiffCompressionScheme;
+  DefaultExecutable := True;
+  CustomExecutablePath := '';
 end;
 
 end.

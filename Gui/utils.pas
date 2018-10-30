@@ -110,7 +110,6 @@ end;
 class function TEnumUtils<T>.GetEnumPrefix: string;
 var
   S: string;
-  I: Integer;
 begin
   S := TypInfo.GetEnumName(TypeInfo(T), Integer(Default(T)));
   Result := Copy(S, 1, 2);
