@@ -4,12 +4,10 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms,
-  Controls, Graphics, Dialogs, ExtCtrls, StdCtrls, Spin,
-  ComCtrls, ActnList, IniFiles,
-  // Units needed for file info reading
-  fileinfo, winpeimagereader, elfreader, machoreader,
+  Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
+  ComCtrls, ActnList,
   // App units
-  Runner, Options, Utils;
+  Runner, Options;
 
 type
 
@@ -21,51 +19,37 @@ type
     ActAddFiles: TAction;
     ActClearFiles: TAction;
     ActBrowseOutputDir: TAction;
-    AtcBrowseDeskewExe: TAction;
+    ActShowAdvOptions: TAction;
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
     BtnAddFiles: TButton;
-    BtnBrowseDeskewExePath: TButton;
     BtnDeskew: TButton;
     BtnClear: TButton;
     BtnFinish: TButton;
     BtnBrowseOutputDir: TButton;
+    BtnAdvOptions: TButton;
     CheckDefaultOutputFileOptions: TCheckBox;
-    CheckDefaultExecutable: TCheckBox;
     ColorBtnBackground: TColorButton;
     ComboFileFormat: TComboBox;
-    ComboOutputFormat: TComboBox;
     EdDirOutput: TEdit;
-    EdDeskewExePath: TEdit;
-    LabDeskewExe: TLabel;
-    OpenDialogSingle: TOpenDialog;
-    SelectDirectoryDialog: TSelectDirectoryDialog;
-    SpinEditMaxAngle: TFloatSpinEdit;
-    SpinEditSkipAngle: TFloatSpinEdit;
     FlowPanel1: TFlowPanel;
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
-    LabAdvOptions: TLabel;
-    LabSkipAngle: TLabel;
-    LabForcedFormat: TLabel;
     LabOptOutputFolder: TLabel;
     LabBackColor: TLabel;
     LabDeskewProgressTitle: TLabel;
-    LabMaxAngle: TLabel;
     LabOptFileFormat: TLabel;
     LabProgressTitle: TLabel;
     LabCurrentFile: TLabel;
     MemoOutput: TMemo;
     MemoFiles: TMemo;
     Notebook: TNotebook;
-    OpenDialogMulti: TOpenDialog;
     PageIn: TPage;
     PageOut: TPage;
     Panel1: TPanel;
     Panel2: TPanel;
     Panel3: TPanel;
-    PanelAdvOptions: TPanel;
     PanelFiles: TPanel;
     PanelOptions: TPanel;
     ProgressBar: TProgressBar;
@@ -75,26 +59,19 @@ type
     procedure ActDeskewExecute(Sender: TObject);
     procedure ActDeskewUpdate(Sender: TObject);
     procedure ActFinishExecute(Sender: TObject);
+    procedure ActShowAdvOptionsExecute(Sender: TObject);
     procedure ApplicationPropertiesIdle(Sender: TObject; var Done: Boolean);
-    procedure AtcBrowseDeskewExeExecute(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormDropFiles(Sender: TObject; const FileNames: array of String);
-    procedure LabAdvOptionsClick(Sender: TObject);
   private
     FRunner: TRunner;
-    FOptions: TOptions;
 
     procedure RunnerFinished(Sender: TObject; Reason: TFinishReason);
     procedure RunnerProgress(Sender: TObject; Index: Integer);
-    procedure ReadAndUseVersionInfo;
-    procedure UpdateAdvOptionsPanelState;
-    procedure SaveOptions;
-    procedure LoadOptions;
-    procedure ApplyOptions;
-    procedure GatherOptions;
-  public
 
+    procedure ApplyOptions(AOptions: TOptions);
+    procedure GatherOptions(AOptions: TOptions);
   end;
 
 var
@@ -105,13 +82,7 @@ implementation
 {$R *.lfm}
 
 uses
-  ImagingUtility, Imaging;
-
-const
-  SExpandSymbol   = '▽';
-  SCollapseSymbol = '△';
-  STitleAdvOptions = 'Advanced Options';
-  SOptionsFileName = 'deskewgui.ini';
+  ImagingUtility, Imaging, DataModule, AdvOptionsForm;
 
 { TFormMain }
 
@@ -120,13 +91,8 @@ begin
   FRunner := TRunner.Create(MemoOutput);
   FRunner.OnFinished := RunnerFinished;
   FRunner.OnProgress := RunnerProgress;
-  FOptions := TOptions.Create;
 
-  ReadAndUseVersionInfo;
-
-  PanelOptions.AutoSize := True; // for collapsible adv. options panel
-  PanelAdvOptions.Visible := False;
-  UpdateAdvOptionsPanelState;
+  Caption := Application.Title + ' v' + Module.VersionString;
 
   ComboFileFormat.Items.Clear;
   ComboFileFormat.Items.AddObject('Same as input', TObject(ffSameAsInput));
@@ -140,21 +106,12 @@ begin
   ComboFileFormat.Items.AddObject('PPM', TObject(ffPpm));
   ComboFileFormat.ItemIndex := 0;
 
-  ComboOutputFormat.Items.Clear;
-  ComboOutputFormat.Items.AddObject('Default (usually same as input)', TObject(fofNone));
-  ComboOutputFormat.Items.AddObject('1bit black and white', TObject(fofBinary1));
-  ComboOutputFormat.Items.AddObject('8bit grayscale', TObject(fofGray8));
-  ComboOutputFormat.Items.AddObject('24bit RGB', TObject(fofRgb24));
-  ComboOutputFormat.Items.AddObject('32bit RGB + opacity', TObject(fofRgba32));
-  ComboOutputFormat.ItemIndex := 0;
-
-  LoadOptions;
+  ApplyOptions(Module.Options);
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
-  SaveOptions;
-  FOptions.Free;
+  GatherOptions(Module.Options);
   FRunner.Free;
 end;
 
@@ -166,93 +123,35 @@ begin
     MemoFiles.Append(FileNames[I]);
 end;
 
-procedure TFormMain.LabAdvOptionsClick(Sender: TObject);
-var
-  Symbol: string;
+procedure TFormMain.ApplyOptions(AOptions: TOptions);
 begin
-  PanelAdvOptions.Visible := not PanelAdvOptions.Visible;
-  UpdateAdvOptionsPanelState;
-  Symbol := Iff(PanelAdvOptions.Visible, SCollapseSymbol, SExpandSymbol);
-  LabAdvOptions.Caption := Symbol + Symbol + ' ' + STitleAdvOptions;
-end;
-
-procedure TFormMain.UpdateAdvOptionsPanelState;
-var
-  Symbol: string;
-begin
-  Symbol := Iff(PanelAdvOptions.Visible, SCollapseSymbol, SExpandSymbol);
-  LabAdvOptions.Caption := Symbol + Symbol + ' ' + STitleAdvOptions;
-end;
-
-procedure TFormMain.SaveOptions;
-var
-  Ini: TIniFile;
-begin
-  Ini := TIniFile.Create(SOptionsFileName, [ifoFormatSettingsActive]);
-  try
-    GatherOptions;
-    FOptions.SaveToIni(Ini);
-  finally
-    Ini.Free;
-  end;
-end;
-
-procedure TFormMain.LoadOptions;
-var
-  Ini: TIniFile;
-begin
-  Ini := TIniFile.Create(SOptionsFileName, [ifoFormatSettingsActive]);
-  try
-    FOptions.LoadFromIni(Ini);
-    ApplyOptions;
-  finally
-    Ini.Free;
-  end;
-end;
-
-procedure TFormMain.ApplyOptions;
-begin
-  CheckDefaultOutputFileOptions.Checked := FOptions.DefaultOutputFileOptions;
-  EdDirOutput.Text := FOptions.OutputFolder;
+  CheckDefaultOutputFileOptions.Checked := AOptions.DefaultOutputFileOptions;
+  EdDirOutput.Text := AOptions.OutputFolder;
   EdDirOutput.SelStart := Length(EdDirOutput.Text);
-  ComboFileFormat.ItemIndex := Integer(FOptions.OutputFileFormat);
-  ColorBtnBackground.ButtonColor := RGBToColor(GetRedValue(FOptions.BackgroundColor), GetGreenValue(FOptions.BackgroundColor), GetBlueValue(FOptions.BackgroundColor));
-
-  CheckDefaultExecutable.Checked := FOptions.DefaultExecutable;
-  EdDeskewExePath.Text := FOptions.CustomExecutablePath;
-  EdDeskewExePath.SelStart := Length(EdDeskewExePath.Text);
-  SpinEditMaxAngle.Value := FOptions.MaxAngle;
-  SpinEditSkipAngle.Value := FOptions.SkipAngle;
-  ComboOutputFormat.ItemIndex := Integer(FOptions.ForcedOutputFormat);
+  ComboFileFormat.ItemIndex := Integer(AOptions.OutputFileFormat);
+  ColorBtnBackground.ButtonColor := RGBToColor(GetRedValue(AOptions.BackgroundColor), GetGreenValue(AOptions.BackgroundColor), GetBlueValue(AOptions.BackgroundColor));
 end;
 
-procedure TFormMain.GatherOptions;
+procedure TFormMain.GatherOptions(AOptions: TOptions);
 var
   LazColor: TColor;
   I: Integer;
   S: string;
 begin
-  FOptions.Files.Clear;
+  AOptions.Files.Clear;
   for I := 0 to MemoFiles.Lines.Count - 1 do
   begin
     S := Trim(MemoFiles.Lines[I]);
     if S <> '' then
-      FOptions.Files.Add(S);
+      AOptions.Files.Add(S);
   end;
 
-  FOptions.DefaultOutputFileOptions := CheckDefaultOutputFileOptions.Checked;
-  FOptions.OutputFolder := EdDirOutput.Text;
-  FOptions.OutputFileFormat := TFileFormat(PtrUInt(ComboFileFormat.Items.Objects[ComboFileFormat.ItemIndex]));
+  AOptions.DefaultOutputFileOptions := CheckDefaultOutputFileOptions.Checked;
+  AOptions.OutputFolder := EdDirOutput.Text;
+  AOptions.OutputFileFormat := TFileFormat(PtrUInt(ComboFileFormat.Items.Objects[ComboFileFormat.ItemIndex]));
 
   LazColor := ColorBtnBackground.ButtonColor;
-  FOptions.BackgroundColor := Color32(255, Red(LazColor), Green(LazColor), Blue(LazColor)).Color;
-
-  // Advanced options
-  FOptions.MaxAngle := SpinEditMaxAngle.Value;
-  FOptions.SkipAngle := SpinEditSkipAngle.Value;
-  FOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
-  FOptions.DefaultExecutable := CheckDefaultExecutable.Checked;
-  FOptions.CustomExecutablePath := EdDeskewExePath.Text;
+  AOptions.BackgroundColor := Color32(255, Red(LazColor), Green(LazColor), Blue(LazColor)).Color;
 end;
 
 procedure TFormMain.RunnerFinished(Sender: TObject; Reason: TFinishReason);
@@ -278,25 +177,9 @@ procedure TFormMain.RunnerProgress(Sender: TObject; Index: Integer);
 begin
   ProgressBar.Position := Index + 1;
   LabCurrentFile.Caption := Format('%s [%d/%d]', [
-    ExtractFileName(FOptions.Files[Index]), Index + 1, FOptions.Files.Count]);
+    ExtractFileName(Module.Options.Files[Index]), Index + 1, Module.Options.Files.Count]);
   LabCurrentFile.Visible := True;
   LabProgressTitle.Visible := True;
-end;
-
-procedure TFormMain.ReadAndUseVersionInfo;
-var
-  FileVerInfo: TFileVersionInfo;
-  VersionStr: string;
-begin
-  FileVerInfo := TFileVersionInfo.Create(nil);
-  try
-    FileVerInfo.ReadFileInfo;
-    VersionStr := FileVerInfo.VersionStrings.Values['FileVersion'];
-    VersionStr := Copy(VersionStr, 1, PosEx('.', VersionStr, 3) - 1);
-    Caption := Application.Title + ' v' + VersionStr;
-  finally
-    FileVerInfo.Free;
-  end;
 end;
 
 procedure TFormMain.ActDeskewUpdate(Sender: TObject);
@@ -315,55 +198,45 @@ begin
   LabOptOutputFolder.Enabled := NoDefault;
   LabOptFileFormat.Enabled := NoDefault;
 
-  AtcBrowseDeskewExe.Enabled := not CheckDefaultExecutable.Checked;
-  EdDeskewExePath.Enabled := AtcBrowseDeskewExe.Enabled;
+  FormAdvOptions.DoIdle;
 end;
 
 procedure TFormMain.ActDeskewExecute(Sender: TObject);
 begin
-  GatherOptions;
+  GatherOptions(Module.Options);
+  FormAdvOptions.GatherOptions(Module.Options);
 
   ActFinish.Caption := 'Stop';
   MemoOutput.Clear;
   ProgressBar.Position := 0;
-  ProgressBar.Max := FOptions.Files.Count;
+  ProgressBar.Max := Module.Options.Files.Count;
   LabCurrentFile.Hide;
   LabProgressTitle.Hide;
   LabProgressTitle.Caption := 'Current file:';
 
   Notebook.PageIndex := 1;
 
-  FRunner.Run(FOptions);
+  FRunner.Run(Module.Options);
 end;
 
 procedure TFormMain.ActAddFilesExecute(Sender: TObject);
 var
   I: Integer;
 begin
-  OpenDialogMulti.Title := 'Select Picture Files';
-  if OpenDialogMulti.Execute then
+  Module.OpenDialogMulti.Title := 'Select Picture Files';
+  if Module.OpenDialogMulti.Execute then
   begin
-    for I := 0 to OpenDialogMulti.Files.Count - 1 do
-      MemoFiles.Append(OpenDialogMulti.Files[I]);
+    for I := 0 to Module.OpenDialogMulti.Files.Count - 1 do
+      MemoFiles.Append(Module.OpenDialogMulti.Files[I]);
   end;
 end;
 
 procedure TFormMain.ActBrowseOutputDirExecute(Sender: TObject);
 begin
-  if SelectDirectoryDialog.Execute then
+  if Module.SelectDirectoryDialog.Execute then
   begin
-    EdDirOutput.Text := SelectDirectoryDialog.FileName;
+    EdDirOutput.Text := Module.SelectDirectoryDialog.FileName;
     EdDirOutput.SelStart := Length(EdDirOutput.Text);
-  end;
-end;
-
-procedure TFormMain.AtcBrowseDeskewExeExecute(Sender: TObject);
-begin
-  OpenDialogSingle.Title := 'Select Deskew Binary Executable';
-  if OpenDialogSingle.Execute then
-  begin
-    EdDeskewExePath.Text := OpenDialogSingle.FileName;
-    EdDeskewExePath.SelStart := Length(EdDeskewExePath.Text);
   end;
 end;
 
@@ -384,6 +257,11 @@ begin
   begin
     Notebook.PageIndex := 0;
   end;
+end;
+
+procedure TFormMain.ActShowAdvOptionsExecute(Sender: TObject);
+begin
+  FormAdvOptions.ShowModal;
 end;
 
 

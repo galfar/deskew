@@ -57,6 +57,7 @@ type
 
     procedure SaveToIni(Ini: TIniFile);
     procedure LoadFromIni(Ini: TIniFile);
+    procedure Reset;
 
     property Files: TStrings read FFiles;
     property EffectiveExecutablePath: string read GetEffectiveExecutablePath;
@@ -206,6 +207,11 @@ begin
   TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
   DefaultExecutable := Ini.ReadBool(IniSectionAdvanced, 'DefaultExecutable', True);
   CustomExecutablePath := Ini.ReadString(IniSectionAdvanced, 'CustomExecutablePath', '');
+end;
+
+procedure TOptions.Reset;
+begin
+
 end;
 
 end.

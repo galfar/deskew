@@ -13,8 +13,8 @@
     </General>
     <VersionInfo>
       <UseVersionInfo Value="True"/>
-      <MinorVersionNr Value="72"/>
-      <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI" ProductVersion=""/>
+      <MinorVersionNr Value="80"/>
+      <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI" ProductVersion="0.72.0.0"/>
     </VersionInfo>
     <BuildModes Count="2">
       <Item1 Name="Debug" Default="True"/>
@@ -72,7 +72,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="6">
+    <Units Count="8">
       <Unit0>
         <Filename Value="deskewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -104,6 +104,22 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="Options"/>
       </Unit5>
+      <Unit6>
+        <Filename Value="advoptionsform.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="FormAdvOptions"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="AdvOptionsForm"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="datamodule.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="Module"/>
+        <HasResources Value="True"/>
+        <ResourceBaseClass Value="DataModule"/>
+        <UnitName Value="DataModule"/>
+      </Unit7>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

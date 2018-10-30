@@ -1,10 +1,9 @@
 object FormMain: TFormMain
-  Left = 562
+  Left = 473
   Height = 792
-  Top = 223
+  Top = 287
   Width = 521
   AllowDropFiles = True
-  BorderIcons = [biSystemMenu, biMinimize]
   Caption = 'Deskew GUI'
   ClientHeight = 792
   ClientWidth = 521
@@ -42,12 +41,12 @@ object FormMain: TFormMain
       end
       object PanelFiles: TPanel
         Left = 0
-        Height = 394
+        Height = 517
         Top = 0
         Width = 505
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 394
+        ClientHeight = 517
         ClientWidth = 505
         TabOrder = 0
         object Label1: TLabel
@@ -67,7 +66,7 @@ object FormMain: TFormMain
         end
         object MemoFiles: TMemo
           Left = 0
-          Height = 309
+          Height = 432
           Top = 31
           Width = 505
           Align = alClient
@@ -79,7 +78,7 @@ object FormMain: TFormMain
         object BtnAddFiles: TButton
           Left = 0
           Height = 37
-          Top = 346
+          Top = 469
           Width = 103
           Action = ActAddFiles
           Anchors = [akLeft, akBottom]
@@ -91,7 +90,7 @@ object FormMain: TFormMain
         object BtnClear: TButton
           Left = 402
           Height = 37
-          Top = 346
+          Top = 469
           Width = 103
           Action = ActClearFiles
           Anchors = [akRight, akBottom]
@@ -102,14 +101,15 @@ object FormMain: TFormMain
       end
       object PanelOptions: TPanel
         Left = 0
-        Height = 311
-        Top = 394
+        Height = 182
+        Top = 523
         Width = 505
         Align = alBottom
         AutoSize = True
+        BorderSpacing.Top = 6
         BorderSpacing.Bottom = 14
         BevelOuter = bvNone
-        ClientHeight = 311
+        ClientHeight = 182
         ClientWidth = 505
         TabOrder = 1
         object Label2: TLabel
@@ -129,13 +129,13 @@ object FormMain: TFormMain
         end
         object Panel1: TPanel
           Left = 0
-          Height = 135
+          Height = 143
           Top = 31
           Width = 505
           Align = alClient
           BorderSpacing.Bottom = 8
           BevelOuter = bvNone
-          ClientHeight = 135
+          ClientHeight = 143
           ClientWidth = 505
           TabOrder = 0
           object ColorBtnBackground: TColorButton
@@ -146,7 +146,7 @@ object FormMain: TFormMain
             AnchorSideBottom.Side = asrCenter
             Left = 117
             Height = 28
-            Top = 107
+            Top = 115
             Width = 64
             BorderSpacing.Left = 12
             BorderWidth = 2
@@ -155,17 +155,20 @@ object FormMain: TFormMain
             Flat = True
           end
           object LabOptOutputFolder: TLabel
+            AnchorSideTop.Control = CheckDefaultOutputFileOptions
+            AnchorSideTop.Side = asrBottom
             Left = 8
             Height = 15
-            Top = 40
+            Top = 43
             Width = 75
+            BorderSpacing.Top = 12
             Caption = 'Output folder:'
             ParentColor = False
           end
           object LabBackColor: TLabel
             Left = 8
             Height = 15
-            Top = 114
+            Top = 122
             Width = 97
             Caption = 'Background color:'
             ParentColor = False
@@ -173,7 +176,7 @@ object FormMain: TFormMain
           object CheckDefaultOutputFileOptions: TCheckBox
             Left = 8
             Height = 19
-            Top = 8
+            Top = 12
             Width = 180
             Caption = 'Use default output file options'
             Checked = True
@@ -185,7 +188,7 @@ object FormMain: TFormMain
             AnchorSideTop.Side = asrBottom
             Left = 8
             Height = 15
-            Top = 73
+            Top = 76
             Width = 60
             BorderSpacing.Top = 18
             Caption = 'File format:'
@@ -198,11 +201,11 @@ object FormMain: TFormMain
             AnchorSideBottom.Side = asrCenter
             Left = 95
             Height = 23
-            Top = 69
+            Top = 72
             Width = 256
             ItemHeight = 15
             Style = csDropDownList
-            TabOrder = 1
+            TabOrder = 3
           end
           object EdDirOutput: TEdit
             AnchorSideLeft.Control = LabOptOutputFolder
@@ -211,10 +214,10 @@ object FormMain: TFormMain
             AnchorSideTop.Side = asrCenter
             Left = 95
             Height = 23
-            Top = 36
+            Top = 39
             Width = 325
             BorderSpacing.Left = 12
-            TabOrder = 2
+            TabOrder = 1
           end
           object BtnBrowseOutputDir: TButton
             AnchorSideLeft.Control = EdDirOutput
@@ -224,171 +227,26 @@ object FormMain: TFormMain
             AnchorSideBottom.Side = asrCenter
             Left = 426
             Height = 25
-            Top = 35
+            Top = 38
             Width = 73
             Action = ActBrowseOutputDir
             AutoSize = True
             BorderSpacing.Left = 6
-            TabOrder = 3
-          end
-        end
-        object PanelAdvOptions: TPanel
-          Left = 0
-          Height = 109
-          Top = 202
-          Width = 505
-          Align = alBottom
-          BevelOuter = bvNone
-          ClientHeight = 109
-          ClientWidth = 505
-          TabOrder = 1
-          object LabMaxAngle: TLabel
-            Left = 8
-            Height = 15
-            Top = 8
-            Width = 112
-            Caption = 'Max. angle [degrees]:'
-            ParentColor = False
-          end
-          object SpinEditMaxAngle: TFloatSpinEdit
-            AnchorSideLeft.Control = LabMaxAngle
-            AnchorSideLeft.Side = asrBottom
-            AnchorSideTop.Control = LabMaxAngle
-            AnchorSideTop.Side = asrCenter
-            Left = 128
-            Height = 23
-            Top = 4
-            Width = 64
-            BorderSpacing.Left = 8
-            DecimalPlaces = 1
-            Increment = 1
-            MaxValue = 90
-            MinValue = 1
-            TabOrder = 0
-            Value = 10
-          end
-          object LabSkipAngle: TLabel
-            AnchorSideTop.Control = LabMaxAngle
-            AnchorSideTop.Side = asrCenter
-            AnchorSideRight.Control = SpinEditSkipAngle
-            Left = 315
-            Height = 15
-            Top = 8
-            Width = 109
-            Anchors = [akTop, akRight]
-            BorderSpacing.Right = 8
-            Caption = 'Skip angle [degrees]:'
-            ParentColor = False
-          end
-          object SpinEditSkipAngle: TFloatSpinEdit
-            AnchorSideTop.Control = LabSkipAngle
-            AnchorSideTop.Side = asrCenter
-            AnchorSideRight.Control = BtnBrowseDeskewExepath
-            AnchorSideRight.Side = asrBottom
-            Left = 432
-            Height = 23
-            Top = 4
-            Width = 64
-            Anchors = [akTop, akRight]
-            Increment = 1
-            MaxValue = 45
-            MinValue = 0
-            TabOrder = 1
-            Value = 0.01
-          end
-          object LabForcedFormat: TLabel
-            Left = 8
-            Height = 15
-            Top = 43
-            Width = 80
-            Caption = 'Output format:'
-            ParentColor = False
-          end
-          object ComboOutputFormat: TComboBox
-            AnchorSideLeft.Control = LabForcedFormat
-            AnchorSideLeft.Side = asrBottom
-            AnchorSideTop.Control = LabForcedFormat
-            AnchorSideTop.Side = asrCenter
-            Left = 100
-            Height = 23
-            Top = 39
-            Width = 256
-            BorderSpacing.Left = 12
-            ItemHeight = 15
-            Style = csDropDownList
             TabOrder = 2
           end
-          object LabDeskewExe: TLabel
-            Left = 8
-            Height = 15
-            Top = 88
-            Width = 102
-            Caption = 'Deskew executable:'
-            ParentColor = False
-          end
-          object CheckDefaultExecutable: TCheckBox
-            AnchorSideLeft.Control = LabDeskewExe
-            AnchorSideLeft.Side = asrBottom
-            AnchorSideTop.Control = LabDeskewExe
+          object BtnAdvOptions: TButton
+            AnchorSideTop.Control = LabBackColor
             AnchorSideTop.Side = asrCenter
-            AnchorSideBottom.Side = asrCenter
-            Left = 118
-            Height = 19
-            Top = 86
-            Width = 58
-            BorderSpacing.Left = 8
-            Caption = 'Default'
-            Checked = True
-            State = cbChecked
-            TabOrder = 3
-          end
-          object EdDeskewExePath: TEdit
-            AnchorSideLeft.Control = CheckDefaultExecutable
-            AnchorSideLeft.Side = asrBottom
-            AnchorSideTop.Control = LabDeskewExe
-            AnchorSideTop.Side = asrCenter
-            AnchorSideBottom.Side = asrCenter
-            Left = 180
-            Height = 23
-            Top = 84
-            Width = 237
-            BorderSpacing.Left = 4
+            AnchorSideRight.Control = BtnBrowseOutputDir
+            AnchorSideRight.Side = asrBottom
+            Left = 400
+            Height = 25
+            Top = 117
+            Width = 99
+            Action = ActShowAdvOptions
+            Anchors = [akTop, akLeft, akRight]
             TabOrder = 4
           end
-          object BtnBrowseDeskewExepath: TButton
-            AnchorSideLeft.Control = EdDeskewExePath
-            AnchorSideLeft.Side = asrBottom
-            AnchorSideTop.Control = EdDeskewExePath
-            AnchorSideTop.Side = asrCenter
-            AnchorSideBottom.Side = asrBottom
-            Left = 423
-            Height = 25
-            Top = 83
-            Width = 73
-            Action = AtcBrowseDeskewExe
-            AutoSize = True
-            BorderSpacing.Left = 6
-            TabOrder = 5
-          end
-        end
-        object LabAdvOptions: TLabel
-          Cursor = crHandPoint
-          Left = 8
-          Height = 24
-          Top = 174
-          Width = 497
-          Align = alBottom
-          AutoSize = False
-          BorderSpacing.Left = 8
-          BorderSpacing.Top = 4
-          BorderSpacing.Bottom = 4
-          Caption = '△△ Advanced Options'
-          Font.Color = 11428096
-          Font.Height = 20
-          Font.Style = [fsBold]
-          ParentColor = False
-          ParentFont = False
-          OnClick = LabAdvOptionsClick
         end
       end
     end
@@ -572,23 +430,9 @@ object FormMain: TFormMain
       Caption = 'Browse...'
       OnExecute = ActBrowseOutputDirExecute
     end
-    object AtcBrowseDeskewExe: TAction
-      Caption = 'Browse...'
-      OnExecute = AtcBrowseDeskewExeExecute
+    object ActShowAdvOptions: TAction
+      Caption = 'Advanced...'
+      OnExecute = ActShowAdvOptionsExecute
     end
-  end
-  object OpenDialogMulti: TOpenDialog
-    Options = [ofAllowMultiSelect, ofEnableSizing, ofViewDetail, ofAutoPreview]
-    left = 152
-    top = 96
-  end
-  object OpenDialogSingle: TOpenDialog
-    Options = [ofReadOnly, ofEnableSizing, ofViewDetail, ofAutoPreview]
-    left = 152
-    top = 168
-  end
-  object SelectDirectoryDialog: TSelectDirectoryDialog
-    left = 152
-    top = 248
   end
 end

@@ -1,0 +1,24 @@
+object Module: TModule
+  OnCreate = DataModuleCreate
+  OnDestroy = DataModuleDestroy
+  OldCreateOrder = False
+  Height = 334
+  HorizontalOffset = 613
+  VerticalOffset = 84
+  Width = 442
+  PPI = 96
+  object OpenDialogMulti: TOpenDialog
+    Options = [ofAllowMultiSelect, ofEnableSizing, ofViewDetail, ofAutoPreview]
+    left = 64
+    top = 40
+  end
+  object OpenDialogSingle: TOpenDialog
+    Options = [ofReadOnly, ofEnableSizing, ofViewDetail, ofAutoPreview]
+    left = 64
+    top = 112
+  end
+  object SelectDirectoryDialog: TSelectDirectoryDialog
+    left = 64
+    top = 192
+  end
+end
