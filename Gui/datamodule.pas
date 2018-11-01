@@ -24,6 +24,8 @@ type
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
   private
+    FOptionsFilePath: string;
+
     procedure SaveOptions;
     procedure LoadOptions;
     procedure ReadVersionInfo;
@@ -38,7 +40,7 @@ var
 implementation
 
 uses
-  ImagingUtility, IniFiles, AdvOptionsForm;
+  IniFiles, ImagingUtility, AdvOptionsForm, Utils;
 
 {$R *.lfm}
 
@@ -50,6 +52,9 @@ const
 procedure TModule.DataModuleCreate(Sender: TObject);
 begin
   ReadVersionInfo;
+  // Prefers "portable mode": config in the folder as exe if it is writable,
+  // standard OS location otherwise.
+  FOptionsFilePath := ConcatPaths([Utils.DetermineConfigFolder, SOptionsFileName]);
 
   Options := TOptions.Create;
   LoadOptions;
@@ -65,9 +70,21 @@ procedure TModule.LoadOptions;
 var
   Ini: TIniFile;
 begin
-  Ini := TIniFile.Create(SOptionsFileName, [ifoFormatSettingsActive]);
+  Ini := TIniFile.Create(FOptionsFilePath, [ifoFormatSettingsActive]);
   try
     Options.LoadFromIni(Ini);
+  finally
+    Ini.Free;
+  end;
+end;
+
+procedure TModule.SaveOptions;
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(FOptionsFilePath, [ifoFormatSettingsActive]);
+  try
+    Options.SaveToIni(Ini);
   finally
     Ini.Free;
   end;
@@ -84,18 +101,6 @@ begin
     VersionString := Copy(VersionString, 1, PosEx('.', VersionString, 3) - 1);
   finally
     FileVerInfo.Free;
-  end;
-end;
-
-procedure TModule.SaveOptions;
-var
-  Ini: TIniFile;
-begin
-  Ini := TIniFile.Create(SOptionsFileName, [ifoFormatSettingsActive]);
-  try
-    Options.SaveToIni(Ini);
-  finally
-    Ini.Free;
   end;
 end;
 

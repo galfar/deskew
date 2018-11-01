@@ -15,6 +15,7 @@ type
   end;
 
 function FindDeskewExePath: string;
+function DetermineConfigFolder: string;
 function ColorToString(Color: TColor32): string;
 function StringToColorDef(const Str: string; Default: TColor32): TColor32;
 
@@ -24,7 +25,7 @@ uses
 {$IF Defined(DARWIN)}
   StrUtils,
 {$ENDIF}
-  Forms;
+  LazFileUtils, Forms;
 
 function FindDeskewExePath: string;
 var
@@ -69,6 +70,17 @@ begin
       Exit(S);
 {$ENDIF}
   end;
+end;
+
+function DetermineConfigFolder: string;
+var
+  ExeDir, S: string;
+begin
+  Result := GetAppConfigDir(False);
+
+  ExeDir := Application.Location;
+  if DirectoryExists(ExeDir) and DirectoryIsWritable(ExeDir) then
+    Result := ExeDir;
 end;
 
 function ColorToString(Color: TColor32): string;
