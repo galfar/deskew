@@ -1,0 +1,92 @@
+object FormAbout: TFormAbout
+  Left = 425
+  Height = 231
+  Top = 332
+  Width = 390
+  BorderIcons = [biSystemMenu]
+  BorderStyle = bsDialog
+  Caption = 'About Deskew GUI'
+  ClientHeight = 231
+  ClientWidth = 390
+  Color = clWindow
+  OnCreate = FormCreate
+  Position = poMainFormCenter
+  LCLVersion = '1.8.4.0'
+  object Image1: TImage
+    Left = 14
+    Height = 150
+    Top = 24
+    Width = 150
+    AntialiasingMode = amOn
+    Proportional = True
+    Transparent = True
+  end
+  object BtnClose: TButton
+    AnchorSideLeft.Control = Owner
+    AnchorSideLeft.Side = asrCenter
+    AnchorSideRight.Control = Owner
+    AnchorSideRight.Side = asrCenter
+    AnchorSideBottom.Control = Owner
+    AnchorSideBottom.Side = asrBottom
+    Left = 168
+    Height = 25
+    Top = 196
+    Width = 55
+    Anchors = [akLeft, akBottom]
+    AutoSize = True
+    BorderSpacing.Bottom = 10
+    Caption = 'Close'
+    Default = True
+    OnClick = BtnCloseClick
+    TabOrder = 0
+  end
+  object LabTitle: TLabel
+    Left = 176
+    Height = 30
+    Top = 24
+    Width = 118
+    AutoSize = False
+    Caption = 'Deskew GUI'
+    Font.Color = 11428096
+    Font.Height = 30
+    Font.Style = [fsBold]
+    Layout = tlBottom
+    ParentColor = False
+    ParentFont = False
+  end
+  object LabVersion: TLabel
+    AnchorSideLeft.Control = LabTitle
+    AnchorSideTop.Control = LabTitle
+    AnchorSideTop.Side = asrBottom
+    AnchorSideBottom.Control = LabTitle
+    AnchorSideBottom.Side = asrBottom
+    Left = 176
+    Height = 15
+    Top = 54
+    Width = 21
+    Caption = 'v1.0'
+    Layout = tlBottom
+    ParentColor = False
+  end
+  object Label1: TLabel
+    Left = 176
+    Height = 15
+    Top = 142
+    Width = 93
+    Caption = 'by Marek Mauder'
+    ParentColor = False
+  end
+  object LabWeb: TLabel
+    Cursor = crHandPoint
+    Left = 176
+    Height = 15
+    Top = 159
+    Width = 162
+    Caption = 'http://galfar.vevb.net/deskew/'
+    Font.Color = 16744448
+    Font.Style = [fsUnderline]
+    ParentColor = False
+    ParentFont = False
+    OnClick = LabWebClick
+  end
+end

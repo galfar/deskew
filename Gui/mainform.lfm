@@ -21,7 +21,7 @@ object FormMain: TFormMain
     Height = 776
     Top = 8
     Width = 505
-    PageIndex = 0
+    PageIndex = 1
     Align = alClient
     BorderSpacing.Around = 8
     TabOrder = 0
@@ -97,6 +97,17 @@ object FormMain: TFormMain
           Font.Height = -16
           ParentFont = False
           TabOrder = 2
+        end
+        object BtnAbout: TButton
+          Left = 468
+          Height = 25
+          Top = 0
+          Width = 37
+          Action = ActShowAbout
+          Anchors = [akTop, akRight]
+          AutoSize = True
+          TabOrder = 3
+          TabStop = False
         end
       end
       object PanelOptions: TPanel
@@ -212,26 +223,32 @@ object FormMain: TFormMain
             AnchorSideLeft.Side = asrBottom
             AnchorSideTop.Control = LabOptOutputFolder
             AnchorSideTop.Side = asrCenter
+            AnchorSideRight.Control = BtnBrowseOutputDir
             Left = 95
             Height = 23
             Top = 39
-            Width = 325
+            Width = 323
+            Anchors = [akTop, akLeft, akRight]
             BorderSpacing.Left = 12
+            BorderSpacing.Right = 4
             TabOrder = 1
           end
           object BtnBrowseOutputDir: TButton
-            AnchorSideLeft.Control = EdDirOutput
             AnchorSideLeft.Side = asrBottom
             AnchorSideTop.Control = EdDirOutput
             AnchorSideTop.Side = asrCenter
+            AnchorSideRight.Control = Panel1
+            AnchorSideRight.Side = asrBottom
             AnchorSideBottom.Side = asrCenter
-            Left = 426
+            Left = 424
             Height = 25
             Top = 38
             Width = 73
             Action = ActBrowseOutputDir
+            Anchors = [akTop, akRight]
             AutoSize = True
             BorderSpacing.Left = 6
+            BorderSpacing.Right = 8
             TabOrder = 2
           end
           object BtnAdvOptions: TButton
@@ -239,12 +256,12 @@ object FormMain: TFormMain
             AnchorSideTop.Side = asrCenter
             AnchorSideRight.Control = BtnBrowseOutputDir
             AnchorSideRight.Side = asrBottom
-            Left = 400
+            Left = 396
             Height = 25
             Top = 117
-            Width = 99
+            Width = 101
             Action = ActShowAdvOptions
-            Anchors = [akTop, akLeft, akRight]
+            Anchors = [akTop, akRight]
             TabOrder = 4
           end
         end
@@ -253,13 +270,13 @@ object FormMain: TFormMain
     object PageOut: TPage
       object Panel2: TPanel
         Left = 0
-        Height = 98
+        Height = 90
         Top = 0
         Width = 505
         Align = alTop
         AutoSize = True
         BevelOuter = bvNone
-        ClientHeight = 98
+        ClientHeight = 90
         ClientWidth = 505
         TabOrder = 0
         object LabDeskewProgressTitle: TLabel
@@ -280,7 +297,7 @@ object FormMain: TFormMain
         object ProgressBar: TProgressBar
           Left = 8
           Height = 20
-          Top = 68
+          Top = 60
           Width = 489
           Align = alBottom
           BorderSpacing.Left = 8
@@ -296,7 +313,7 @@ object FormMain: TFormMain
         object FlowPanel1: TFlowPanel
           Left = 0
           Height = 21
-          Top = 39
+          Top = 31
           Width = 505
           Align = alClient
           AutoSize = True
@@ -336,7 +353,7 @@ object FormMain: TFormMain
             Anchors = [akTop]
             AutoSize = False
             Caption = 'FileName.ext [22/152]'
-            Font.Height = -15
+            Font.Height = 20
             Font.Style = [fsBold]
             Layout = tlBottom
             ParentColor = False
@@ -346,13 +363,13 @@ object FormMain: TFormMain
       end
       object Panel3: TPanel
         Left = 0
-        Height = 603
-        Top = 98
+        Height = 611
+        Top = 90
         Width = 505
         Align = alClient
         BorderSpacing.Bottom = 18
         BevelOuter = bvNone
-        ClientHeight = 603
+        ClientHeight = 611
         ClientWidth = 505
         TabOrder = 1
         object Label3: TLabel
@@ -372,7 +389,7 @@ object FormMain: TFormMain
         end
         object MemoOutput: TMemo
           Left = 0
-          Height = 572
+          Height = 580
           Top = 31
           Width = 505
           Align = alClient
@@ -433,6 +450,10 @@ object FormMain: TFormMain
     object ActShowAdvOptions: TAction
       Caption = 'Advanced...'
       OnExecute = ActShowAdvOptionsExecute
+    end
+    object ActShowAbout: TAction
+      Caption = ' ? '
+      OnExecute = ActShowAboutExecute
     end
   end
 end

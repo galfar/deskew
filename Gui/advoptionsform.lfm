@@ -4,7 +4,7 @@ object FormAdvOptions: TFormAdvOptions
   Top = 360
   Width = 454
   BorderIcons = [biSystemMenu]
-  BorderStyle = bsSingle
+  BorderStyle = bsDialog
   Caption = 'Advanced Options'
   ClientHeight = 322
   ClientWidth = 454
@@ -149,32 +149,36 @@ object FormAdvOptions: TFormAdvOptions
       TabOrder = 3
     end
     object EdDeskewExePath: TEdit
-      AnchorSideLeft.Control = CheckDefaultExecutable
+      AnchorSideLeft.Control = LabDeskewExe
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = LabDeskewExe
       AnchorSideTop.Side = asrCenter
+      AnchorSideRight.Control = BtnBrowseDeskewExePath
       AnchorSideBottom.Side = asrCenter
-      Left = 120
+      Left = 118
       Height = 23
       Top = 203
-      Width = 237
-      Anchors = [akTop]
-      BorderSpacing.Left = 4
+      Width = 233
+      Anchors = [akTop, akLeft, akRight]
+      BorderSpacing.Left = 8
       TabOrder = 4
     end
     object BtnBrowseDeskewExePath: TButton
-      AnchorSideLeft.Control = EdDeskewExePath
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = EdDeskewExePath
       AnchorSideTop.Side = asrCenter
+      AnchorSideRight.Control = Panel1
+      AnchorSideRight.Side = asrBottom
       AnchorSideBottom.Side = asrBottom
-      Left = 363
+      Left = 357
       Height = 25
       Top = 202
       Width = 73
       Action = AtcBrowseDeskewExe
+      Anchors = [akTop, akRight]
       AutoSize = True
       BorderSpacing.Left = 6
+      BorderSpacing.Right = 8
       TabOrder = 5
     end
     object BtnResetOptions: TButton

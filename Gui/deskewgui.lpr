@@ -10,7 +10,7 @@ uses
   Interfaces, // this includes the LCL widgetset
   Forms,
   { you can add units after this }
-  MainForm, AdvOptionsForm, DataModule, Runner, Utils, Options;
+  DataModule, MainForm, AdvOptionsForm, AboutForm, Runner, Utils, Options;
 
 {$R *.res}
 
@@ -21,6 +21,7 @@ begin
   Application.CreateForm(TModule, Module);
   Application.CreateForm(TFormMain, FormMain);
   Application.CreateForm(TFormAdvOptions, FormAdvOptions);
+  Application.CreateForm(TFormAbout, FormAbout);
   Application.Run;
 end.
 

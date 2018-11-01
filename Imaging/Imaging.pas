@@ -638,7 +638,7 @@ var
 function GetFormatName(Format: TImageFormat): string;
 { Returns string with information about given Image.}
 function ImageToStr(const Image: TImageData): string;
-{ Returns Imaging version string in format 'Major.Minor.Patch'.}
+{ Returns Imaging version string in format 'Major.Minor'.}
 function GetVersionStr: string;
 { If Condition is True then TruePart is retured, otherwise FalsePart is returned.}
 function IffFormat(Condition: Boolean; const TruePart, FalsePart: TImageFormat): TImageFormat;
@@ -3116,7 +3116,7 @@ end;
 
 function GetVersionStr: string;
 begin
-  Result := Format('%.1d.%.2d.', [ImagingVersionMajor, ImagingVersionMinor]);
+  Result := Format('%.1d.%.2d', [ImagingVersionMajor, ImagingVersionMinor]);
 end;
 
 function IffFormat(Condition: Boolean; const TruePart, FalsePart: TImageFormat): TImageFormat;

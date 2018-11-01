@@ -19,6 +19,7 @@ type
     ActAddFiles: TAction;
     ActClearFiles: TAction;
     ActBrowseOutputDir: TAction;
+    ActShowAbout: TAction;
     ActShowAdvOptions: TAction;
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
@@ -28,6 +29,7 @@ type
     BtnFinish: TButton;
     BtnBrowseOutputDir: TButton;
     BtnAdvOptions: TButton;
+    BtnAbout: TButton;
     CheckDefaultOutputFileOptions: TCheckBox;
     ColorBtnBackground: TColorButton;
     ComboFileFormat: TComboBox;
@@ -59,6 +61,7 @@ type
     procedure ActDeskewExecute(Sender: TObject);
     procedure ActDeskewUpdate(Sender: TObject);
     procedure ActFinishExecute(Sender: TObject);
+    procedure ActShowAboutExecute(Sender: TObject);
     procedure ActShowAdvOptionsExecute(Sender: TObject);
     procedure ApplicationPropertiesIdle(Sender: TObject; var Done: Boolean);
     procedure FormCreate(Sender: TObject);
@@ -83,7 +86,7 @@ implementation
 {$R *.lfm}
 
 uses
-  ImagingUtility, Imaging, DataModule, AdvOptionsForm;
+  ImagingUtility, Imaging, DataModule, AdvOptionsForm, AboutForm;
 
 { TFormMain }
 
@@ -258,6 +261,11 @@ begin
   begin
     Notebook.PageIndex := 0;
   end;
+end;
+
+procedure TFormMain.ActShowAboutExecute(Sender: TObject);
+begin
+  FormAbout.ShowModal;
 end;
 
 procedure TFormMain.ActShowAdvOptionsExecute(Sender: TObject);

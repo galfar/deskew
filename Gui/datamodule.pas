@@ -37,10 +37,10 @@ var
 
 implementation
 
-{$R *.lfm}
-
 uses
   ImagingUtility, IniFiles, AdvOptionsForm;
+
+{$R *.lfm}
 
 const
   SOptionsFileName = 'deskewgui.ini';

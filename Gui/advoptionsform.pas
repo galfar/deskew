@@ -42,10 +42,10 @@ var
 
 implementation
 
-{$R *.lfm}
-
 uses
   DataModule, MainForm;
+
+{$R *.lfm}
 
 { TFormAdvOptions }
 
