@@ -270,13 +270,12 @@ object FormMain: TFormMain
     object PageOut: TPage
       object Panel2: TPanel
         Left = 0
-        Height = 90
+        Height = 102
         Top = 0
         Width = 505
         Align = alTop
-        AutoSize = True
         BevelOuter = bvNone
-        ClientHeight = 90
+        ClientHeight = 102
         ClientWidth = 505
         TabOrder = 0
         object LabDeskewProgressTitle: TLabel
@@ -297,7 +296,7 @@ object FormMain: TFormMain
         object ProgressBar: TProgressBar
           Left = 8
           Height = 20
-          Top = 60
+          Top = 72
           Width = 489
           Align = alBottom
           BorderSpacing.Left = 8
@@ -310,66 +309,46 @@ object FormMain: TFormMain
           Smooth = True
           TabOrder = 0
         end
-        object FlowPanel1: TFlowPanel
-          Left = 0
-          Height = 21
-          Top = 31
-          Width = 505
-          Align = alClient
-          AutoSize = True
-          BevelOuter = bvNone
-          ControlList = <          
-            item
-              Control = LabProgressTitle
-              WrapAfter = waAuto
-              Index = 0
-            end          
-            item
-              Control = LabCurrentFile
-              WrapAfter = waAuto
-              Index = 1
-            end>
-          FlowLayout = tlBottom
-          FlowStyle = fsLeftRightTopBottom
-          TabOrder = 1
-          object LabProgressTitle: TLabel
-            Left = 8
-            Height = 15
-            Top = 6
-            Width = 62
-            BorderSpacing.Left = 8
-            BorderSpacing.Right = 4
-            Caption = 'Current file:'
-            Layout = tlBottom
-            ParentColor = False
-          end
-          object LabCurrentFile: TLabel
-            AnchorSideTop.Control = LabProgressTitle
-            AnchorSideTop.Side = asrBottom
-            Left = 74
-            Height = 21
-            Top = 0
-            Width = 424
-            Anchors = [akTop]
-            AutoSize = False
-            Caption = 'FileName.ext [22/152]'
-            Font.Height = 20
-            Font.Style = [fsBold]
-            Layout = tlBottom
-            ParentColor = False
-            ParentFont = False
-          end
+        object LabProgressTitle: TLabel
+          Left = 8
+          Height = 15
+          Top = 44
+          Width = 62
+          BorderSpacing.Left = 8
+          BorderSpacing.Right = 4
+          Caption = 'Current file:'
+          Layout = tlBottom
+          ParentColor = False
+        end
+        object LabCurrentFile: TLabel
+          AnchorSideLeft.Control = LabProgressTitle
+          AnchorSideLeft.Side = asrBottom
+          AnchorSideTop.Side = asrBottom
+          AnchorSideBottom.Control = LabProgressTitle
+          AnchorSideBottom.Side = asrBottom
+          Left = 75
+          Height = 20
+          Top = 39
+          Width = 160
+          Anchors = [akLeft, akBottom]
+          BorderSpacing.Left = 5
+          Caption = 'FileName.ext [22/152]'
+          Font.Height = 20
+          Font.Style = [fsBold]
+          Layout = tlBottom
+          ParentColor = False
+          ParentFont = False
         end
       end
       object Panel3: TPanel
         Left = 0
-        Height = 611
-        Top = 90
+        Height = 599
+        Top = 102
         Width = 505
         Align = alClient
         BorderSpacing.Bottom = 18
         BevelOuter = bvNone
-        ClientHeight = 611
+        ClientHeight = 599
         ClientWidth = 505
         TabOrder = 1
         object Label3: TLabel
@@ -389,7 +368,7 @@ object FormMain: TFormMain
         end
         object MemoOutput: TMemo
           Left = 0
-          Height = 580
+          Height = 568
           Top = 31
           Width = 505
           Align = alClient
@@ -420,12 +399,12 @@ object FormMain: TFormMain
   object ApplicationProperties: TApplicationProperties
     Title = 'Deskew GUI'
     OnIdle = ApplicationPropertiesIdle
-    left = 264
-    top = 96
+    left = 176
+    top = 200
   end
   object ActionList: TActionList
-    left = 264
-    top = 160
+    left = 280
+    top = 200
     object ActDeskew: TAction
       Caption = 'Deskew!'
       OnExecute = ActDeskewExecute

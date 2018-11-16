@@ -8,17 +8,19 @@ object FormAbout: TFormAbout
   Caption = 'About Deskew GUI'
   ClientHeight = 231
   ClientWidth = 390
-  Color = clWindow
+  Color = clWhite
   OnCreate = FormCreate
   Position = poMainFormCenter
   LCLVersion = '1.8.4.0'
-  object Image1: TImage
+  object ImageIcon: TImage
     Left = 14
     Height = 150
     Top = 24
     Width = 150
     AntialiasingMode = amOn
+    Center = True
     Proportional = True
+    Stretch = True
     Transparent = True
   end
   object BtnClose: TButton
@@ -45,7 +47,6 @@ object FormAbout: TFormAbout
     Height = 30
     Top = 24
     Width = 118
-    AutoSize = False
     Caption = 'Deskew GUI'
     Font.Color = 11428096
     Font.Height = 30

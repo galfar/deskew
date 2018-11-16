@@ -74,7 +74,7 @@ end;
 
 function DetermineConfigFolder: string;
 var
-  ExeDir, S: string;
+  ExeDir: string;
 begin
   Result := GetAppConfigDir(False);
 

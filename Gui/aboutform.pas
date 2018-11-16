@@ -12,7 +12,7 @@ type
 
   TFormAbout = class(TForm)
     BtnClose: TButton;
-    Image1: TImage;
+    ImageIcon: TImage;
     Label1: TLabel;
     LabWeb: TLabel;
     LabTitle: TLabel;
@@ -44,8 +44,18 @@ begin
 end;
 
 procedure TFormAbout.FormCreate(Sender: TObject);
+var
+  Icon: TIcon;
 begin
   LabVersion.Caption := 'v' + Module.VersionString;
+
+  Icon := TIcon.Create;
+  try
+    Icon.LoadFromResourceName(HInstance, 'MAINICON');
+    ImageIcon.Picture.Assign(Icon);
+  finally
+    Icon.Free;
+  end;
 end;
 
 procedure TFormAbout.LabWebClick(Sender: TObject);

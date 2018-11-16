@@ -34,7 +34,6 @@ type
     ColorBtnBackground: TColorButton;
     ComboFileFormat: TComboBox;
     EdDirOutput: TEdit;
-    FlowPanel1: TFlowPanel;
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
@@ -219,6 +218,7 @@ begin
   LabProgressTitle.Caption := 'Current file:';
 
   Notebook.PageIndex := 1;
+  Application.ProcessMessages;
 
   FRunner.Run(Module.Options);
 end;

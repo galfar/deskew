@@ -195,7 +195,7 @@ end;
 
 procedure TOptions.LoadFromIni(Ini: TIniFile);
 begin
-  DefaultOutputFileOptions := Ini.ReadBool(IniSectionOptions, 'DefaultOutputFileOptions', True);
+  DefaultOutputFileOptions := StrToBoolDef(Ini.ReadString(IniSectionOptions, 'DefaultOutputFileOptions', ''), True);
   OutputFolder := Ini.ReadString(IniSectionOptions, 'OutputFolder', '');
   OutputFileFormat := TEnumUtils<TFileFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'OutputFileFormat', ''));
   BackgroundColor := StringToColorDef(Ini.ReadString(IniSectionOptions, 'BackgroundColor', ''), DefaultBackgroundColor);
@@ -206,7 +206,7 @@ begin
   SkipAngle := Ini.ReadFloat(IniSectionAdvanced, 'SkipAngle', DefaultSkipAngle);
   JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
   TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
-  DefaultExecutable := Ini.ReadBool(IniSectionAdvanced, 'DefaultExecutable', True);
+  DefaultExecutable := StrToBoolDef(Ini.ReadString(IniSectionAdvanced, 'DefaultExecutable', ''),  True);
   CustomExecutablePath := Ini.ReadString(IniSectionAdvanced, 'CustomExecutablePath', '');
 end;
 
