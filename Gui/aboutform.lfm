@@ -1,27 +1,26 @@
 object FormAbout: TFormAbout
   Left = 425
-  Height = 231
+  Height = 209
   Top = 332
-  Width = 390
+  Width = 378
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About Deskew GUI'
-  ClientHeight = 231
-  ClientWidth = 390
+  ClientHeight = 209
+  ClientWidth = 378
   Color = clWhite
   OnCreate = FormCreate
   Position = poMainFormCenter
   LCLVersion = '1.8.4.0'
   object ImageIcon: TImage
     Left = 14
-    Height = 150
+    Height = 128
     Top = 24
-    Width = 150
-    AntialiasingMode = amOn
+    Width = 128
+    AntialiasingMode = amOff
     Center = True
     Proportional = True
     Stretch = True
-    Transparent = True
   end
   object BtnClose: TButton
     AnchorSideLeft.Control = Owner
@@ -30,10 +29,10 @@ object FormAbout: TFormAbout
     AnchorSideRight.Side = asrCenter
     AnchorSideBottom.Control = Owner
     AnchorSideBottom.Side = asrBottom
-    Left = 168
-    Height = 25
-    Top = 196
-    Width = 55
+    Left = 154
+    Height = 20
+    Top = 179
+    Width = 70
     Anchors = [akLeft, akBottom]
     AutoSize = True
     BorderSpacing.Bottom = 10
@@ -43,10 +42,10 @@ object FormAbout: TFormAbout
     TabOrder = 0
   end
   object LabTitle: TLabel
-    Left = 176
-    Height = 30
+    Left = 160
+    Height = 35
     Top = 24
-    Width = 118
+    Width = 185
     Caption = 'Deskew GUI'
     Font.Color = 11428096
     Font.Height = 30
@@ -61,28 +60,28 @@ object FormAbout: TFormAbout
     AnchorSideTop.Side = asrBottom
     AnchorSideBottom.Control = LabTitle
     AnchorSideBottom.Side = asrBottom
-    Left = 176
-    Height = 15
-    Top = 54
-    Width = 21
+    Left = 160
+    Height = 16
+    Top = 59
+    Width = 27
     Caption = 'v1.0'
     Layout = tlBottom
     ParentColor = False
   end
   object Label1: TLabel
-    Left = 176
-    Height = 15
-    Top = 142
-    Width = 93
+    Left = 160
+    Height = 16
+    Top = 119
+    Width = 109
     Caption = 'by Marek Mauder'
     ParentColor = False
   end
   object LabWeb: TLabel
     Cursor = crHandPoint
-    Left = 176
-    Height = 15
-    Top = 159
-    Width = 162
+    Left = 160
+    Height = 16
+    Top = 136
+    Width = 198
     Caption = 'http://galfar.vevb.net/deskew/'
     Font.Color = 16744448
     Font.Style = [fsUnderline]

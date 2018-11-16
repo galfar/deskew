@@ -20,10 +20,6 @@ type
     procedure BtnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure LabWebClick(Sender: TObject);
-  private
-
-  public
-
   end;
 
 var
@@ -53,6 +49,9 @@ begin
   try
     Icon.LoadFromResourceName(HInstance, 'MAINICON');
     ImageIcon.Picture.Assign(Icon);
+{$IF Defined(DARWIN)}
+    ImageIcon.Stretch := False; // Currently broken in Cocoa WS
+{$ENDIF}
   finally
     Icon.Free;
   end;

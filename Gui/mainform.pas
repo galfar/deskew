@@ -49,8 +49,8 @@ type
     PageIn: TPage;
     PageOut: TPage;
     Panel1: TPanel;
-    Panel2: TPanel;
-    Panel3: TPanel;
+    PanelProgress: TPanel;
+    PanelOut: TPanel;
     PanelFiles: TPanel;
     PanelOptions: TPanel;
     ProgressBar: TProgressBar;
@@ -187,7 +187,7 @@ end;
 
 procedure TFormMain.ActDeskewUpdate(Sender: TObject);
 begin
-  TAction(Sender).Enabled := MemoFiles.Lines.Count > 0;
+  TAction(Sender).Enabled := (MemoFiles.Lines.Count > 0) and (Trim(MemoFiles.Lines[0]) <> '');
 end;
 
 procedure TFormMain.ApplicationPropertiesIdle(Sender: TObject; var Done: Boolean);
