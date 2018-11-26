@@ -17,8 +17,8 @@
     </General>
     <VersionInfo>
       <UseVersionInfo Value="True"/>
-      <MinorVersionNr Value="88"/>
-      <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI"/>
+      <MinorVersionNr Value="90"/>
+      <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI" ProductVersion=""/>
     </VersionInfo>
     <BuildModes Count="2">
       <Item1 Name="Debug" Default="True"/>
@@ -34,6 +34,11 @@
             <OtherUnitFiles Value="..\Imaging"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="Delphi"/>
+            </SyntaxOptions>
+          </Parsing>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
             <Optimizations>
@@ -53,9 +58,6 @@
           </Linking>
           <Other>
             <CustomOptions Value="-dDONT_LINK_FILE_FORMATS"/>
-            <OtherDefines Count="1">
-              <Define0 Value="DONT_LINK_FILE_FORMATS"/>
-            </OtherDefines>
           </Other>
         </CompilerOptions>
       </Item2>
@@ -176,9 +178,6 @@
     <Other>
       <CustomOptions Value="-dDONT_LINK_FILE_FORMATS
 -dDEBUG"/>
-      <OtherDefines Count="1">
-        <Define0 Value="DONT_LINK_FILE_FORMATS"/>
-      </OtherDefines>
     </Other>
   </CompilerOptions>
   <Debugging>
