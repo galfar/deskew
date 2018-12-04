@@ -1,19 +1,25 @@
+set -e
+
 RELEASE_DIR=../_internal/MacRelease
 CONTENT_DIR=$RELEASE_DIR/DeskewGui.app/Contents
 
 mkdir -p $RELEASE_DIR
 rm -rf $RELEASE_DIR/*
 
-# build executable
-lazbuild --build-mode=Release-macOS --no-write-project ../Gui/deskewgui.lpi
+# build executables
+rm -f ../Bin/deskew-mac
+rm -f ../Gui/deskewgui
+lazbuild --build-mode=Release-macOS -q --no-write-project ../deskew.lpi
+lazbuild --build-mode=Release-macOS -q --no-write-project ../Gui/deskewgui.lpi
 
 # build app bundle
 mkdir -p $CONTENT_DIR/MacOS
 mkdir $CONTENT_DIR/Resources
 
+cp ../Bin/deskew-mac $CONTENT_DIR/MacOS/
+chmod 755 $CONTENT_DIR/MacOS/deskew-mac
 cp ../Gui/deskewgui $CONTENT_DIR/MacOS/
 chmod 755 $CONTENT_DIR/MacOS/deskewgui
-
 cp ../Gui/deskewgui.icns $CONTENT_DIR/Resources/
 chmod 644 $CONTENT_DIR/Resources/deskewgui.icns
 
@@ -53,7 +59,7 @@ cat <<EOT >> $CONTENT_DIR/Info.plist
 EOT
 
 # update version from Lazarus project file
-MAJOR_VER=$(grep 'MajorVersionNr' ../Gui/deskewgui.lpi | grep -oE '[0-9]+')
+MAJOR_VER=$(grep 'MajorVersionNr' ../Gui/deskewgui.lpi | grep -oE '[0-9]+' || true)
 MAJOR_VER=${MAJOR_VER:-0} # if major=0 it's not included in project file
 MINOR_VER=$(grep 'MinorVersionNr' ../Gui/deskewgui.lpi | grep -oE '[0-9]+')
 
@@ -64,3 +70,6 @@ plutil -insert CFBundleVersion -string $MAJOR_VER.$MINOR_VER $CONTENT_DIR/Info.p
 DMG_NAME=DeskewGui-$MAJOR_VER.$MINOR_VER.dmg
 
 hdiutil create -srcfolder $RELEASE_DIR -volname DeskewGui -format UDZO -ov $RELEASE_DIR/$DMG_NAME
+
+
+echo "Finished OK!"

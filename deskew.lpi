@@ -57,7 +57,7 @@
           </Other>
         </CompilerOptions>
       </Item2>
-      <Item3 Name="ReleaseWin64">
+      <Item3 Name="Release-Win64">
         <CompilerOptions>
           <Version Value="11"/>
           <PathDelim Value="\"/>
@@ -92,7 +92,7 @@
           </Linking>
         </CompilerOptions>
       </Item3>
-      <Item4 Name="ReleaseWin32">
+      <Item4 Name="Release-Win32">
         <CompilerOptions>
           <Version Value="11"/>
           <PathDelim Value="\"/>
@@ -127,12 +127,12 @@
           </Linking>
         </CompilerOptions>
       </Item4>
-      <Item5 Name="ReleaseMacOS">
+      <Item5 Name="Release-macOS">
         <CompilerOptions>
           <Version Value="11"/>
           <PathDelim Value="\"/>
           <Target>
-            <Filename Value="Bin\deskew-osx"/>
+            <Filename Value="Bin\deskew-mac"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
@@ -217,8 +217,8 @@
         <Filename Value="MainUnit.pas"/>
         <IsPartOfProject Value="True"/>
         <IsVisibleTab Value="True"/>
-        <TopLine Value="245"/>
-        <CursorPos X="26" Y="250"/>
+        <TopLine Value="146"/>
+        <CursorPos X="24" Y="166"/>
         <UsageCount Value="293"/>
         <Loaded Value="True"/>
         <DefaultSyntaxHighlighter Value="Delphi"/>
@@ -495,12 +495,6 @@
     </Linking>
   </CompilerOptions>
   <Debugging>
-    <Watches Count="1">
-      <Item1>
-        <Expression Value="PixOldLeft"/>
-        <DisplayStyle Value="wdfHex"/>
-      </Item1>
-    </Watches>
     <Exceptions Count="3">
       <Item1>
         <Name Value="EAbort"/>
