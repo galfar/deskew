@@ -1,5 +1,5 @@
 unit imjcapimin;
-{$N+}
+
 {  This file contains application interface code for the compression half
   of the JPEG library.  These are the "minimum" API routines that may be
   needed in either the normal full-compression case or the transcoding-only

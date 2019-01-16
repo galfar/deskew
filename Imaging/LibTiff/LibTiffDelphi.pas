@@ -889,8 +889,10 @@ begin
 end;
 
 function strlen(s: Pointer): Cardinal; cdecl;
+{$ifndef fpc}
 var
   m: PByte;
+{$endif}
 begin
   {$ifdef fpc}
   Result:=system.strlen(s);

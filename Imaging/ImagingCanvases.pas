@@ -392,7 +392,8 @@ const
     Kernel: ((1, 1, 1),
              (1, 1, 1),
              (1, 1, 1));
-    Divisor: 9);
+    Divisor: 9;
+    Bias:    0);
 
   { Kernel for 5x5 average smoothing filter.}
   FilterAverage5x5: TConvolutionFilter5x5 = (
@@ -401,14 +402,16 @@ const
              (1, 1, 1, 1, 1),
              (1, 1, 1, 1, 1),
              (1, 1, 1, 1, 1));
-    Divisor: 25);
+    Divisor: 25;
+    Bias:     0);
 
   { Kernel for 3x3 Gaussian smoothing filter.}
   FilterGaussian3x3: TConvolutionFilter3x3 = (
     Kernel: ((1, 2, 1),
              (2, 4, 2),
              (1, 2, 1));
-    Divisor: 16);
+    Divisor: 16;
+    Bias:     0);
 
   { Kernel for 5x5 Gaussian smoothing filter.}
   FilterGaussian5x5: TConvolutionFilter5x5 = (
@@ -417,49 +420,56 @@ const
              (6, 24, 36, 24, 6),
              (4, 16, 24, 16, 4),
              (1,  4,  6,  4, 1));
-    Divisor: 256);
+    Divisor: 256;
+    Bias:     0);
 
   { Kernel for 3x3 Sobel horizontal edge detection filter (1st derivative approximation).}
   FilterSobelHorz3x3: TConvolutionFilter3x3 = (
     Kernel: (( 1,  2,  1),
              ( 0,  0,  0),
              (-1, -2, -1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 3x3 Sobel vertical edge detection filter (1st derivative approximation).}
   FilterSobelVert3x3: TConvolutionFilter3x3 = (
     Kernel: ((-1, 0, 1),
              (-2, 0, 2),
              (-1, 0, 1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 3x3 Prewitt horizontal edge detection filter.}
   FilterPrewittHorz3x3: TConvolutionFilter3x3 = (
     Kernel: (( 1,  1,  1),
              ( 0,  0,  0),
              (-1, -1, -1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 3x3 Prewitt vertical edge detection filter.}
   FilterPrewittVert3x3: TConvolutionFilter3x3 = (
     Kernel: ((-1, 0, 1),
              (-1, 0, 1),
              (-1, 0, 1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 3x3 Kirsh horizontal edge detection filter.}
   FilterKirshHorz3x3: TConvolutionFilter3x3 = (
     Kernel: (( 5,  5,  5),
              (-3,  0, -3),
              (-3, -3, -3));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 3x3 Kirsh vertical edge detection filter.}
   FilterKirshVert3x3: TConvolutionFilter3x3 = (
     Kernel: ((5, -3, -3),
              (5,  0, -3),
              (5, -3, -3));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 3x3 Laplace omni-directional edge detection filter
     (2nd derivative approximation).}
@@ -467,7 +477,8 @@ const
     Kernel: ((-1, -1, -1),
              (-1,  8, -1),
              (-1, -1, -1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 5x5 Laplace omni-directional edge detection filter
     (2nd derivative approximation).}
@@ -477,14 +488,16 @@ const
              (-1, -1, 24, -1, -1),
              (-1, -1, -1, -1, -1),
              (-1, -1, -1, -1, -1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 3x3 spharpening filter (Laplacian + original color).}
   FilterSharpen3x3: TConvolutionFilter3x3 = (
     Kernel: ((-1, -1, -1),
              (-1,  9, -1),
              (-1, -1, -1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 5x5 spharpening filter (Laplacian + original color).}
   FilterSharpen5x5: TConvolutionFilter5x5 = (
@@ -493,7 +506,8 @@ const
              (-1, -1, 25, -1, -1),
              (-1, -1, -1, -1, -1),
              (-1, -1, -1, -1, -1));
-    Divisor: 1);
+    Divisor: 1;
+    Bias:    0);
 
   { Kernel for 5x5 glow filter.}
   FilterGlow5x5: TConvolutionFilter5x5 = (
@@ -502,14 +516,16 @@ const
              ( 2, 0, -20, 0, 2),
              ( 2, 0,   0, 0, 2),
              ( 1, 2,   2, 2, 1));
-    Divisor: 8);
+    Divisor: 8;
+    Bias:    0);
 
   { Kernel for 3x3 edge enhancement filter.}
   FilterEdgeEnhance3x3: TConvolutionFilter3x3 = (
     Kernel: ((-1, -2, -1),
              (-2, 16, -2),
              (-1, -2, -1));
-    Divisor: 4);
+    Divisor: 4;
+    Bias:    0);
 
   { Kernel for 3x3 contour enhancement filter.}
   FilterTraceControur3x3: TConvolutionFilter3x3 = (

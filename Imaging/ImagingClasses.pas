@@ -69,7 +69,7 @@ type
     constructor CreateFromImage(AImage: TBaseImage);
     destructor Destroy; override;
     { Returns info about current image.}
-    function ToString: string; {$IF Defined(DCC) and (CompilerVersion >= 20.0)}override;{$IFEND}
+    function ToString: string; {$IF (Defined(DCC) and (CompilerVersion >= 20.0)) or Defined(FPC)}override;{$IFEND}
 
     { Creates a new image data with the given size and format. Old image
       data is lost. Works only for the current image of TMultiImage.}

@@ -1,6 +1,5 @@
 unit imjfdctflt;
 
-{$N+}
 { This file contains a floating-point implementation of the
   forward DCT (Discrete Cosine Transform).
 

@@ -2783,7 +2783,7 @@ end;
 { Raw Image IO Functions }
 
 procedure ReadRawImage(Handle: TImagingHandle;  Width, Height: Integer;
-  Format: TImageFormat; out Image: TImageData; Offset, RowLength: Integer);
+  Format: TImageFormat; var Image: TImageData; Offset, RowLength: Integer);
 var
   WidthBytes, I: Integer;
   Info: PImageFormatInfo;

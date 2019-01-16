@@ -1130,7 +1130,6 @@ var
   Table: THashTable;
   Box: array[0..MaxPossibleColors - 1] of TColorBox;
   Boxes: LongInt;
-  BoxesCreated: Boolean = False;
 
 procedure ReduceColorsMedianCut(NumPixels: LongInt; Src, Dst: PByte; SrcInfo,
   DstInfo: PImageFormatInfo; MaxColors: LongInt; ChannelMask: Byte;
@@ -1793,8 +1792,6 @@ end;
 procedure StretchResample(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
   SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
   DstHeight: LongInt; Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean);
-const
-  Channel8BitMax: Single = 255.0;
 var
   MapX, MapY: TMappingTable;
   I, J, X, Y: LongInt;
@@ -1805,7 +1802,7 @@ var
   DstLine: PByte;
   SrcFloat: TColorFPRec;
   Info: TImageFormatInfo;
-  BytesPerChannel: LongInt;
+  BytesPerChannel: Integer;
 begin
   GetImageFormatInfo(SrcImage.Format, Info);
   Assert(SrcImage.Format = DstImage.Format);

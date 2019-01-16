@@ -1,7 +1,5 @@
 unit imjdapimin;
 
-{$N+}  { Nomssi: cinfo^.output_gamma }
-
 { This file contains application interface code for the decompression half
   of the JPEG library.  These are the "minimum" API routines that may be
   needed in either the normal full-decompression case or the

@@ -141,7 +141,6 @@ var
     I, J, DistIndex, AlphaIndex: Integer;
     Temp: TLine;
   begin
-    AccumulatedCounts := 0;
     SetLength(Result, Count);
 
     for I := 0 to AccumulatorSize - 1 do
@@ -178,6 +177,8 @@ var
   end;
 
 begin
+  AccumulatedCounts := 0;
+
   // Use supplied page content rect or just the whole image
   ContentRect := Rect(0, 0, Width, Height);
   if DetectionArea <> nil then

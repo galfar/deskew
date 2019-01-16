@@ -171,7 +171,9 @@ function fprintf(stream: Pointer; format: Pointer; arguments: va_list): Integer;
 var
   m: Integer;
   n: Pointer;
+{$ifndef FPC}
   o: Cardinal;
+{$endif}
 begin
   m:=sprintf(nil,format,@arguments);
   n:=AllocMem(m);
@@ -186,25 +188,8 @@ begin
 end;
 
 function strcpy(dest: Pointer; src: Pointer): Pointer; cdecl;
-var
-  ma,mb: PByte;
-  n: Integer;
 begin
-  {$ifdef FPC}
   Result:=SysUtils.strcopy(dest,src);
-  {$else}
-  ma:=src;
-  mb:=dest;
-  while True do
-  begin
-    n:=ma^;
-    mb^:=n;
-    if n=0 then break;
-    Inc(ma);
-    Inc(mb);
-  end;
-  Result:=dest;
-  {$endif}
 end;
 
 {$ifdef FPC}

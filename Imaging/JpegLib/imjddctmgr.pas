@@ -15,8 +15,6 @@ interface
 
 {$I imjconfig.inc}
 
-{$N+}
-
 uses
   imjmorecfg,
   imjinclude,

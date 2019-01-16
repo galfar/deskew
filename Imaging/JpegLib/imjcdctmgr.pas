@@ -12,7 +12,6 @@ unit imjcdctmgr;
 
 interface
 
-{$N+}
 {$I imjconfig.inc}
 
 uses
