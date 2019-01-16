@@ -310,6 +310,12 @@ procedure RunDeskew;
 var
   Changed: Boolean;
 begin
+{$IF Defined(FPC) and not Defined(MSWINDOWS)}
+  // Flush after WriteLn also when output is redirected to file/pipe
+  if Textrec(Output).FlushFunc = nil then
+    Textrec(Output).FlushFunc := Textrec(Output).InOutFunc;
+{$IFEND}
+
   WriteLn(SAppTitle);
   WriteLn(SAppHome);
 
