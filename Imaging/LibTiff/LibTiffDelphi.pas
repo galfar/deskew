@@ -8,15 +8,14 @@
 
 unit LibTiffDelphi;
 
-{$ifdef FPC}
+{$IFDEF FPC}
   {$MODE OBJFPC}
-  {$define VER403} // libtiff 4.0.3
-{$endif}
-
-{$ifndef FPC}
-{$Align 8}
-{$MINENUMSIZE 1}
-{$endif}
+  {$DEFINE VER403} // libtiff 4.0.3
+{$ELSE}
+  {$DEFINE DCC}
+  {$ALIGN 8}
+  {$MINENUMSIZE 1}
+{$ENDIF}
 
 interface
 
@@ -636,7 +635,12 @@ procedure SetUserMessageHandlers(ErrorHandler, WarningHandler: TUserTiffErrorHan
 implementation
 
 uses
-  Math, LibJpegDelphi, ZLibDelphi;
+  Math,
+{$IF Defined(DCC) and (CompilerVersion < 20)}
+  Windows,
+{$IFEND}
+  LibJpegDelphi,
+  ZLibDelphi;
 
 var
   { For FPC 3.0+ these must be marked as exported  }

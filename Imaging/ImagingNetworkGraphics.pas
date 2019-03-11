@@ -2066,12 +2066,14 @@ var
   DestFrames: TDynImageDataArray;
   SrcCanvas, DestCanvas: TImagingCanvas;
   PreviousCache: TImageData;
+  DestFormat: TImageFormat;
+  FormatInfo: TImageFormatInfo;
+  AnimatingNeeded, BlendingNeeded: Boolean;
 
-  function AnimatingNeeded: Boolean;
+  procedure CheckFrames;
   var
     I: Integer;
   begin
-    Result := False;
     for I := 0 to Len - 1 do
     with SrcFrames[I] do
     begin
@@ -2080,14 +2082,24 @@ var
         not ((fcTL.DisposeOp = DisposeOpBackground) and (fcTL.BlendOp = BlendOpSource)) and
         not ((fcTL.DisposeOp = DisposeOpBackground) and (fcTL.BlendOp = BlendOpOver))) then
       begin
-        Result := True;
-        Exit;
+        AnimatingNeeded := True;
       end;
+
+      if fcTL.BlendOp = BlendOpOver then
+        BlendingNeeded := True;
+
+      if AnimatingNeeded and BlendingNeeded then
+        Exit;
     end;
   end;
 
 begin
+  AnimatingNeeded := False;
+  BlendingNeeded := False;
   Len := Length(SrcFrames);
+
+  CheckFrames;
+
   if (Len = 0) or not AnimatingNeeded then
     Exit;
 
@@ -2100,19 +2112,26 @@ begin
   else
     Offset := 0;
 
+  DestFormat := Images[0].Format;
+  GetImageFormatInfo(DestFormat, FormatInfo);
+  if BlendingNeeded and FormatInfo.IsIndexed then // alpha blending needed -> destination cannot be indexed
+    DestFormat := ifA8R8G8B8;
+
   SetLength(DestFrames, Len);
-  DestCanvas := ImagingCanvases.FindBestCanvasForImage(Images[0]).Create;
+  DestCanvas := ImagingCanvases.FindBestCanvasForImage(DestFormat).Create;
   SrcCanvas := ImagingCanvases.FindBestCanvasForImage(Images[0]).Create;
   InitImage(PreviousCache);
-  NewImage(SrcFrames[0].IHDR.Width, SrcFrames[0].IHDR.Height, Images[0].Format, PreviousCache);
+  NewImage(SrcFrames[0].IHDR.Width, SrcFrames[0].IHDR.Height, DestFormat, PreviousCache);
 
   for I := 0 to Len - 1 do
   begin
     SrcIdx := I + Offset;
+
     NewImage(SrcFrames[SrcIdx].IHDR.Width, SrcFrames[SrcIdx].IHDR.Height,
-      Images[SrcIdx].Format, DestFrames[I]);
+      DestFormat, DestFrames[I]);
     if DestFrames[I].Format = ifIndex8 then
       Move(Images[SrcIdx].Palette^, DestFrames[I].Palette^, 256 * SizeOf(TColor32));
+
     DestCanvas.CreateForData(@DestFrames[I]);
 
     if (SrcFrames[SrcIdx].fcTL.DisposeOp = DisposeOpPrevious) and (SrcFrames[SrcIdx - 1].fcTL.DisposeOp <> DisposeOpPrevious) then

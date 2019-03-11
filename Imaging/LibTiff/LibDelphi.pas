@@ -189,7 +189,7 @@ end;
 
 function strcpy(dest: Pointer; src: Pointer): Pointer; cdecl;
 begin
-  Result:=SysUtils.strcopy(dest,src);
+  Result:=SysUtils.strcopy(PAnsiChar(dest),PAnsiChar(src));
 end;
 
 {$ifdef FPC}

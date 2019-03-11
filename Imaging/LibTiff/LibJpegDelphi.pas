@@ -1,5 +1,11 @@
 unit LibJpegDelphi;
 
+{$IFDEF FPC}
+  {$MODE OBJFPC}
+{$ELSE}
+  {$DEFINE DCC}
+{$ENDIF}
+
 interface
 
 uses
@@ -7,11 +13,11 @@ uses
 
 const
 
-  {$ifndef FPC}
+  {$IFNDEF FPC}
   JPEG_LIB_VERSION = 62;    { Version 6b }
-  {$else}
+  {$ELSE}
   JPEG_LIB_VERSION = 80;    { Version 80 }
-  {$endif}
+  {$ENDIF}
 
   JMSG_STR_PARM_MAX = 80;
   JMSG_LENGTH_MAX = 200;    { recommended size of format_message buffer }

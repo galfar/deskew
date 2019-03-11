@@ -1,5 +1,11 @@
 unit ZLibDelphi;
 
+{$IFDEF FPC}
+  {$MODE OBJFPC}
+{$ELSE}
+  {$DEFINE DCC}
+{$ENDIF}
+
 interface
 
 uses
