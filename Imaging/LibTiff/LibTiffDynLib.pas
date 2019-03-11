@@ -47,7 +47,7 @@ const
 {$IF Defined(MSWINDOWS)}
   SLibName = 'libtiff.dll'; // make sure you have DLL with the same bitness as your app!
 {$ELSEIF Defined(DARWIN)} // macOS
-  SLibName = 'libtiff.dylib';
+  SLibName = 'libtiff.5.dylib';
 {$ELSE} // Linux, BSD
   SLibName = 'libtiff.so.5'; // yes, SONAME for libtiff v4.0 is actually libtiff5 (and libtiff.so.4 is libtiff v3.9)
 {$IFEND}
@@ -745,6 +745,10 @@ begin
   if TiffLibHandle = 0 then
   begin
     TiffLibHandle := LoadLibrary(SLibName);
+  {$IF Defined(DARWIN)}
+    if TiffLibHandle = 0 then
+      TiffLibHandle := LoadLibrary('@executable_path/' + SLibName);
+  {$IFEND}
 
     if TiffLibHandle <> 0 then
     begin
