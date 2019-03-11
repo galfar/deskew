@@ -10,12 +10,13 @@ uses
   Interfaces, // this includes the LCL widgetset
   Forms,
   { you can add units after this }
-  DataModule, MainForm, AdvOptionsForm, AboutForm, Runner, Utils, Options;
+  DataModule, MainForm, AdvOptionsForm, AboutForm, Runner, Utils, Options,
+  Config;
 
 {$R *.res}
 
 begin
-  Application.Title:='Deskew GUI';
+  Application.Title:=ApplicationTitle;
   RequireDerivedFormResource:=True;
   Application.Initialize;
   Application.CreateForm(TModule, Module);

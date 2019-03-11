@@ -28,7 +28,7 @@ var
 implementation
 
 uses
-  LCLIntf, DataModule;
+  LCLIntf, DataModule, Config;
 
 {$R *.lfm}
 
@@ -45,16 +45,25 @@ var
 begin
   LabTitle.Caption := Application.Title;
   LabVersion.Caption := 'v' + Module.VersionString;
+  LabWeb.Caption := WebLink;
 
-  Icon := TIcon.Create;
-  try
-    Icon.LoadFromResourceName(HInstance, 'MAINICON');
-    ImageIcon.Picture.Assign(Icon);
-{$IF Defined(DARWIN)}
-    ImageIcon.Stretch := False; // Currently broken in Cocoa WS
-{$ENDIF}
-  finally
-    Icon.Free;
+  if LogoImageResName = '' then
+  begin
+    Icon := TIcon.Create;
+    try
+      Icon.LoadFromResourceName(HInstance, 'MAINICON');
+      ImageIcon.Picture.Assign(Icon);
+  {$IF Defined(DARWIN)}
+      ImageIcon.Stretch := False; // Currently broken in Cocoa WS
+  {$ENDIF}
+    finally
+      Icon.Free;
+    end;
+  end
+  else
+  begin
+    ImageIcon.Stretch := False;
+    ImageIcon.Picture.LoadFromResourceName(HInstance, LogoImageResName);
   end;
 end;
 

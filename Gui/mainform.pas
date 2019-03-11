@@ -85,7 +85,7 @@ implementation
 {$R *.lfm}
 
 uses
-  ImagingUtility, Imaging, DataModule, AdvOptionsForm, AboutForm;
+  ImagingUtility, Imaging, DataModule, AdvOptionsForm, AboutForm, Config;
 
 { TFormMain }
 
@@ -110,6 +110,8 @@ begin
   ComboFileFormat.ItemIndex := 0;
 
   ApplyOptions(Module.Options);
+
+  Config.AfterMainFormCreation(Self);
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);

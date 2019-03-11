@@ -4,7 +4,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Spin, ActnList, Options;
+  ExtCtrls, Spin, ActnList, Options, Config;
 
 type
 
@@ -58,6 +58,15 @@ begin
   ComboOutputFormat.Items.AddObject('24bit RGB', TObject(fofRgb24));
   ComboOutputFormat.Items.AddObject('32bit RGB + opacity', TObject(fofRgba32));
   ComboOutputFormat.ItemIndex := 0;
+
+  if not ShowDeskewExeOption then
+  begin
+    CheckDefaultExecutable.Visible := False;
+    LabDeskewExe.Visible := False;
+    EdDeskewExePath.Visible := False;
+    BtnBrowseDeskewExePath.Visible := False;
+    Height := EdDeskewExePath.BoundsRect.Bottom;
+  end;
 
   ApplyOptions(Module.Options);
 end;

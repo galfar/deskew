@@ -1,7 +1,7 @@
 object FormAdvOptions: TFormAdvOptions
-  Left = 445
+  Left = 140
   Height = 322
-  Top = 360
+  Top = 346
   Width = 454
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
@@ -12,7 +12,7 @@ object FormAdvOptions: TFormAdvOptions
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poMainFormCenter
-  LCLVersion = '1.8.2.0'
+  LCLVersion = '1.8.4.0'
   object Panel1: TPanel
     Left = 8
     Height = 306
@@ -26,7 +26,7 @@ object FormAdvOptions: TFormAdvOptions
     TabOrder = 0
     object LabTitle: TLabel
       Left = 0
-      Height = 27
+      Height = 23
       Top = 4
       Width = 438
       Align = alTop
@@ -44,9 +44,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabForcedFormat
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 17
-      Top = 78
-      Width = 146
+      Height = 15
+      Top = 72
+      Width = 112
       BorderSpacing.Top = 18
       Caption = 'Max. angle [degrees]:'
       ParentColor = False
@@ -56,9 +56,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = LabMaxAngle
       AnchorSideTop.Side = asrCenter
-      Left = 162
-      Height = 27
-      Top = 73
+      Left = 128
+      Height = 23
+      Top = 68
       Width = 64
       BorderSpacing.Left = 8
       DecimalPlaces = 1
@@ -73,9 +73,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabMaxAngle
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 17
-      Top = 113
-      Width = 142
+      Height = 15
+      Top = 105
+      Width = 109
       BorderSpacing.Top = 18
       BorderSpacing.Right = 8
       Caption = 'Skip angle [degrees]:'
@@ -86,9 +86,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabSkipAngle
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Side = asrBottom
-      Left = 162
-      Height = 27
-      Top = 108
+      Left = 128
+      Height = 23
+      Top = 101
       Width = 64
       Increment = 1
       MaxValue = 45
@@ -101,9 +101,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabTitle
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 17
-      Top = 43
-      Width = 106
+      Height = 15
+      Top = 39
+      Width = 80
       BorderSpacing.Left = 8
       BorderSpacing.Top = 12
       Caption = 'Output format:'
@@ -114,12 +114,12 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = LabForcedFormat
       AnchorSideTop.Side = asrCenter
-      Left = 126
-      Height = 31
-      Top = 36
+      Left = 100
+      Height = 23
+      Top = 35
       Width = 256
       BorderSpacing.Left = 12
-      ItemHeight = 0
+      ItemHeight = 15
       Style = csDropDownList
       TabOrder = 0
     end
@@ -128,9 +128,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = CheckDefaultExecutable
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 17
-      Top = 212
-      Width = 136
+      Height = 15
+      Top = 207
+      Width = 102
       BorderSpacing.Top = 12
       Caption = 'Deskew executable:'
       ParentColor = False
@@ -140,9 +140,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       AnchorSideBottom.Side = asrCenter
       Left = 8
-      Height = 24
+      Height = 19
       Top = 176
-      Width = 239
+      Width = 181
       Caption = 'Use default Deskew executable'
       Checked = True
       State = cbChecked
@@ -155,10 +155,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = BtnBrowseDeskewExePath
       AnchorSideBottom.Side = asrCenter
-      Left = 152
-      Height = 27
-      Top = 207
-      Width = 196
+      Left = 118
+      Height = 23
+      Top = 203
+      Width = 233
       Anchors = [akTop, akLeft, akRight]
       BorderSpacing.Left = 8
       TabOrder = 4
@@ -170,10 +170,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Control = Panel1
       AnchorSideRight.Side = asrBottom
       AnchorSideBottom.Side = asrBottom
-      Left = 354
-      Height = 29
-      Top = 206
-      Width = 76
+      Left = 357
+      Height = 25
+      Top = 202
+      Width = 73
       Action = AtcBrowseDeskewExe
       Anchors = [akTop, akRight]
       AutoSize = True
@@ -186,9 +186,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Control = Panel1
       AnchorSideBottom.Side = asrBottom
       Left = 8
-      Height = 29
-      Top = 273
-      Width = 121
+      Height = 25
+      Top = 277
+      Width = 108
       Action = ActResetOptions
       Anchors = [akLeft, akBottom]
       AutoSize = True

@@ -123,7 +123,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="9">
+    <Units Count="10">
       <Unit0>
         <Filename Value="deskewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -179,6 +179,11 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="AboutForm"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="config.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="Config"/>
+      </Unit9>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
