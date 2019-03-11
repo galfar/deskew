@@ -5,7 +5,7 @@ object FormAbout: TFormAbout
   Width = 378
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
-  Caption = 'About Deskew GUI'
+  Caption = 'About'
   ClientHeight = 209
   ClientWidth = 378
   Color = clWhite
@@ -29,10 +29,10 @@ object FormAbout: TFormAbout
     AnchorSideRight.Side = asrCenter
     AnchorSideBottom.Control = Owner
     AnchorSideBottom.Side = asrBottom
-    Left = 154
-    Height = 20
-    Top = 179
-    Width = 70
+    Left = 162
+    Height = 25
+    Top = 174
+    Width = 55
     Anchors = [akLeft, akBottom]
     AutoSize = True
     BorderSpacing.Bottom = 10
@@ -43,10 +43,10 @@ object FormAbout: TFormAbout
   end
   object LabTitle: TLabel
     Left = 160
-    Height = 35
+    Height = 30
     Top = 24
-    Width = 185
-    Caption = 'Deskew GUI'
+    Width = 90
+    Caption = 'App Title'
     Font.Color = 11428096
     Font.Height = 30
     Font.Style = [fsBold]
@@ -61,27 +61,27 @@ object FormAbout: TFormAbout
     AnchorSideBottom.Control = LabTitle
     AnchorSideBottom.Side = asrBottom
     Left = 160
-    Height = 16
-    Top = 59
-    Width = 27
+    Height = 15
+    Top = 54
+    Width = 21
     Caption = 'v1.0'
     Layout = tlBottom
     ParentColor = False
   end
   object Label1: TLabel
     Left = 160
-    Height = 16
+    Height = 15
     Top = 119
-    Width = 109
+    Width = 93
     Caption = 'by Marek Mauder'
     ParentColor = False
   end
   object LabWeb: TLabel
     Cursor = crHandPoint
     Left = 160
-    Height = 16
+    Height = 15
     Top = 136
-    Width = 198
+    Width = 162
     Caption = 'http://galfar.vevb.net/deskew/'
     Font.Color = 16744448
     Font.Style = [fsUnderline]

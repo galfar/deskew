@@ -43,6 +43,7 @@ procedure TFormAbout.FormCreate(Sender: TObject);
 var
   Icon: TIcon;
 begin
+  LabTitle.Caption := Application.Title;
   LabVersion.Caption := 'v' + Module.VersionString;
 
   Icon := TIcon.Create;
