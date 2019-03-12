@@ -1,11 +1,11 @@
 object FormMain: TFormMain
-  Left = 1121
-  Height = 792
-  Top = 332
+  Left = 637
+  Height = 740
+  Top = 231
   Width = 521
   AllowDropFiles = True
   Caption = 'Deskew GUI'
-  ClientHeight = 792
+  ClientHeight = 740
   ClientWidth = 521
   Color = clWhite
   Constraints.MinHeight = 520
@@ -18,7 +18,7 @@ object FormMain: TFormMain
   LCLVersion = '1.8.4.0'
   object Notebook: TNotebook
     Left = 8
-    Height = 776
+    Height = 724
     Top = 8
     Width = 505
     PageIndex = 0
@@ -30,7 +30,7 @@ object FormMain: TFormMain
       object BtnDeskew: TButton
         Left = 0
         Height = 57
-        Top = 719
+        Top = 667
         Width = 505
         Action = ActDeskew
         Align = alBottom
@@ -41,12 +41,12 @@ object FormMain: TFormMain
       end
       object PanelFiles: TPanel
         Left = 0
-        Height = 517
+        Height = 465
         Top = 0
         Width = 505
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 517
+        ClientHeight = 465
         ClientWidth = 505
         TabOrder = 0
         object Label1: TLabel
@@ -66,7 +66,7 @@ object FormMain: TFormMain
         end
         object MemoFiles: TMemo
           Left = 0
-          Height = 426
+          Height = 374
           Top = 37
           Width = 505
           Align = alClient
@@ -78,7 +78,7 @@ object FormMain: TFormMain
         object BtnAddFiles: TButton
           Left = 0
           Height = 37
-          Top = 469
+          Top = 417
           Width = 103
           Action = ActAddFiles
           Anchors = [akLeft, akBottom]
@@ -90,7 +90,7 @@ object FormMain: TFormMain
         object BtnClear: TButton
           Left = 402
           Height = 37
-          Top = 469
+          Top = 417
           Width = 103
           Action = ActClearFiles
           Anchors = [akRight, akBottom]
@@ -113,7 +113,7 @@ object FormMain: TFormMain
       object PanelOptions: TPanel
         Left = 0
         Height = 182
-        Top = 523
+        Top = 471
         Width = 505
         Align = alBottom
         AutoSize = True

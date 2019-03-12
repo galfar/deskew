@@ -112,6 +112,9 @@ begin
   ApplyOptions(Module.Options);
 
   Config.AfterMainFormCreation(Self);
+
+  if Screen.WorkAreaHeight < Height then
+    Height := Round(Screen.WorkAreaHeight * 0.9);
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
