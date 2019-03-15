@@ -1,7 +1,14 @@
 set -e
 
+APP_NAME=${1:-DeskewGui}
+APP_TITLE=${2:-Deskew GUI}
+BUNDLE_ID=${3:-net.galfarslair.deskewgui}
+COPYRIGHT=${4:-©2018, Marek Mauder}
+ICON_PATH=${5:-"../Gui/deskewgui.icns"}
+ICON_NAME=$(basename $ICON_PATH .icns)
+
 RELEASE_DIR=../_internal/MacRelease
-CONTENT_DIR=$RELEASE_DIR/DeskewGui.app/Contents
+CONTENT_DIR=$RELEASE_DIR/$APP_NAME.app/Contents
 
 mkdir -p $RELEASE_DIR
 rm -rf $RELEASE_DIR/*
@@ -20,8 +27,8 @@ cp ../Bin/deskew-mac $CONTENT_DIR/MacOS/
 chmod 755 $CONTENT_DIR/MacOS/deskew-mac
 cp ../Gui/deskewgui $CONTENT_DIR/MacOS/
 chmod 755 $CONTENT_DIR/MacOS/deskewgui
-cp ../Gui/deskewgui.icns $CONTENT_DIR/Resources/
-chmod 644 $CONTENT_DIR/Resources/deskewgui.icns
+cp $ICON_PATH $CONTENT_DIR/Resources/
+chmod 644 $CONTENT_DIR/Resources/$ICON_NAME.icns
 
 echo "APPL????" > $CONTENT_DIR/PkgInfo
 
@@ -35,13 +42,13 @@ cat <<EOT >> $CONTENT_DIR/Info.plist
   <key>CFBundleExecutable</key>
   <string>deskewgui</string>
   <key>CFBundleDisplayName</key>
-  <string>Deskew GUI</string>
+  <string>$APP_TITLE</string>
   <key>CFBundleName</key>
-  <string>Deskew GUI</string>
+  <string>$APP_TITLE</string>
   <key>CFBundleIdentifier</key>
-  <string>net.galfarslair.deskewgui</string>
+  <string>$BUNDLE_ID</string>
   <key>CFBundleIconFile</key>
-  <string>deskewgui</string>
+  <string>$ICON_NAME</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -51,7 +58,7 @@ cat <<EOT >> $CONTENT_DIR/Info.plist
   <key>CSResourcesFileMapped</key>
   <true/>
   <key>NSHumanReadableCopyright</key>
-  <string>©2018, Marek Mauder</string>
+  <string>$COPYRIGHT</string>
   <key>NSHighResolutionCapable</key>
   <true/>
 </dict>
@@ -67,9 +74,9 @@ plutil -insert CFBundleShortVersionString -string $MAJOR_VER.$MINOR_VER $CONTENT
 plutil -insert CFBundleVersion -string $MAJOR_VER.$MINOR_VER $CONTENT_DIR/Info.plist
 
 # create DMG from folder
-DMG_NAME=DeskewGui-$MAJOR_VER.$MINOR_VER.dmg
+DMG_NAME=$APP_NAME-$MAJOR_VER.$MINOR_VER.dmg
 
-hdiutil create -srcfolder $RELEASE_DIR -volname DeskewGui -format UDZO -ov $RELEASE_DIR/$DMG_NAME
+hdiutil create -srcfolder $RELEASE_DIR -volname $APP_NAME -format UDZO -ov $RELEASE_DIR/$DMG_NAME
 
 
 echo "Finished OK!"

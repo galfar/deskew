@@ -40,7 +40,7 @@ var
 implementation
 
 uses
-  IniFiles, ImagingUtility, AdvOptionsForm, Utils;
+  IniFiles, Forms, ImagingUtility, AdvOptionsForm, Utils, Config;
 
 {$R *.lfm}
 
@@ -51,6 +51,8 @@ const
 
 procedure TModule.DataModuleCreate(Sender: TObject);
 begin
+  Application.Title := Config.ApplicationTitle;
+
   ReadVersionInfo;
   // Prefers "portable mode": config in the folder as exe if it is writable,
   // standard OS location otherwise.

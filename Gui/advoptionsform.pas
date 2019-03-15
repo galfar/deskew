@@ -59,7 +59,7 @@ begin
   ComboOutputFormat.Items.AddObject('32bit RGB + opacity', TObject(fofRgba32));
   ComboOutputFormat.ItemIndex := 0;
 
-  if not ShowDeskewExeOption then
+  if not Config.ShowDeskewExeOption then
   begin
     CheckDefaultExecutable.Visible := False;
     LabDeskewExe.Visible := False;

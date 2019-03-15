@@ -45,9 +45,9 @@ var
 begin
   LabTitle.Caption := Application.Title;
   LabVersion.Caption := 'v' + Module.VersionString;
-  LabWeb.Caption := WebLink;
+  LabWeb.Caption := Config.WebLink;
 
-  if LogoImageResName = '' then
+  if Config.LogoImageResName = '' then
   begin
     Icon := TIcon.Create;
     try
@@ -63,7 +63,7 @@ begin
   else
   begin
     ImageIcon.Stretch := False;
-    ImageIcon.Picture.LoadFromResourceName(HInstance, LogoImageResName);
+    ImageIcon.Picture.LoadFromResourceName(HInstance, Config.LogoImageResName);
   end;
 end;
 

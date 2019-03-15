@@ -16,7 +16,7 @@ uses
 {$R *.res}
 
 begin
-  Application.Title:=ApplicationTitle;
+  Application.Title:='Deskew GUIT';
   RequireDerivedFormResource:=True;
   Application.Initialize;
   Application.CreateForm(TModule, Module);
