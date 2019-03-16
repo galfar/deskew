@@ -7,6 +7,7 @@ COPYRIGHT=${4:-©2018, Marek Mauder}
 ICON_PATH=${5:-"../Gui/deskewgui.icns"}
 ICON_NAME=$(basename $ICON_PATH .icns)
 
+TIFFLIB_BIN=../_internal/TiffLibBins-macOS
 RELEASE_DIR=../_internal/MacRelease
 CONTENT_DIR=$RELEASE_DIR/$APP_NAME.app/Contents
 
@@ -19,19 +20,23 @@ rm -f ../Gui/deskewgui
 lazbuild --build-mode=Release-macOS -q --no-write-project ../deskew.lpi
 lazbuild --build-mode=Release-macOS -q --no-write-project ../Gui/deskewgui.lpi
 
-# build app bundle
+# app bundle contents
 mkdir -p $CONTENT_DIR/MacOS
 mkdir $CONTENT_DIR/Resources
 
 cp ../Bin/deskew-mac $CONTENT_DIR/MacOS/
-chmod 755 $CONTENT_DIR/MacOS/deskew-mac
 cp ../Gui/deskewgui $CONTENT_DIR/MacOS/
-chmod 755 $CONTENT_DIR/MacOS/deskewgui
+if [ -d $TIFFLIB_BIN ]; then
+  cp $TIFFLIB_BIN/*.dylib $CONTENT_DIR/MacOS/
+fi
+chmod 755 $CONTENT_DIR/MacOS/*.*
+
 cp $ICON_PATH $CONTENT_DIR/Resources/
 chmod 644 $CONTENT_DIR/Resources/$ICON_NAME.icns
 
 echo "APPL????" > $CONTENT_DIR/PkgInfo
 
+# app bundle props
 cat <<EOT >> $CONTENT_DIR/Info.plist
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -66,10 +71,7 @@ cat <<EOT >> $CONTENT_DIR/Info.plist
 EOT
 
 # update version from Lazarus project file
-MAJOR_VER=$(grep 'MajorVersionNr' ../Gui/deskewgui.lpi | grep -oE '[0-9]+' || true)
-MAJOR_VER=${MAJOR_VER:-0} # if major=0 it's not included in project file
-MINOR_VER=$(grep 'MinorVersionNr' ../Gui/deskewgui.lpi | grep -oE '[0-9]+')
-
+source ./get_gui_versions.sh
 plutil -insert CFBundleShortVersionString -string $MAJOR_VER.$MINOR_VER $CONTENT_DIR/Info.plist
 plutil -insert CFBundleVersion -string $MAJOR_VER.$MINOR_VER $CONTENT_DIR/Info.plist
 
