@@ -51,7 +51,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.27 (2018-09-07)'
+  SAppTitle = 'Deskew 1.28 (2019-04-10)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -80,9 +80,11 @@ begin
   WriteLn('    input:         Input image file');
   WriteLn('  Options:');
   WriteLn('    -o output:     Output image file (default: out.png)');
-  WriteLn('    -a angle:      Maximal skew angle in degrees (default: 10)');
+  WriteLn('    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
   WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
   WriteLn('  Ext. options:');
+  WriteLn('    -q filter:     Resampling filter used for rotations (default: linear,');
+  WriteLn('                   values: nearest|linear|cubic|lanczos)');
   WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: a)');
   WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
   WriteLn('                   left,top,right,bottom (default: whole page)');

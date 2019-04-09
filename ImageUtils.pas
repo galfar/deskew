@@ -43,6 +43,14 @@ uses
   ImagingFormats,
   ImagingUtility;
 
+type
+  TResamplingFilter = (
+    rfNearest,
+    rfLinear,
+    rfCubic,
+    rfLanczos
+  );
+
 { Thresholding using Otsu's method (which chooses the threshold
   to minimize the intraclass variance of the black and white pixels!).
   Functions returns calculated threshold level value [0..255].
