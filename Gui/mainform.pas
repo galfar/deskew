@@ -270,7 +270,8 @@ end;
 
 procedure TFormMain.ActShowAboutExecute(Sender: TObject);
 begin
-  FormAbout.ShowModal;
+  if not FormAbout.Visible then
+    FormAbout.ShowModal;
 end;
 
 procedure TFormMain.ActShowAdvOptionsExecute(Sender: TObject);
