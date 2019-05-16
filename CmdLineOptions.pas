@@ -30,12 +30,15 @@ unit CmdLineOptions;
 interface
 
 uses
+{$IFNDEF FPC}
   Types,
+  StrUtils,
+{$ENDIF}
   SysUtils,
   Classes,
-  StrUtils,
   ImagingTypes,
-  ImagingUtility;
+  ImagingUtility,
+  ImageUtils;
 
 const
   DefaultThreshold = 128;
@@ -57,6 +60,7 @@ type
     FOutputFile: string;
     FMaxAngle: Double;
     FSkipAngle: Double;
+    FResamplingFilter: TResamplingFilter;
     FThresholdingMethod: TThresholdingMethod;
     FThresholdLevel: Integer;
     FContentRect: TRect;
@@ -82,6 +86,8 @@ type
     property MaxAngle: Double read FMaxAngle;
     // Skew threshold angle - skip deskewing if detected skew angle is in range (-MinAngle, MinAngle)
     property SkipAngle: Double read FSkipAngle;
+    // Resampling filter used for rotations
+    property ResamplingFilter: TResamplingFilter read FResamplingFilter;
     // Thresholding method used when converting images to binary black/white format
     property ThresholdingMethod: TThresholdingMethod read FThresholdingMethod;
     // Threshold for black/white pixel classification for explicit thresholding method
@@ -110,7 +116,7 @@ type
 implementation
 
 uses
-  Imaging, ImagingTiff;
+  TypInfo, Imaging, ImagingTiff;
 
 const
   TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
@@ -124,6 +130,7 @@ begin
   FThresholdLevel := DefaultThreshold;
   FMaxAngle := DefaultMaxAngle;
   FSkipAngle := DefaultSkipAngle;
+  FResamplingFilter := rfLinear;
   FThresholdingMethod := tmOtsu;
   FContentRect := Rect(0, 0, 0, 0); // whole page
   FBackgroundColor := $FF000000;
@@ -207,6 +214,7 @@ var
     StrArray: TDynStringArray;
     ValLower, S: string;
     TempColor: Cardinal;
+    Val64: Int64;
     I, J: Integer;
   begin
     Result := True;
@@ -237,22 +245,27 @@ var
     end
     else if Param = '-b' then
     begin
-      TempColor := Cardinal(StrToInt64('$' + ValLower) and $FFFFFFFF);
-      if TempColor <= $FF then
+      if TryStrToInt64('$' + ValLower, Val64) then
       begin
-        // Just one channel given, replicate for all channels + opaque
-        FBackgroundColor := Color32($FF, Byte(TempColor), Byte(TempColor), Byte(TempColor)).Color;
-      end
-      else if TempColor <= $FFFFFF then
-      begin
-        // RGB given, set alpha to 255 for background
-        FBackgroundColor := $FF000000 or TempColor;
+        TempColor := Cardinal(Val64 and $FFFFFFFF);
+        if TempColor <= $FF then
+        begin
+          // Just one channel given, replicate for all channels + opaque
+          FBackgroundColor := Color32($FF, Byte(TempColor), Byte(TempColor), Byte(TempColor)).Color;
+        end
+        else if (TempColor <= $FFFFFF) and (Length(ValLower) <= 6) then
+        begin
+          // RGB given, set alpha to 255 for background
+          FBackgroundColor := $FF000000 or TempColor;
+        end
+        else
+        begin
+          // Full ARGB given
+          FBackgroundColor := TempColor;
+        end;
       end
       else
-      begin
-        // Full ARGB given
-        FBackgroundColor := TempColor;
-      end;
+        FErrorMessage := 'Invalid value for background color parameter: ' + Value;
     end
     else if Param = '-f' then
     begin
@@ -266,6 +279,19 @@ var
         FForcedOutputFormat := ifA8R8G8B8
       else
         FErrorMessage := 'Invalid value for format parameter: ' + Value;
+    end
+    else if Param = '-q' then
+    begin
+      if ValLower = 'nearest' then
+        FResamplingFilter := rfNearest
+      else if ValLower = 'linear' then
+        FResamplingFilter := rfLinear
+      else if ValLower = 'cubic' then
+        FResamplingFilter := rfCubic
+      else if ValLower = 'lanczos' then
+        FResamplingFilter := rfLanczos
+      else
+        FErrorMessage := 'Invalid value for resampling filter parameter: ' + Value;
     end
     else if Param = '-s' then
     begin
@@ -365,12 +391,13 @@ end;
 function TCmdLineOptions.OptionsToString: string;
 var
   I: Integer;
-  CompJpegStr, CompTiffStr, CmdParams: string;
+  CompJpegStr, CompTiffStr, FilterStr, CmdParams: string;
 begin
   CmdParams := '';
   for I := 1 to ParamCount do
     CmdParams := CmdParams + ParamStr(I) + ' ';
 
+  FilterStr := LowerCase(Copy(TypInfo.GetEnumName(TypeInfo(TResamplingFilter), Integer(FResamplingFilter)), 3));
   CompJpegStr := Iff(JpegCompressionQuality = -1, 'default', IntToStr(JpegCompressionQuality));
   CompTiffStr := 'default';
   if TiffCompressionScheme >= 0 then
@@ -382,6 +409,7 @@ begin
     '  output file         = ' + OutputFile + sLineBreak +
     '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
     '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
+    '  resampling filter   = ' + FilterStr + sLineBreak +
     '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
     '  threshold level     = ' + IntToStr(ThresholdLevel) + sLineBreak +
     '  content rect        = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
