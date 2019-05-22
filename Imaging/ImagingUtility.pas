@@ -101,6 +101,10 @@ type
   end;
   PFloatHelper = ^TFloatHelper;
 
+  TFloatPoint = record
+    X, Y: Single;
+  end;
+
   TFloatRect = record
     Left, Top, Right, Bottom: Single;
   end;
@@ -343,6 +347,7 @@ function PixelSizeToDpi(SizeInMicroMeters: Single): Single;
 { Converts DPI to corrensponding pixel size in micrometers.}
 function DpiToPixelSize(Dpi: Single): Single;
 
+function FloatPoint(AX, AY: Single): TFloatPoint; {$IFDEF USE_INLINE}inline;{$ENDIF}
 function FloatRect(ALeft, ATop, ARight, ABottom: Single): TFloatRect;
 function FloatRectWidth(const R: TFloatRect): Single;
 function FloatRectHeight(const R: TFloatRect): Single;
@@ -911,14 +916,14 @@ end;
 function Floor(Value: Single): LongInt;
 begin
   Result := Trunc(Value);
-  if Frac(Value) < 0.0 then
+  if Value < Result then
     Dec(Result);
 end;
 
 function Ceil(Value: Single): LongInt;
 begin
   Result := Trunc(Value);
-  if Frac(Value) > 0.0 then
+  if Value > Result then
     Inc(Result);
 end;
 
@@ -1578,6 +1583,12 @@ end;
 function DpiToPixelSize(Dpi: Single): Single;
 begin
   Result := 1e03 / (Dpi / 25.4);
+end;
+
+function FloatPoint(AX, AY: Single): TFloatPoint;
+begin
+  Result.X := AX;
+  Result.Y := AY;
 end;
 
 function FloatRect(ALeft, ATop, ARight, ABottom: Single): TFloatRect;
