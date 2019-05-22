@@ -386,6 +386,9 @@ begin
 
     Inc(I);
   end;
+
+  if FInputFile = '' then
+    FErrorMessage := 'No input file given';
 end;
 
 function TCmdLineOptions.OptionsToString: string;

@@ -3,7 +3,7 @@ set -e
 APP_NAME=${1:-DeskewGui}
 APP_TITLE=${2:-Deskew GUI}
 BUNDLE_ID=${3:-net.galfarslair.deskewgui}
-COPYRIGHT=${4:-©2018, Marek Mauder}
+COPYRIGHT=${4:-© 2019 Marek Mauder}
 ICON_PATH=${5:-"../Gui/deskewgui.icns"}
 ICON_NAME=$(basename $ICON_PATH .icns)
 

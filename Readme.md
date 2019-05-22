@@ -1,7 +1,7 @@
 Deskew
 =======================
-by Marek Mauder
-[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/)
+by Marek Mauder \
+[http://galfar.vevb.net/deskew/](http://galfar.vevb.net/deskew/) \
 [https://bitbucket.org/galfar/app-deskew](https://bitbucket.org/galfar/app-deskew)
 
 **v1.25 2018-05-19**
@@ -48,54 +48,55 @@ deskew [-o output] [-a angle] [-b color] [..] input
     Output: BMP, JPG, PNG, JNG, GIF, DDS, TGA, PGM, PPM, PAM, PFM, PSD, TIF
 ```
 
-#### Notes
+### Notes
 
 For TIFF support in Linux and macOS you need to have libtiff 4.x installed (package is usually called libtiff5).
 
 Version History
 ------------------------
+
 1.25 2018-05-19:
 
-  - fix #6: Preserve DPI measurement system (TIFF)
-  - fix #4: Output image not saved in requested format (when deskewing is skipped)
-  - dynamic loading of libtiff library - adds TIFF support in macOS when libtiff is installed
+- fix #6: Preserve DPI measurement system (TIFF)
+- fix #4: Output image not saved in requested format (when deskewing is skipped)
+- dynamic loading of libtiff library - adds TIFF support in macOS when libtiff is installed
 
 1.21 2017-11-01:
 
-  - fix #8: Cannot compile in Free Pascal 3.0+ (Windows) - Fails to link precompiled LibTiff library
-  - fix #7: Windows FPC build fails with *Access violation exception* when loading certain TIFFs (especially those saved by Windows Photo Viewer etc.)
+- fix #8: Cannot compile in Free Pascal 3.0+ (Windows) - Fails to link precompiled LibTiff library
+- fix #7: Windows FPC build fails with *Access violation exception* when loading certain TIFFs (especially those saved by Windows Photo Viewer etc.)
 
 1.20 2016-09-01:
 
-  - much faster rotation, especially when background color is set (>2x faster, 2x less memory)
-  - can skip deskewing step if detected skew angle is lower than parameter
-  - new option for timing of individual steps
-  - fix: crash when last row of page is classified as text
-  - misc: default back color is now opaque black, new forced output format "rgb24",  background color can define also alpha channel, nicer formatting of text output
+- much faster rotation, especially when background color is set (>2x faster, 2x less memory)
+- can skip deskewing step if detected skew angle is lower than parameter
+- new option for timing of individual steps
+- fix: crash when last row of page is classified as text
+- misc: default back color is now opaque black, new forced output format  "rgb24",  background color can define also alpha channel, nicer formatting of text output
 
 1.10 2014-03-04:
 
-  - TIFF support for Win64 and 32/64bit Linux
-  - forced output formats
-  - fix: output file names were always lowercase
-  - fix: preserves resolution metadata (e.g. 300dpi) of input when writing output
+- TIFF support for Win64 and 32/64bit Linux
+- forced output formats
+- fix: output file names were always lowercase
+- fix: preserves resolution metadata (e.g. 300dpi) of input when writing output
 
 1.00 2012-06-04:
 
-  - background color
-  - "area of interest" content rect
-  - 64bit and Mac OSX support
-  - PSD and TIFF (win32) support
-  - show skew detection stats and program parameters
+- background color
+- "area of interest" content rectangle
+- 64bit and Mac OSX support
+- PSD and TIFF (win32) support
+- show skew detection stats and program parameters
 
 0.95 2010-12-28:
 
-  - Added auto thresholding
-  - Imaging library updated.
+- Added auto thresholding
+- Imaging library updated.
 
 0.90 2010-02-12:
 
-  - Initial version
+- Initial version
 
 Compiling Deskew
 ------------------------
@@ -103,24 +104,24 @@ Compiling Deskew
 Deskew is written in Object Pascal. You need
 Free Pascal or Delphi to recompile it.
 
-#### Tested Compilers
+### Tested Compilers
 There are project files for these IDEs:
 
   1. Lazarus 1.8.2 (deskew.lpi)
   2. Delphi XE (deskew.dproj)
 
-Additionaly, there is compile shell/batch scripts for FPC compiler `compile.sh` and
+Additionally, there is compile shell/batch scripts for FPC compiler `compile.sh` and
 `Compile.bat`.
 
-#### Target Platforms
+### Target Platforms
 Deskew is precompiled and was tested on these platforms:
 Win32, Win64, Linux 64b, macOS 64b, Linux ARMv7
 
-#### Source Code
+### Source Code
 Latest source code can be found here:
 https://bitbucket.org/galfar/app-deskew
 
-#### Dependencies
+### Dependencies
 Vampyre Imaging Library is needed for compilation.
 You can find it included in Imaging folder or get it at
 http://imaginglib.sourceforge.net
