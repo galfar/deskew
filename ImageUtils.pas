@@ -601,7 +601,7 @@ var
   X, Y: Integer;
   DstPixel24: PColor24Rec;
   BackColor24: TColor24Rec;
-  BackColor32: TColor32Rec;
+  BackColor32, Pixel32: TColor32Rec;
   DstByte: PByte;
   Filter: TSamplingFilter;
   FilterFunction: TFilterFunction;
@@ -752,7 +752,7 @@ var
     end;
   end;
 
-  function FilterPixel(X, Y: Single): TColor24Rec; inline;
+  function FilterPixel(X, Y: Single; Bpp: Integer): TColor32Rec; inline;
   var
     PHorzKernel, PVertKernel: PKernelEntry;
     HorzEntry, VertEntry: TBufferEntry;
@@ -762,7 +762,7 @@ var
     CeilX, CeilY: Integer;
     XFilterTablePos, YFilterTablePos: Integer;
     FracXS, FracYS: Single;
-    SrcPixel: PColor24Rec;
+    SrcPixel: PColor32Rec;
     ClipRect: TRect;
     Edge: Boolean;
   begin
@@ -811,7 +811,7 @@ var
           HiY := KernelWidth;
       end
       else
-        Exit(BackColor24);
+        Exit(BackColor32);
     end;
 
     FracXS := CeilX - X;
@@ -827,7 +827,7 @@ var
       WeightVert := WeightTable[I, YFilterTablePos];
       //WeightVert := FilterFunction(I + FracYS);
 
-      SrcPixel := @PColor24RecArray(SrcImage.Bits)[LoX + CeilX + (I + CeilY) * SrcWidth];
+      SrcPixel := PColor32Rec(@PByteArray(SrcImage.Bits)[(LoX + CeilX + (I + CeilY) * SrcWidth) * Bpp]);
 
       if WeightVert <> 0 then
       begin
@@ -837,13 +837,19 @@ var
           WeightHorz := WeightTable[J, XFilterTablePos];
           //WeightHorz := FilterFunction(J + FracXS);
 
-          HorzEntry.R := HorzEntry.R + SrcPixel.R * WeightHorz;
-          HorzEntry.G := HorzEntry.G + SrcPixel.G * WeightHorz;
           HorzEntry.B := HorzEntry.B + SrcPixel.B * WeightHorz;
+          if Bpp > 1 then
+          begin
+            HorzEntry.R := HorzEntry.R + SrcPixel.R * WeightHorz;
+            HorzEntry.G := HorzEntry.G + SrcPixel.G * WeightHorz;
+            if Bpp > 3 then
+              HorzEntry.A := HorzEntry.A + SrcPixel.A * WeightHorz;
+          end;
 
-          Inc(SrcPixel);
+          Inc(PByte(SrcPixel), Bpp);
         end;
 
+        VertEntry.A := VertEntry.A + HorzEntry.A * WeightVert;
         VertEntry.R := VertEntry.R + HorzEntry.R * WeightVert;
         VertEntry.G := VertEntry.G + HorzEntry.G * WeightVert;
         VertEntry.B := VertEntry.B + HorzEntry.B * WeightVert;
@@ -867,12 +873,14 @@ var
               WeightHorz := WeightTable[J, XFilterTablePos];
               //WeightHorz := FilterFunction(J + FracXS);
 
-              HorzEntry.R := HorzEntry.R + BackColor24.R * WeightHorz;
-              HorzEntry.G := HorzEntry.G + BackColor24.G * WeightHorz;
-              HorzEntry.B := HorzEntry.B + BackColor24.B * WeightHorz;
+              HorzEntry.A := HorzEntry.A + BackColor32.A * WeightHorz;
+              HorzEntry.R := HorzEntry.R + BackColor32.R * WeightHorz;
+              HorzEntry.G := HorzEntry.G + BackColor32.G * WeightHorz;
+              HorzEntry.B := HorzEntry.B + BackColor32.B * WeightHorz;
             end;
           end;
 
+          VertEntry.A := VertEntry.A + HorzEntry.A * WeightVert;
           VertEntry.R := VertEntry.R + HorzEntry.R * WeightVert;
           VertEntry.G := VertEntry.G + HorzEntry.G * WeightVert;
           VertEntry.B := VertEntry.B + HorzEntry.B * WeightVert;
@@ -882,6 +890,7 @@ var
 
     with Result do
     begin
+      A := ClampToByte(Trunc(VertEntry.A + 0.5));
       R := ClampToByte(Trunc(VertEntry.R + 0.5));
       G := ClampToByte(Trunc(VertEntry.G + 0.5));
       B := ClampToByte(Trunc(VertEntry.B + 0.5));
@@ -966,9 +975,7 @@ begin
   NewImage(DstWidth, DstHeight, SrcImage.Format, DstImage);
 
   Bpp := FormatInfo.BytesPerPixel;
-  DstPixel24 := DstImage.Bits;
   DstByte := DstImage.Bits;
-  BackColor24 := TColor32Rec(BackgroundColor).Color24Rec;
   BackColor32 := TColor32Rec(BackgroundColor);
 
   if ResamplingFilter = rfNearest then
@@ -997,6 +1004,9 @@ begin
   begin
     if SrcImage.Format = ifR8G8B8 then
     begin
+      DstPixel24 := DstImage.Bits;
+      BackColor24 := TColor32Rec(BackgroundColor).Color24Rec;
+
       // RGB 24bit path
       for Y := 0 to DstHeight - 1 do
         for X := 0 to DstWidth - 1 do
@@ -1052,8 +1062,9 @@ begin
       for X := 0 to DstWidth - 1 do
       begin
         CalcSourceCoordinates(X, Y, SrcX, SrcY);
-        DstPixel24^ := FilterPixel(SrcX, SrcY);
-        Inc(DstPixel24);
+        Pixel32 := FilterPixel(SrcX, SrcY, Bpp);
+        CopyPixel(@Pixel32, DstByte, Bpp);
+        Inc(DstByte, Bpp);
       end;
   end;
 
