@@ -596,22 +596,18 @@ var
   AngleRad, ForwardSin, ForwardCos, BackwardSin, BackwardCos, SrcX, SrcY: Single;
   TopLeft, TopRight, BottomLeft, BottomRight: TFloatPoint;
   SrcImage, DstImage: TImageData;
+  FormatInfo: TImageFormatInfo;
+  Bpp: Integer;
   X, Y: Integer;
-  DstPixel: PColor24Rec;
+  DstPixel24: PColor24Rec;
   BackColor24: TColor24Rec;
+  BackColor32: TColor32Rec;
+  DstByte: PByte;
   Filter: TSamplingFilter;
   FilterFunction: TFilterFunction;
   FilterRadius: Single;
   KernelWidth: Integer;
   WeightTable: array[-MaxKernelRadius..MaxKernelRadius, 0..TableSize] of Single;
-
-  function GetPixelColor(X, Y: Integer): TColor24Rec; inline;
-  begin
-    if (X >= 0) and (X < SrcWidth) and  (Y >= 0) and (Y < SrcHeight) then
-      Result := PColor24RecArray(SrcImage.Bits)[Y * SrcWidth + X]
-    else
-      Result := BackColor24;
-  end;
 
   function FastFloor(X: Single): Integer; inline;
   begin
@@ -623,11 +619,33 @@ var
     Result := 65536 - Trunc(65536.0 - X);
   end;
 
-  function Bilinear(X, Y: Single): TColor24Rec; inline;
-  var
-    TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint;
-    HorzWeight, VertWeight: Single;
-    TopLeftColor, TopRightColor, BottomLeftColor, BottomRightColor: TColor24Rec;
+  function GetPixelColor24(X, Y: Integer): TColor24Rec; inline;
+  begin
+    if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
+      Result := PColor24RecArray(SrcImage.Bits)[Y * SrcWidth + X]
+    else
+      Result := BackColor24;
+  end;
+
+  function GetPixelColor8(X, Y: Integer): Byte; inline;
+  begin
+    if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
+      Result := PByteArray(SrcImage.Bits)[Y * SrcWidth + X]
+    else
+      Result := BackColor32.B;
+  end;
+
+  function GetPixelColor32(X, Y: Integer): TColor32Rec; inline;
+  begin
+    if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
+      Result := PColor32RecArray(SrcImage.Bits)[Y * SrcWidth + X]
+    else
+      Result := BackColor32;
+  end;
+
+  procedure GetBilinearPixelCoords(X, Y: Single;
+    out HorzWeight, VertWeight: Single;
+    out TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint); inline;
   begin
     TopLeftPt := Point(FastFloor(X), FastFloor(Y));
 
@@ -637,29 +655,82 @@ var
     BottomLeftPt  := Point(TopLeftPt.x,     TopLeftPt.y + 1);
     TopRightPt    := Point(TopLeftPt.x + 1, TopLeftPt.y);
     BottomRightPt := Point(TopLeftPt.x + 1, TopLeftPt.y + 1);
+  end;
 
-    TopLeftColor     := GetPixelColor(TopLeftPt.x,     TopLeftPt.y);
-    BottomLeftColor  := GetPixelColor(BottomLeftPt.x,  BottomLeftPt.y);
-    TopRightColor    := GetPixelColor(TopRightPt.x,    TopRightPt.y);
-    BottomRightColor := GetPixelColor(BottomRightPt.x, BottomRightPt.y);
+  function InterpolateBytes(HorzWeight, VertWeight: Single; C11, C12, C21, C22: Byte): Byte; inline;
+  begin
+    Result := ClampToByte(Trunc(
+                (1 - HorzWeight) * (1 - VertWeight) * C11 +
+                (1 - HorzWeight) * VertWeight       * C12 +
+                HorzWeight       * (1 - VertWeight) * C21 +
+                HorzWeight       * VertWeight       * C22));
+  end;
 
-    Result.R := ClampToByte(Trunc(
-                (1 - HorzWeight) * (1 - VertWeight) * TopLeftColor.R +
-                (1 - HorzWeight) * VertWeight       * BottomLeftColor.R +
-                HorzWeight       * (1 - VertWeight) * TopRightColor.R +
-                HorzWeight       * VertWeight       * BottomRightColor.R));
+  function Bilinear24(X, Y: Single): TColor24Rec; inline;
+  var
+    TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint;
+    HorzWeight, VertWeight: Single;
+    TopLeftColor, TopRightColor, BottomLeftColor, BottomRightColor: TColor24Rec;
+  begin
+    GetBilinearPixelCoords(X, Y,
+      HorzWeight, VertWeight,
+      TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt);
 
-    Result.G := ClampToByte(Trunc(
-                (1 - HorzWeight) * (1 - VertWeight) * TopLeftColor.G +
-                (1 - HorzWeight) * VertWeight       * BottomLeftColor.G +
-                HorzWeight       * (1 - VertWeight) * TopRightColor.G +
-                HorzWeight       * VertWeight       * BottomRightColor.G));
+    TopLeftColor     := GetPixelColor24(TopLeftPt.X,     TopLeftPt.Y);
+    BottomLeftColor  := GetPixelColor24(BottomLeftPt.X,  BottomLeftPt.Y);
+    TopRightColor    := GetPixelColor24(TopRightPt.X,    TopRightPt.Y);
+    BottomRightColor := GetPixelColor24(BottomRightPt.X, BottomRightPt.Y);
 
-    Result.B := ClampToByte(Trunc(
-                (1 - HorzWeight) * (1 - VertWeight) * TopLeftColor.B +
-                (1 - HorzWeight) * VertWeight       * BottomLeftColor.B +
-                HorzWeight       * (1 - VertWeight) * TopRightColor.B +
-                HorzWeight       * VertWeight       * BottomRightColor.B));
+    Result.R := InterpolateBytes(HorzWeight, VertWeight,
+      TopLeftColor.R, BottomLeftColor.R, TopRightColor.R, BottomRightColor.R);
+    Result.G := InterpolateBytes(HorzWeight, VertWeight,
+      TopLeftColor.G, BottomLeftColor.G, TopRightColor.G, BottomRightColor.G);
+    Result.B := InterpolateBytes(HorzWeight, VertWeight,
+      TopLeftColor.B, BottomLeftColor.B, TopRightColor.B, BottomRightColor.B);
+  end;
+
+  function Bilinear8(X, Y: Single): Byte; inline;
+  var
+    TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint;
+    HorzWeight, VertWeight: Single;
+    TopLeftColor, TopRightColor, BottomLeftColor, BottomRightColor: Byte;
+  begin
+    GetBilinearPixelCoords(X, Y,
+      HorzWeight, VertWeight,
+      TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt);
+
+    TopLeftColor     := GetPixelColor8(TopLeftPt.X,     TopLeftPt.Y);
+    BottomLeftColor  := GetPixelColor8(BottomLeftPt.X,  BottomLeftPt.Y);
+    TopRightColor    := GetPixelColor8(TopRightPt.X,    TopRightPt.Y);
+    BottomRightColor := GetPixelColor8(BottomRightPt.X, BottomRightPt.Y);
+
+    Result := InterpolateBytes(HorzWeight, VertWeight,
+      TopLeftColor, BottomLeftColor, TopRightColor, BottomRightColor);
+  end;
+
+  function Bilinear32(X, Y: Single): TColor32Rec; inline;
+  var
+    TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint;
+    HorzWeight, VertWeight: Single;
+    TopLeftColor, TopRightColor, BottomLeftColor, BottomRightColor: TColor32Rec;
+  begin
+    GetBilinearPixelCoords(X, Y,
+      HorzWeight, VertWeight,
+      TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt);
+
+    TopLeftColor     := GetPixelColor32(TopLeftPt.X,     TopLeftPt.Y);
+    BottomLeftColor  := GetPixelColor32(BottomLeftPt.X,  BottomLeftPt.Y);
+    TopRightColor    := GetPixelColor32(TopRightPt.X,    TopRightPt.Y);
+    BottomRightColor := GetPixelColor32(BottomRightPt.X, BottomRightPt.Y);
+
+    Result.A := InterpolateBytes(HorzWeight, VertWeight,
+        TopLeftColor.A, BottomLeftColor.A, TopRightColor.A, BottomRightColor.A);
+    Result.R := InterpolateBytes(HorzWeight, VertWeight,
+      TopLeftColor.R, BottomLeftColor.R, TopRightColor.R, BottomRightColor.R);
+    Result.G := InterpolateBytes(HorzWeight, VertWeight,
+      TopLeftColor.G, BottomLeftColor.G, TopRightColor.G, BottomRightColor.G);
+    Result.B := InterpolateBytes(HorzWeight, VertWeight,
+      TopLeftColor.B, BottomLeftColor.B, TopRightColor.B, BottomRightColor.B);
   end;
 
   procedure PrecomputeFilterWeights;
@@ -849,7 +920,8 @@ var
   end;
 
 begin
-  BackColor24 := TColor32Rec(BackgroundColor).Color24Rec;
+  Assert(Image.Format in SupportedRotationFormats);
+  GetImageFormatInfo(Image.Format, FormatInfo);
 
   while Angle >= 360 do
     Angle := Angle - 360;
@@ -890,11 +962,14 @@ begin
   DstWidthHalf := (DstWidth - 1) / 2;
   DstHeightHalf := (DstHeight - 1) / 2;
 
-  // TODO: Add 32 and 8 bit paths
-  ConvertImage(SrcImage, ifR8G8B8);
   InitImage(DstImage);
-  NewImage(DstWidth, DstHeight, ifR8G8B8, DstImage);
-  DstPixel := DstImage.Bits;
+  NewImage(DstWidth, DstHeight, SrcImage.Format, DstImage);
+
+  Bpp := FormatInfo.BytesPerPixel;
+  DstPixel24 := DstImage.Bits;
+  DstByte := DstImage.Bits;
+  BackColor24 := TColor32Rec(BackgroundColor).Color24Rec;
+  BackColor32 := TColor32Rec(BackgroundColor);
 
   if ResamplingFilter = rfNearest then
   begin
@@ -903,28 +978,60 @@ begin
       begin
         CalcSourceCoordinates(X, Y, SrcX, SrcY);
 
-        if (SrcX >= 0) and (SrcY >=0) and (SrcX <= SrcWidth - 1) and (SrcY <= SrcHeight - 1) then
-          DstPixel^ := PColor24RecArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)]
+        if (SrcX >= 0) and (SrcY >= 0) and (SrcX <= SrcWidth - 1) and (SrcY <= SrcHeight - 1) then
+        begin
+          if Bpp = 3 then
+            PColor24Rec(DstByte)^ := PColor24RecArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)]
+          else if Bpp = 1 then
+            DstByte^ := PByteArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)]
+          else
+            PColor32Rec(DstByte)^ := PColor32RecArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)];
+        end
         else
-          DstPixel^ := BackColor24;
+          CopyPixel(@BackColor32, DstByte, Bpp);
 
-        Inc(DstPixel);
+        Inc(DstByte, Bpp);
       end;
   end
   else if ResamplingFilter = rfLinear then
   begin
-    for Y := 0 to DstHeight - 1 do
-      for X := 0 to DstWidth - 1 do
-      begin
-        CalcSourceCoordinates(X, Y, SrcX, SrcY);
+    if SrcImage.Format = ifR8G8B8 then
+    begin
+      // RGB 24bit path
+      for Y := 0 to DstHeight - 1 do
+        for X := 0 to DstWidth - 1 do
+        begin
+          CalcSourceCoordinates(X, Y, SrcX, SrcY);
 
-        if (SrcX >= -1) and (SrcY >= -1) and (SrcX <= SrcWidth) and (SrcY <= SrcHeight) then
-          DstPixel^ := Bilinear(SrcX, SrcY)
-        else
-          DstPixel^ := BackColor24;
+          if (SrcX >= -1) and (SrcY >= -1) and (SrcX <= SrcWidth) and (SrcY <= SrcHeight) then
+            DstPixel24^ := Bilinear24(SrcX, SrcY)
+          else
+            DstPixel24^ := BackColor24;
 
-        Inc(DstPixel);
-      end;
+          Inc(DstPixel24);
+        end;
+    end
+    else
+    begin
+      // A bit more generic 8+32bit path
+      for Y := 0 to DstHeight - 1 do
+        for X := 0 to DstWidth - 1 do
+        begin
+          CalcSourceCoordinates(X, Y, SrcX, SrcY);
+
+          if (SrcX >= -1) and (SrcY >= -1) and (SrcX <= SrcWidth) and (SrcY <= SrcHeight) then
+          begin
+            if Bpp = 1 then
+              DstByte^ := Bilinear8(SrcX, SrcY)
+            else
+              PColor32Rec(DstByte)^ := Bilinear32(SrcX, SrcY)
+          end
+          else
+            CopyPixel(@BackColor32, DstByte, Bpp);
+
+          Inc(DstByte, Bpp);
+        end;
+    end;
   end
   else
   begin
@@ -945,8 +1052,8 @@ begin
       for X := 0 to DstWidth - 1 do
       begin
         CalcSourceCoordinates(X, Y, SrcX, SrcY);
-        DstPixel^ := FilterPixel(SrcX, SrcY);
-        Inc(DstPixel);
+        DstPixel24^ := FilterPixel(SrcX, SrcY);
+        Inc(DstPixel24);
       end;
   end;
 
