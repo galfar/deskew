@@ -51,7 +51,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.28 (2019-04-10)'
+  SAppTitle = 'Deskew 1.29 (2019-05-23)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'

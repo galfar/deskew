@@ -36,11 +36,14 @@ unit ImageUtils;
 interface
 
 uses
+  Types,
+  Math,
   SysUtils,
   Classes,
   ImagingTypes,
   Imaging,
-  ImagingFormats;
+  ImagingFormats,
+  ImagingUtility;
 
 type
   TResamplingFilter = (
@@ -65,10 +68,6 @@ const
 procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32; ResamplingFilter: TResamplingFilter);
 
 implementation
-
-uses
-  Math,
-  ImagingUtility;
 
 function OtsuThresholding(var Image: TImageData; BinarizeImage: Boolean): Integer;
 var
@@ -202,7 +201,7 @@ var
     Result := 65536 - Trunc(65536.0 - X);
   end;
 
-  function GetPixelColor24(X, Y: Integer): TColor24Rec; inline;
+  function GetPixelColor24(X, Y: Integer): TColor24Rec; {$IFDEF FPC}inline;{$ENDIF}
   begin
     if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
       Result := PColor24RecArray(SrcImage.Bits)[Y * SrcWidth + X]
@@ -210,7 +209,7 @@ var
       Result := BackColor24;
   end;
 
-  function GetPixelColor8(X, Y: Integer): Byte; inline;
+  function GetPixelColor8(X, Y: Integer): Byte; {$IFDEF FPC}inline;{$ENDIF}
   begin
     if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
       Result := PByteArray(SrcImage.Bits)[Y * SrcWidth + X]
@@ -218,7 +217,7 @@ var
       Result := BackColor32.B;
   end;
 
-  function GetPixelColor32(X, Y: Integer): TColor32Rec; inline;
+  function GetPixelColor32(X, Y: Integer): TColor32Rec; {$IFDEF FPC}inline;{$ENDIF}
   begin
     if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
       Result := PColor32RecArray(SrcImage.Bits)[Y * SrcWidth + X]
@@ -232,12 +231,12 @@ var
   begin
     TopLeftPt := Point(FastFloor(X), FastFloor(Y));
 
-    HorzWeight := X - TopLeftPt.x;
-    VertWeight := Y - TopLeftPt.y;
+    HorzWeight := X - TopLeftPt.X;
+    VertWeight := Y - TopLeftPt.Y;
 
-    BottomLeftPt  := Point(TopLeftPt.x,     TopLeftPt.y + 1);
-    TopRightPt    := Point(TopLeftPt.x + 1, TopLeftPt.y);
-    BottomRightPt := Point(TopLeftPt.x + 1, TopLeftPt.y + 1);
+    BottomLeftPt  := Point(TopLeftPt.X,     TopLeftPt.Y + 1);
+    TopRightPt    := Point(TopLeftPt.X + 1, TopLeftPt.Y);
+    BottomRightPt := Point(TopLeftPt.X + 1, TopLeftPt.Y + 1);
   end;
 
   function InterpolateBytes(HorzWeight, VertWeight: Single; C11, C12, C21, C22: Byte): Byte; inline;
@@ -335,7 +334,7 @@ var
     end;
   end;
 
-  function FilterPixel(X, Y: Single; Bpp: Integer): TColor32Rec; inline;
+  function FilterPixel(X, Y: Single; Bpp: Integer): TColor32Rec;
   var
     PHorzKernel, PVertKernel: PKernelEntry;
     HorzEntry, VertEntry: TBufferEntry;
@@ -480,23 +479,23 @@ var
     end;
   end;
 
-  function RotatePoint(X, Y: Single): TFloatPoint; inline;
+  function RotatePoint(X, Y: Single): TFloatPoint;
   begin
     Result.X := ForwardCos * X - ForwardSin * Y;
     Result.Y := ForwardSin * X + ForwardCos * Y;
   end;
 
-  function Max4(X1, X2, X3, X4: Single): Single; inline;
+  function Max4(X1, X2, X3, X4: Single): Single;
   begin
     Result := Math.Max(Math.Max(X1, X2), Math.Max(X3, X4));
   end;
 
-  function Min4(X1, X2, X3, X4: Single): Single; inline;
+  function Min4(X1, X2, X3, X4: Single): Single;
   begin
     Result := Math.Min(Math.Min(X1, X2), Math.Min(X3, X4));
   end;
 
-  procedure CalcSourceCoordinates(DstX, DstY: Integer; out SrcX, SrcY: Single); inline;
+  procedure CalcSourceCoordinates(DstX, DstY: Integer; out SrcX, SrcY: Single); {$IFDEF FPC}inline;{$ENDIF}
   var
     SrcCoordX, SrcCoordY: Single;
     DstCoordX, DstCoordY: Single;
