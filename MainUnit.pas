@@ -168,7 +168,7 @@ var
 begin
   Result := False;
   Threshold := 0;
-  WriteLn('Preparing input image (', ExtractFileName(Options.InputFile), ') ...');
+  WriteLn('Preparing input image (' + ExtractFileName(Options.InputFile) + ' [' + InputImage.FormatInfo.Name + ']) ...');
 
   // Clone input image and convert it to 8bit grayscale. This will be our
   // working image.
