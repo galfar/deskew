@@ -51,7 +51,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.28 (2019-04-10)'
+  SAppTitle = 'Deskew 1.30 (2019-06-07)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -90,6 +90,8 @@ begin
   WriteLn('                   left,top,right,bottom (default: whole page)');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
+  WriteLn('    -g flags:      Operational flags (any combination of):');
+  WriteLn('                   c - auto crop, d - detect only (no output to file)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
   WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
@@ -168,7 +170,8 @@ var
 begin
   Result := False;
   Threshold := 0;
-  WriteLn('Preparing input image (' + ExtractFileName(Options.InputFile) + ' [' + InputImage.FormatInfo.Name + ']) ...');
+  WriteLn('Preparing input image (', ExtractFileName(Options.InputFile), ' [',
+    InputImage.Width, 'x', InputImage.Height, '/', InputImage.FormatInfo.Name, ']) ...');
 
   // Clone input image and convert it to 8bit grayscale. This will be our
   // working image.
@@ -207,6 +210,12 @@ begin
     @ContentRect, @Stats);
   WriteTiming('Skew detection');
   WriteLn('Skew angle found [deg]: ', SkewAngle:4:3);
+
+  if Options.ShowStats then
+    WriteStats;
+
+  if ofDetectOnly in Options.OperationalFlags then
+    Exit;
 
   // Check if detected skew angle is higher than "skip" threshold - may not
   // want to do rotation needlessly.
@@ -267,9 +276,6 @@ begin
     OutputImage.Format := Options.ForcedOutputFormat;
     Result := True;
   end;
-
-  if Options.ShowStats then
-    WriteStats;
 end;
 
 procedure RunDeskew;
@@ -353,25 +359,32 @@ begin
 
         // Do the magic
         Changed := DoDeskew();
-        // Make sure output folders are ready
-        EnsureOutputLocation(Options.OutputFile);
-        // In case no change to image was done by deskewing we still need to resave if requested file format differs from input
-        Changed := Changed or not SameText(GetFileExt(Options.InputFile), GetFileExt(Options.OutputFile));
 
-        Time := GetTimeMicroseconds;
-        if Changed then
+        if not (ofDetectOnly in Options.OperationalFlags) then
         begin
-          // Make sure recognized metadata stays (like scanning DPI info)
-          GlobalMetadata.CopyLoadedMetaItemsForSaving;
-          // Save the output
-          OutputImage.SaveToFile(Options.OutputFile);
-        end
-        else
-        begin
-          // No change to image made, just copy it to the desired destination
-          CopyFile(Options.InputFile, Options.OutputFile);
+          WriteLn('Saving output (', ExpandFileName(Options.OutputFile), ' [',
+            OutputImage.Width, 'x', OutputImage.Height, '/', OutputImage.FormatInfo.Name, ']) ...');
+
+          // Make sure output folders are ready
+          EnsureOutputLocation(Options.OutputFile);
+          // In case no change to image was done by deskewing we still need to resave if requested file format differs from input
+          Changed := Changed or not SameText(GetFileExt(Options.InputFile), GetFileExt(Options.OutputFile));
+
+          Time := GetTimeMicroseconds;
+          if Changed then
+          begin
+            // Make sure recognized metadata stays (like scanning DPI info)
+            GlobalMetadata.CopyLoadedMetaItemsForSaving;
+            // Save the output
+            OutputImage.SaveToFile(Options.OutputFile);
+          end
+          else
+          begin
+            // No change to image made, just copy it to the desired destination
+            CopyFile(Options.InputFile, Options.OutputFile);
+          end;
+          WriteTiming('Save output file');
         end;
-        WriteTiming('Save output file');
 
         WriteLn('Done!');
       end
