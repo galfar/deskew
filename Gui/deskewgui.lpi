@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CONFIG>
   <ProjectOptions>
-    <Version Value="10"/>
+    <Version Value="11"/>
     <PathDelim Value="\"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
@@ -111,9 +111,8 @@
       <Version Value="2"/>
     </PublishOptions>
     <RunParams>
-      <local>
-        <FormatVersion Value="1"/>
-      </local>
+      <FormatVersion Value="2"/>
+      <Modes Count="0"/>
     </RunParams>
     <RequiredPackages Count="2">
       <Item1>
@@ -123,7 +122,7 @@
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="10">
+    <Units Count="9">
       <Unit0>
         <Filename Value="deskewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -179,11 +178,6 @@
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="AboutForm"/>
       </Unit8>
-      <Unit9>
-        <Filename Value="config.pas"/>
-        <IsPartOfProject Value="True"/>
-        <UnitName Value="Config"/>
-      </Unit9>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
