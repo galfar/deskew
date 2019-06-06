@@ -54,6 +54,12 @@ type
     tmOtsu
   );
 
+  TOperationalFlag = (
+    ofAutoCrop,
+    ofDetectOnly
+  );
+  TOperationalFlags = set of TOperationalFlag;
+
   TCmdLineOptions = class
   private
     FInputFile: string;
@@ -66,13 +72,14 @@ type
     FContentRect: TRect;
     FBackgroundColor: TColor32;
     FForcedOutputFormat: TImageFormat;
+    FOperationalFlags: TOperationalFlags;
     FShowStats: Boolean;
     FShowParams: Boolean;
     FShowTimings: Boolean;
-    FFormatSettings: TFormatSettings;
-    FErrorMessage: string;
     FJpegCompressionQuality: Integer;
     FTiffCompressionScheme: Integer;
+    FFormatSettings: TFormatSettings;
+    FErrorMessage: string;
     function GetIsValid: Boolean;
   public
     constructor Create;
@@ -98,6 +105,8 @@ type
     property BackgroundColor: TColor32 read FBackgroundColor;
     // Forced output format (applied just before saving the output)
     property ForcedOutputFormat: TImageFormat read FForcedOutputFormat;
+    // On/Off flags that control parts of the whole operation
+    property OperationalFlags: TOperationalFlags read FOperationalFlags;
     // Show skew detection stats
     property ShowStats: Boolean read FShowStats;
     // Show current params to user (for testing etc.)
@@ -135,6 +144,7 @@ begin
   FContentRect := Rect(0, 0, 0, 0); // whole page
   FBackgroundColor := $FF000000;
   FOutputFile := SDefaultOutputFile;
+  FOperationalFlags := [];
   FShowStats := False;
   FShowParams := False;
   FShowTimings:= False;
@@ -293,6 +303,13 @@ var
       else
         FErrorMessage := 'Invalid value for resampling filter parameter: ' + Value;
     end
+    else if Param = '-g' then
+    begin
+      if Pos('c', ValLower) > 0 then
+        Include(FOperationalFlags, ofAutoCrop);
+      if Pos('d', ValLower) > 0 then
+        Include(FOperationalFlags, ofDetectOnly);
+    end
     else if Param = '-s' then
     begin
       if Pos('s', ValLower) > 0 then
@@ -418,6 +435,7 @@ begin
     '  content rect        = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
+    '  oper flags          = ' + Iff(ofAutoCrop in FOperationalFlags, 'auto-crop ', '') + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
     '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +
     '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;
 end;

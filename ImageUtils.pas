@@ -62,7 +62,8 @@ const
 
 { Rotates image with a background (of outside "void" areas) of specified color. The image is resized to fit
   the whole rotated image. }
-procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32; ResamplingFilter: TResamplingFilter);
+procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;
+  ResamplingFilter: TResamplingFilter; FitRotated: Boolean);
 
 implementation
 
@@ -156,7 +157,11 @@ begin
   Result := Level;
 end;
 
-procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32; ResamplingFilter: TResamplingFilter);
+procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;
+  ResamplingFilter: TResamplingFilter; FitRotated: Boolean);
+// Use precomputed weights for bicubic and Lanczos filters
+{$DEFINE USE_FILTER_TABLE}
+
 type
   TBufferEntry = record
     B, G, R, A: Single;
@@ -168,20 +173,15 @@ const
   MaxTablePos = TableSize - 1;
   MaxKernelRadius = 3;
 
-type
-  PKernelEntry = ^TKernelEntry;
-  TKernelEntry = array[-MaxKernelRadius..MaxKernelRadius] of Single;
-
 var
   SrcWidth, SrcHeight: Integer;
   SrcWidthHalf, SrcHeightHalf, DstWidthHalf, DstHeightHalf: Single;
   DstWidth, DstHeight: Integer;
-  AngleRad, ForwardSin, ForwardCos, BackwardSin, BackwardCos, SrcX, SrcY: Single;
+  AngleRad, ForwardSin, ForwardCos, BackwardSin, BackwardCos, SrcX, SrcY, D: Single;
   TopLeft, TopRight, BottomLeft, BottomRight: TFloatPoint;
   SrcImage, DstImage: TImageData;
   FormatInfo: TImageFormatInfo;
-  Bpp: Integer;
-  X, Y: Integer;
+  X, Y, Bpp: Integer;
   DstPixel24: PColor24Rec;
   BackColor24: TColor24Rec;
   BackColor32, Pixel32: TColor32Rec;
@@ -316,6 +316,7 @@ var
       TopLeftColor.B, BottomLeftColor.B, TopRightColor.B, BottomRightColor.B);
   end;
 
+{$IFDEF USE_FILTER_TABLE}
   procedure PrecomputeFilterWeights;
   var
     I, J: Integer;
@@ -334,17 +335,20 @@ var
       end;
     end;
   end;
+{$ENDIF}
 
   function FilterPixel(X, Y: Single; Bpp: Integer): TColor32Rec; inline;
   var
-    PHorzKernel, PVertKernel: PKernelEntry;
     HorzEntry, VertEntry: TBufferEntry;
     LoX, HiX, LoY, HiY: Integer;
     I, J: Integer;
     WeightHorz, WeightVert: Single;
     CeilX, CeilY: Integer;
+  {$IFDEF USE_FILTER_TABLE}
     XFilterTablePos, YFilterTablePos: Integer;
+  {$ELSE}
     FracXS, FracYS: Single;
+  {$ENDIF}
     SrcPixel: PColor32Rec;
     ClipRect: TRect;
     Edge: Boolean;
@@ -397,18 +401,23 @@ var
         Exit(BackColor32);
     end;
 
-    FracXS := CeilX - X;
-    FracYS := CeilY - Y;
-
+  {$IFDEF USE_FILTER_TABLE}
     XFilterTablePos := Round((CeilX - X) * MaxTablePos);
     YFilterTablePos := Round((CeilY - Y) * MaxTablePos);
+  {$ELSE}
+    FracXS := CeilX - X;
+    FracYS := CeilY - Y;
+  {$ENDIF}
 
     VertEntry := EmptyBufferEntry;
 
     for I := LoY to HiY do
     begin
+    {$IFDEF USE_FILTER_TABLE}
       WeightVert := WeightTable[I, YFilterTablePos];
-      //WeightVert := FilterFunction(I + FracYS);
+    {$ELSE}
+      WeightVert := FilterFunction(I + FracYS);
+    {$ENDIF}
 
       SrcPixel := PColor32Rec(@PByteArray(SrcImage.Bits)[(LoX + CeilX + (I + CeilY) * SrcWidth) * Bpp]);
 
@@ -417,8 +426,11 @@ var
         HorzEntry := EmptyBufferEntry;
         for J := LoX to HiX do
         begin
-          WeightHorz := WeightTable[J, XFilterTablePos];
-          //WeightHorz := FilterFunction(J + FracXS);
+        {$IFDEF USE_FILTER_TABLE}
+           WeightHorz := WeightTable[J, XFilterTablePos];
+        {$ELSE}
+           WeightHorz := FilterFunction(J + FracXS);
+        {$ENDIF}
 
           HorzEntry.B := HorzEntry.B + SrcPixel.B * WeightHorz;
           if Bpp > 1 then
@@ -443,8 +455,11 @@ var
     begin
       for I := -KernelWidth to KernelWidth do
       begin
+      {$IFDEF USE_FILTER_TABLE}
         WeightVert := WeightTable[I, YFilterTablePos];
-        //WeightVert := FilterFunction(I + FracYS);
+      {$ELSE}
+        WeightVert := FilterFunction(I + FracYS);
+      {$ENDIF}
 
         if WeightVert <> 0 then
         begin
@@ -453,8 +468,11 @@ var
           begin
             if (J < LoX) or (J > HiX) or (I < LoY) or (I > HiY) then
             begin
+            {$IFDEF USE_FILTER_TABLE}
               WeightHorz := WeightTable[J, XFilterTablePos];
-              //WeightHorz := FilterFunction(J + FracXS);
+            {$ELSE}
+               WeightHorz := FilterFunction(J + FracXS);
+            {$ENDIF}
 
               HorzEntry.A := HorzEntry.A + BackColor32.A * WeightHorz;
               HorzEntry.R := HorzEntry.R + BackColor32.R * WeightHorz;
@@ -511,6 +529,15 @@ var
     SrcY := SrcHeightHalf - SrcCoordY;
   end;
 
+  function CropToSource(const Pt: TFloatPoint): Single;
+  var
+    X, Y: Single;
+  begin
+    X := Abs(Pt.X / SrcWidthHalf);
+    Y := Abs(Pt.Y / SrcHeightHalf);
+    Result := MaxFloat(X, Y);
+  end;
+
 begin
   Assert(Image.Format in SupportedRotationFormats);
   GetImageFormatInfo(Image.Format, FormatInfo);
@@ -539,16 +566,27 @@ begin
   BottomLeft := RotatePoint(-SrcWidthHalf, -SrcHeightHalf);
   BottomRight := RotatePoint(SrcWidthHalf, -SrcHeightHalf);
 
-  DstWidth  := Ceil(Max4(TopLeft.X, TopRight.X, BottomLeft.X, BottomRight.X) -
-                    Min4(TopLeft.X, TopRight.X, BottomLeft.X, BottomRight.X));
-  DstHeight := Ceil(Max4(TopLeft.Y, TopRight.Y, BottomLeft.Y, BottomRight.Y) -
-                    Min4(TopLeft.Y, TopRight.Y, BottomLeft.Y, BottomRight.Y));
-
-  if ResamplingFilter <> rfNearest then
+  if FitRotated then
   begin
-    // Account a bit for antialiased edges of the rotated image
-    Inc(DstWidth);
-    Inc(DstHeight);
+    // Encompass the whole area of rotate image => bounding box
+    DstWidth  := Ceil(Max4(TopLeft.X, TopRight.X, BottomLeft.X, BottomRight.X) -
+                      Min4(TopLeft.X, TopRight.X, BottomLeft.X, BottomRight.X));
+    DstHeight := Ceil(Max4(TopLeft.Y, TopRight.Y, BottomLeft.Y, BottomRight.Y) -
+                      Min4(TopLeft.Y, TopRight.Y, BottomLeft.Y, BottomRight.Y));
+
+    if ResamplingFilter <> rfNearest then
+    begin
+      // Account a bit for antialiased edges of the rotated image
+      Inc(DstWidth);
+      Inc(DstHeight);
+    end;
+  end
+  else
+  begin
+    // Crop to largest proportional rect inside the rotated rect
+    D := Max4(CropToSource(TopLeft), CropToSource(TopRight), CropToSource(BottomLeft), CropToSource(BottomRight));
+    DstWidth := Ceil(SrcWidth / D);
+    DstHeight := Ceil(SrcHeight / D);
   end;
 
   DstWidthHalf := (DstWidth - 1) / 2;
@@ -637,9 +675,11 @@ begin
 
     FilterFunction := ImagingFormats.SamplingFilterFunctions[Filter];
     FilterRadius := ImagingFormats.SamplingFilterRadii[Filter];
-    KernelWidth := FastCeil(FilterRadius);
 
+  {$IFDEF USE_FILTER_TABLE}
+    KernelWidth := FastCeil(FilterRadius);
     PrecomputeFilterWeights;
+  {$ENDIF}
 
     for Y := 0 to DstHeight - 1 do
       for X := 0 to DstWidth - 1 do

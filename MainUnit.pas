@@ -252,7 +252,8 @@ begin
     end;
 
     Time := GetTimeMicroseconds;
-    ImageUtils.RotateImage(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor, Options.ResamplingFilter);
+    ImageUtils.RotateImage(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor,
+      Options.ResamplingFilter, not (ofAutoCrop in Options.OperationalFlags));
     WriteTiming('Rotate image');
   end
   else
