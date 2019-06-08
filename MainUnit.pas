@@ -171,7 +171,7 @@ begin
   Result := False;
   Threshold := 0;
   WriteLn('Preparing input image (', ExtractFileName(Options.InputFile), ' [',
-    InputImage.Width, 'x', InputImage.Height, '/', InputImage.FormatInfo.Name, ']) ...');
+    InputImage.Width, 'x', InputImage.Height, '/', string(InputImage.FormatInfo.Name), ']) ...');
 
   // Clone input image and convert it to 8bit grayscale. This will be our
   // working image.
@@ -363,7 +363,7 @@ begin
         if not (ofDetectOnly in Options.OperationalFlags) then
         begin
           WriteLn('Saving output (', ExpandFileName(Options.OutputFile), ' [',
-            OutputImage.Width, 'x', OutputImage.Height, '/', OutputImage.FormatInfo.Name, ']) ...');
+            OutputImage.Width, 'x', OutputImage.Height, '/', string(OutputImage.FormatInfo.Name), ']) ...');
 
           // Make sure output folders are ready
           EnsureOutputLocation(Options.OutputFile);

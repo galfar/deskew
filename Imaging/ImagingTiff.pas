@@ -54,7 +54,7 @@ implementation
 uses
   ImagingTiffLib;
 {$IFEND}
-{$IFEND}
+{$ENDIF}
 
 const
   STiffFormatName = 'Tagged Image File Format';
