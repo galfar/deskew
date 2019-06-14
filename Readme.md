@@ -4,7 +4,7 @@ Deskew
 by Marek Mauder \
 <http://galfar.vevb.net/deskew> \
 <https://bitbucket.org/galfar/app-deskew> \
-<https://github.com/galfar/deskew> \
+<https://github.com/galfar/deskew>
 
 **v1.30 2018-06-07**
 
@@ -16,9 +16,16 @@ Deskew is a command line tool for deskewing scanned text documents.
 It uses Hough transform to detect "text lines" in the image. As an output, you get an image rotated so that the lines are horizontal.
 
 There are binaries built for these platforms (located in Bin folder):
-Win64 (deskew.exe), Win32 (deskew32.exe), Linux 64bit (deskew), macOS (deskew-mac), Linux ARMv7 (deskew-arm).
+Win64 (`deskew.exe`), Win32 (`deskew32.exe`), Linux 64bit (`deskew`), macOS (`deskew-mac`), Linux ARMv7 (`deskew-arm`).
+
+GUI frontend for this CLI tool is available as well (Windows, Linux, and macOS).
 
 License: MIT
+
+### Downloads And Releases
+
+<https://github.com/galfar/deskew/releases> \
+<https://bitbucket.org/galfar/app-deskew/downloads/>
 
 Usage
 ------------------------
@@ -56,6 +63,8 @@ deskew [-o output] [-a angle] [-b color] [..] input
 ### Notes
 
 For TIFF support in Linux and macOS you need to have libtiff 4.x installed (package is usually called libtiff5).
+
+For macOS you can download prebuilt libtiff binaries here: <https://bitbucket.org/galfar/app-deskew/downloads/TiffLibBins-macOS.zip>. Just put the files inside the archive to the same folder as `deskew-mac` executable.
 
 You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
@@ -137,8 +146,7 @@ There are project files for these IDEs:
   1. Lazarus 2.0.2 (deskew.lpi)
   2. Delphi XE + 10.3 (deskew.dproj)
 
-Additionally, there is compile shell/batch scripts for FPC compiler `compile.sh` and
-`Compile.bat`.
+Additionally, there are compile shell/batch scripts for standalone FPC compiler in `Scripts` folder.
 
 ### Supported/Tested Platforms
 
@@ -149,7 +157,7 @@ Win32, Win64, Linux 64bit, macOS 64bit, Linux ARMv7
 
 Latest source code can be found here: \
 <https://bitbucket.org/galfar/app-deskew> \
-<https://github.com/galfar/deskew> \
+<https://github.com/galfar/deskew>
 
 ### Dependencies
 
