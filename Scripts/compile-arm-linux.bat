@@ -1,2 +1,0 @@
-mkdir Dcu
-c:/Programs/FPCup/fpc/bin/x86_64-win64/ppcrossarm -TLinux -FuImaging -FuImaging/ZLib -FuImaging/JpegLib -FuImaging/LibTiff -FiImaging -FUDcu -O3 -B -Xs -XX -Mdelphi -FEBin -odeskew-arm deskew.lpr
