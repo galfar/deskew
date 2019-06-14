@@ -13,7 +13,8 @@ Overview
 ------------------------
 
 Deskew is a command line tool for deskewing scanned text documents.
-It uses Hough transform to detect "text lines" in the image. As an output, you get an image rotated so that the lines are horizontal.
+It uses Hough transform to detect "text lines" in the image. As an output, you
+get an image rotated so that the lines are horizontal.
 
 There are binaries built for these platforms (located in Bin folder):
 Win64 (`deskew.exe`), Win32 (`deskew32.exe`), Linux 64bit (`deskew`), macOS (`deskew-mac`), Linux ARMv7 (`deskew-arm`).
@@ -68,8 +69,8 @@ For macOS you can download prebuilt libtiff binaries here: <https://bitbucket.or
 
 You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
-Note that scripts just call `deskew` command so you may need
-to rename binary for your platform to just `deskew`.
+By default scripts just call `deskew` command but you can pass a different one as a parameter
+(e.g. `runtests.sh deskew-arm`).
 
 ### Bugs, Issues, Proposals 
 

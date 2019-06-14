@@ -1,7 +1,9 @@
 #!/bin/bash
 
+set -e
+
 # If you want to run the test with another deskew executable just pass it as 
-# a parameter e.g. "RunTests.bat deskew64"
+# a parameter e.g. "runtests.sh deskew-arm"
 DESKEW=${1-deskew}
 
 ./$DESKEW -t a -a 5 -o TestOut/Out1.tif ../TestImages/1.tif
@@ -29,4 +31,7 @@ DESKEW=${1-deskew}
 ./$DESKEW -a 5 -l 2 -o TestOut/Outl1.tif ../TestImages/1.tif 
 
 ./$DESKEW -f rgba32 -b 40ff00ff -o TestOut/Outa6.png ../TestImages/6.png 
-./$DESKEW -f g8 -b 77 -o -s t TestOut/Outg6.png ../TestImages/6.png 
+./$DESKEW -f g8 -b 77 -o -s t TestOut/Outg6.png ../TestImages/6.png
+
+echo
+echo TESTS PASSED!
