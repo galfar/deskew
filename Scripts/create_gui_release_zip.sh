@@ -1,6 +1,6 @@
 set -e
 
-RELEASE_DIR=../_internal/Release
+RELEASE_DIR=../_internal/Release-GUI
 rm -f $RELEASE_DIR/*.zip
 
 # get version from Lazarus project file
