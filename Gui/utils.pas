@@ -37,15 +37,16 @@ begin
   if DirectoryExists(ExeDir) then
   begin
 {$IF Defined(MSWINDOWS)}
+  {$IF Defined(CPU386)}
+    S := ExeDir + 'deskew32.exe';
+    if FileExists(S) then
+      Exit(S);
+  {$ELSE}
     S := ExeDir + 'deskew64.exe';
     if FileExists(S) then
       Exit(S);
-
+  {$ENDIF}
     S := ExeDir + 'deskew.exe';
-    if FileExists(S) then
-      Exit(S);
-
-    S := ExeDir + 'deskew32.exe';
     if FileExists(S) then
       Exit(S);
 {$ELSEIF Defined(DARWIN)}

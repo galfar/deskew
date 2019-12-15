@@ -20,7 +20,7 @@
       <MinorVersionNr Value="90"/>
       <StringTable CompanyName="Galfar's Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI"/>
     </VersionInfo>
-    <BuildModes Count="3">
+    <BuildModes Count="4">
       <Item1 Name="Debug" Default="True"/>
       <Item2 Name="Release">
         <CompilerOptions>
@@ -99,12 +99,49 @@
           </Linking>
         </CompilerOptions>
       </Item3>
-      <SharedMatrixOptions Count="5">
+      <Item4 Name="Release-Win32">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <PathDelim Value="\"/>
+          <Target>
+            <Filename Value="deskewgui32"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <OtherUnitFiles Value="..\Imaging"/>
+            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="Delphi"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <SmartLinkUnit Value="True"/>
+            <TargetCPU Value="i386"/>
+            <TargetOS Value="win32"/>
+            <Optimizations>
+              <OptimizationLevel Value="3"/>
+            </Optimizations>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <GenerateDebugInfo Value="False"/>
+            </Debugging>
+            <LinkSmart Value="True"/>
+            <Options>
+              <Win32>
+                <GraphicApplication Value="True"/>
+              </Win32>
+            </Options>
+          </Linking>
+        </CompilerOptions>
+      </Item4>
+      <SharedMatrixOptions Count="4">
         <Item1 ID="734952752827" Modes="Release-macOS" Type="IDEMacro" MacroName="LCLWidgetType" Value="cocoa"/>
-        <Item2 ID="088075076274" Modes="Release-macOS"/>
-        <Item3 ID="382385632331" Modes="Release-macOS" Value="-WM10.9"/>
-        <Item4 ID="590039250505" Modes="Debug" Value="-dDEBUG"/>
-        <Item5 ID="453512566522" Modes="Debug,Release,Release-macOS" Value="-dDONT_LINK_FILE_FORMATS"/>
+        <Item2 ID="382385632331" Modes="Release-macOS" Value="-WM10.9"/>
+        <Item3 ID="590039250505" Modes="Debug" Value="-dDEBUG"/>
+        <Item4 ID="453512566522" Modes="Debug,Release,Release-macOS,Release-Win32" Value="-dDONT_LINK_FILE_FORMATS"/>
       </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>

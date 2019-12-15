@@ -6,7 +6,7 @@ by Marek Mauder \
 <https://bitbucket.org/galfar/app-deskew> \
 <https://github.com/galfar/deskew>
 
-**v1.30 2018-06-07**
+**v1.30 2019-06-07**
 
 
 Overview
