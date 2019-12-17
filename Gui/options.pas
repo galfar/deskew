@@ -26,6 +26,13 @@ type
     ffPpm
   );
 
+  TResamplingFilter = (
+    rfDefaultLinear,
+    rfNearest,
+    rfCubic,
+    rfLanczos
+  );
+
   { TOptions }
 
   TOptions = class
@@ -41,6 +48,7 @@ type
     BackgroundColor: TColor32;
 
     // Advanced options
+    ResamplingFilter: TResamplingFilter;
     MaxAngle: Double;
     ThresholdLevel: Integer;
     ForcedOutputFormat: TForcedOutputFormat;
@@ -95,6 +103,13 @@ const
     'g8',    // fofGray8
     'rgb24', // fofRgb24
     'rgba32' // fofRgba32
+  );
+
+  ResamplingIds: array[TResamplingFilter] of string = (
+    'linear',  // rfDefaultLinear
+    'nearest', // rfNearest
+    'cubic',   // rfCubic
+    'lanczos'  // rfLanczos
   );
 
   IniSectionOptions = 'Options';
@@ -156,7 +171,6 @@ begin
   Assert(AFileIndex < FFiles.Count);
 
   AParams.Clear;
-
   AParams.AddStrings(['-o', GetOutputFilePath(FFiles[AFileIndex])]);
 
   if BackgroundColor <> $FF000000 then
@@ -169,6 +183,8 @@ begin
     AParams.AddStrings(['-l', FloatToStrFmt(SkipAngle)]);
   if ForcedOutputFormat <> fofNone then
     AParams.AddStrings(['-f', FormatIds[ForcedOutputFormat]]);
+  if ResamplingFilter <> rfDefaultLinear then
+    AParams.AddStrings(['-q', ResamplingIds[ResamplingFilter]]);
 
 {$IFDEF DEBUG}
   AParams.AddStrings(['-s', 'p']);
@@ -183,6 +199,7 @@ begin
   Ini.WriteString(IniSectionOptions, 'OutputFileFormat', TEnumUtils<TFileFormat>.EnumToStr(OutputFileFormat));
   Ini.WriteString(IniSectionOptions, 'BackgroundColor', ColorToString(BackgroundColor));
 
+  Ini.WriteString(IniSectionAdvanced, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
   Ini.WriteFloat(IniSectionAdvanced, 'MaxAngle', MaxAngle);
   Ini.WriteInteger(IniSectionAdvanced, 'ThresholdLevel', ThresholdLevel);
   Ini.WriteString(IniSectionAdvanced, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
@@ -200,6 +217,7 @@ begin
   OutputFileFormat := TEnumUtils<TFileFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'OutputFileFormat', ''));
   BackgroundColor := StringToColorDef(Ini.ReadString(IniSectionOptions, 'BackgroundColor', ''), DefaultBackgroundColor);
 
+  ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ResamplingFilter', ''));
   MaxAngle := Ini.ReadFloat(IniSectionAdvanced, 'MaxAngle', DefaultMaxAngle);
   ThresholdLevel := Ini.ReadInteger(IniSectionAdvanced, 'ThresholdLevel', DefaultThresholdLevel);
   ForcedOutputFormat := TEnumUtils<TForcedOutputFormat>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ForcedOutputFormat', ''));
@@ -217,6 +235,7 @@ begin
   OutputFileFormat := ffSameAsInput;
   BackgroundColor := DefaultBackgroundColor;
 
+  ResamplingFilter := rfDefaultLinear;
   MaxAngle := DefaultMaxAngle;
   ThresholdLevel := DefaultThresholdLevel;
   ForcedOutputFormat := fofNone;

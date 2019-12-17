@@ -1,7 +1,7 @@
 object FormAdvOptions: TFormAdvOptions
-  Left = 140
+  Left = 586
   Height = 322
-  Top = 346
+  Top = 350
   Width = 454
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
@@ -12,7 +12,7 @@ object FormAdvOptions: TFormAdvOptions
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poMainFormCenter
-  LCLVersion = '1.8.4.0'
+  LCLVersion = '2.0.6.0'
   object Panel1: TPanel
     Left = 8
     Height = 306
@@ -45,7 +45,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 15
-      Top = 72
+      Top = 105
       Width = 112
       BorderSpacing.Top = 18
       Caption = 'Max. angle [degrees]:'
@@ -58,11 +58,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 128
       Height = 23
-      Top = 68
+      Top = 101
       Width = 64
       BorderSpacing.Left = 8
       DecimalPlaces = 1
-      Increment = 1
       MaxValue = 90
       MinValue = 1
       TabOrder = 1
@@ -74,7 +73,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 15
-      Top = 105
+      Top = 138
       Width = 109
       BorderSpacing.Top = 18
       BorderSpacing.Right = 8
@@ -88,9 +87,8 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Side = asrBottom
       Left = 128
       Height = 23
-      Top = 101
+      Top = 134
       Width = 64
-      Increment = 1
       MaxValue = 45
       MinValue = 0
       TabOrder = 2
@@ -98,27 +96,25 @@ object FormAdvOptions: TFormAdvOptions
     end
     object LabForcedFormat: TLabel
       AnchorSideLeft.Control = Panel1
-      AnchorSideTop.Control = LabTitle
+      AnchorSideTop.Control = LabResamling
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 15
-      Top = 39
+      Top = 72
       Width = 80
       BorderSpacing.Left = 8
-      BorderSpacing.Top = 12
+      BorderSpacing.Top = 18
       Caption = 'Output format:'
       ParentColor = False
     end
     object ComboOutputFormat: TComboBox
-      AnchorSideLeft.Control = LabForcedFormat
-      AnchorSideLeft.Side = asrBottom
+      AnchorSideLeft.Control = ComboResampling
       AnchorSideTop.Control = LabForcedFormat
       AnchorSideTop.Side = asrCenter
-      Left = 100
+      Left = 130
       Height = 23
-      Top = 35
+      Top = 68
       Width = 256
-      BorderSpacing.Left = 12
       ItemHeight = 15
       Style = csDropDownList
       TabOrder = 0
@@ -129,7 +125,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 15
-      Top = 207
+      Top = 223
       Width = 102
       BorderSpacing.Top = 12
       Caption = 'Deskew executable:'
@@ -141,7 +137,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrCenter
       Left = 8
       Height = 19
-      Top = 176
+      Top = 192
       Width = 181
       Caption = 'Use default Deskew executable'
       Checked = True
@@ -157,7 +153,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrCenter
       Left = 118
       Height = 23
-      Top = 203
+      Top = 219
       Width = 233
       Anchors = [akTop, akLeft, akRight]
       BorderSpacing.Left = 8
@@ -172,7 +168,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrBottom
       Left = 357
       Height = 25
-      Top = 202
+      Top = 218
       Width = 73
       Action = AtcBrowseDeskewExe
       Anchors = [akTop, akRight]
@@ -195,6 +191,33 @@ object FormAdvOptions: TFormAdvOptions
       BorderSpacing.Left = 8
       BorderSpacing.Bottom = 4
       TabOrder = 6
+    end
+    object ComboResampling: TComboBox
+      AnchorSideLeft.Control = LabResamling
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = LabResamling
+      AnchorSideTop.Side = asrCenter
+      Left = 130
+      Height = 23
+      Top = 35
+      Width = 256
+      BorderSpacing.Left = 12
+      ItemHeight = 15
+      Style = csDropDownList
+      TabOrder = 7
+    end
+    object LabResamling: TLabel
+      AnchorSideLeft.Control = Panel1
+      AnchorSideTop.Control = LabTitle
+      AnchorSideTop.Side = asrBottom
+      Left = 8
+      Height = 15
+      Top = 39
+      Width = 110
+      BorderSpacing.Left = 8
+      BorderSpacing.Top = 12
+      Caption = 'Resampling method:'
+      ParentColor = False
     end
   end
   object ActionList: TActionList

@@ -111,7 +111,5 @@ begin
   FormAdvOptions.ShowModal;
 end;
 
-
-
 end.
 

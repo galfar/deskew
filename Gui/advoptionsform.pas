@@ -18,8 +18,10 @@ type
     BtnResetOptions: TButton;
     CheckDefaultExecutable: TCheckBox;
     ComboOutputFormat: TComboBox;
+    ComboResampling: TComboBox;
     EdDeskewExePath: TEdit;
     LabDeskewExe: TLabel;
+    LabResamling: TLabel;
     LabTitle: TLabel;
     LabForcedFormat: TLabel;
     LabMaxAngle: TLabel;
@@ -59,6 +61,13 @@ begin
   ComboOutputFormat.Items.AddObject('32bit RGB + opacity', TObject(fofRgba32));
   ComboOutputFormat.ItemIndex := 0;
 
+  ComboResampling.Items.Clear;
+  ComboResampling.Items.AddObject('Default (Bilinear)', TObject(rfDefaultLinear));
+  ComboResampling.Items.AddObject('Nearest', TObject(rfNearest));
+  ComboResampling.Items.AddObject('Bicubic', TObject(rfCubic));
+  ComboResampling.Items.AddObject('Lanczos', TObject(rfLanczos));
+  ComboResampling.ItemIndex := 0;
+
   if not Config.ShowDeskewExeOption then
   begin
     CheckDefaultExecutable.Visible := False;
@@ -83,6 +92,7 @@ begin
   EdDeskewExePath.SelStart := Length(EdDeskewExePath.Text);
   SpinEditMaxAngle.Value := AOptions.MaxAngle;
   SpinEditSkipAngle.Value := AOptions.SkipAngle;
+  ComboResampling.ItemIndex := Integer(AOptions.ResamplingFilter);
   ComboOutputFormat.ItemIndex := Integer(AOptions.ForcedOutputFormat);
 end;
 
@@ -90,6 +100,7 @@ procedure TFormAdvOptions.GatherOptions(AOptions: TOptions);
 begin
   AOptions.MaxAngle := SpinEditMaxAngle.Value;
   AOptions.SkipAngle := SpinEditSkipAngle.Value;
+  AOptions.ResamplingFilter := TResamplingFilter(PtrUInt(ComboResampling.Items.Objects[ComboResampling.ItemIndex]));
   AOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
   AOptions.DefaultExecutable := CheckDefaultExecutable.Checked;
   AOptions.CustomExecutablePath := EdDeskewExePath.Text;
