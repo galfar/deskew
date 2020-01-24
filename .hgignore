@@ -1,4 +1,4 @@
-syntax: glob
+syntax:glob
 
 __history
 backup
@@ -7,7 +7,7 @@ _internal/*
 Dcu/*
 dcu/*
 Releases/*
-Bin/TestOut/*
+Bin/*
 Gui/lib/*
 Gui/deskewgui.app
 
