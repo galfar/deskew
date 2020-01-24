@@ -1,10 +1,11 @@
 Deskew
 =======================
 
-by Marek Mauder \
-<http://galfar.vevb.net/deskew> \
-<https://bitbucket.org/galfar/app-deskew> \
-<https://github.com/galfar/deskew>
+by Marek Mauder  
+<http://galfar.vevb.net/deskew>  
+<https://github.com/galfar/deskew>  
+<https://bitbucket.org/galfar/app-deskew>  
+
 
 **v1.30 2019-06-07**
 
@@ -25,8 +26,9 @@ License: MIT
 
 ### Downloads And Releases
 
-<https://github.com/galfar/deskew/releases> \
-<https://bitbucket.org/galfar/app-deskew/downloads/>
+<https://github.com/galfar/deskew/releases>  
+<https://bitbucket.org/galfar/app-deskew/downloads/>  
+
 
 Usage
 ------------------------
@@ -65,7 +67,7 @@ deskew [-o output] [-a angle] [-b color] [..] input
 
 For TIFF support in Linux and macOS you need to have libtiff 4.x installed (package is usually called libtiff5).
 
-For macOS you can download prebuilt libtiff binaries here: <https://bitbucket.org/galfar/app-deskew/downloads/TiffLibBins-macOS.zip>. Just put the files inside the archive to the same folder as `deskew-mac` executable.
+For macOS you can download prebuilt libtiff binaries here: <https://galfar.github.io/store/TiffLibBins-macOS.zip>. Just put the files inside the archive to the same folder as `deskew-mac` executable.
 
 You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
@@ -74,9 +76,9 @@ By default scripts just call `deskew` command but you can pass a different one a
 
 ### Bugs, Issues, Proposals 
 
-File them here: \
-<https://bitbucket.org/galfar/app-deskew/issues> \
-<https://github.com/galfar/deskew/issues>
+File them here:  
+<https://github.com/galfar/deskew/issues>  
+<https://bitbucket.org/galfar/app-deskew/issues> 
 
 
 Version History
@@ -144,7 +146,7 @@ Deskew is written in Object Pascal. You need Free Pascal or Delphi to recompile 
 
 There are project files for these IDEs:
 
-  1. Lazarus 2.0.2 (deskew.lpi)
+  1. Lazarus 2.0.6 (deskew.lpi)
   2. Delphi XE + 10.3 (deskew.dproj)
 
 Additionally, there are compile shell/batch scripts for standalone FPC compiler in `Scripts` folder.
@@ -156,9 +158,9 @@ Win32, Win64, Linux 64bit, macOS 64bit, Linux ARMv7
 
 ### Source Code
 
-Latest source code can be found here: \
-<https://bitbucket.org/galfar/app-deskew> \
-<https://github.com/galfar/deskew>
+Latest source code can be found here:  
+<https://github.com/galfar/deskew>  
+<https://bitbucket.org/galfar/app-deskew> 
 
 ### Dependencies
 
