@@ -1,5 +1,9 @@
 unit Options;
 
+// Needed for int<>set casting for TypInfo.SetToString to compile
+{$PACKENUM 1}
+{$PACKSET 4}
+
 interface
 
 uses
@@ -25,6 +29,7 @@ type
     ffJng,
     ffPpm
   );
+  TFileFormatSet = set of TFileFormat;
 
   TResamplingFilter = (
     rfDefaultLinear,
@@ -46,6 +51,7 @@ type
     OutputFolder: string;
     OutputFileFormat: TFileFormat;
     BackgroundColor: TColor32;
+    AutoCrop: Boolean;
 
     // Advanced options
     ResamplingFilter: TResamplingFilter;
@@ -57,6 +63,7 @@ type
     TiffCompressionScheme: Integer;
     DefaultExecutable: Boolean;
     CustomExecutablePath: string;
+    OutputFileParamsEnabled: TFileFormatSet;
 
     constructor Create;
     destructor Destroy; override;
@@ -74,15 +81,15 @@ type
 implementation
 
 uses
-  ImagingUtility, Utils;
+  ImagingUtility, ImagingTiff, Utils, TypInfo;
 
 const
   DefaultBackgroundColor = $FFFFFFFF; // white
   DefaultMaxAngle = 10.0;
   DefaultSkipAngle = 0.01;
   DefaultThresholdLevel = -1; // auto
-  DefaultJpegCompressionQuality = -1; // use imaginglib default
-  DefaultTiffCompressionScheme = -1; // use imaginglib default
+  DefaultJpegCompressionQuality = 90; // imaginglib default
+  DefaultTiffCompressionScheme = TiffCompressionOptionLzw; // imaginglib default
   DefaultOutputFileNamePrefix = 'deskewed-';
 
   FileExts: array[TFileFormat] of string = (
@@ -110,6 +117,10 @@ const
     'nearest', // rfNearest
     'cubic',   // rfCubic
     'lanczos'  // rfLanczos
+  );
+
+  TiffCompressionSchemeNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
+    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4'
   );
 
   IniSectionOptions = 'Options';
@@ -167,6 +178,25 @@ procedure TOptions.ToCmdLineParameters(AParams: TStrings; AFileIndex: Integer);
     Result := Format('%.2f', [F], ImagingUtility.GetFormatSettingsForFloats);
   end;
 
+  function FileParamsToString: string;
+  var
+    FileParams: array of string;
+    Count,Idx: Integer;
+  begin
+    Count := PopCnt(Cardinal(OutputFileParamsEnabled));
+    Idx := 0;
+    SetLength(FileParams, Count);
+    if ffJpeg in OutputFileParamsEnabled then
+    begin
+      FileParams[Idx] := 'j' + IntToStr(JpegCompressionQuality);
+      Inc(Idx);
+    end;
+    if ffTiff in OutputFileParamsEnabled then
+      FileParams[Idx] := 't' + TiffCompressionSchemeNames[TiffCompressionScheme];
+
+    Result := StrArrayJoin(FileParams, ',');
+  end;
+
 begin
   Assert(AFileIndex < FFiles.Count);
 
@@ -175,6 +205,8 @@ begin
 
   if BackgroundColor <> $FF000000 then
     AParams.AddStrings(['-b', IntToHex(BackgroundColor, 8)]);
+  if AutoCrop then
+    AParams.AddStrings(['-g', 'c']);
 
   // Advanced options
   if not SameFloat(MaxAngle, DefaultMaxAngle, 0.1) then
@@ -185,6 +217,8 @@ begin
     AParams.AddStrings(['-f', FormatIds[ForcedOutputFormat]]);
   if ResamplingFilter <> rfDefaultLinear then
     AParams.AddStrings(['-q', ResamplingIds[ResamplingFilter]]);
+  if OutputFileParamsEnabled <> [ ] then
+    AParams.AddStrings(['-c', FileParamsToString]);
 
 {$IFDEF DEBUG}
   AParams.AddStrings(['-s', 'p']);
@@ -198,12 +232,14 @@ begin
   Ini.WriteString(IniSectionOptions, 'OutputFolder', OutputFolder);
   Ini.WriteString(IniSectionOptions, 'OutputFileFormat', TEnumUtils<TFileFormat>.EnumToStr(OutputFileFormat));
   Ini.WriteString(IniSectionOptions, 'BackgroundColor', ColorToString(BackgroundColor));
+  Ini.WriteString(IniSectionOptions, 'AutoCrop', BoolToStr(AutoCrop));
 
   Ini.WriteString(IniSectionAdvanced, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
   Ini.WriteFloat(IniSectionAdvanced, 'MaxAngle', MaxAngle);
   Ini.WriteInteger(IniSectionAdvanced, 'ThresholdLevel', ThresholdLevel);
   Ini.WriteString(IniSectionAdvanced, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
   Ini.WriteFloat(IniSectionAdvanced, 'SkipAngle', SkipAngle);
+  Ini.WriteString(IniSectionAdvanced, 'OutputFileParamsEnabled', SetToString(PTypeInfo(TypeInfo(TFileFormatSet)), Integer(OutputFileParamsEnabled), True));
   Ini.WriteInteger(IniSectionAdvanced, 'JpegCompressionQuality', JpegCompressionQuality);
   Ini.WriteInteger(IniSectionAdvanced, 'TiffCompressionScheme', TiffCompressionScheme);
   Ini.WriteString(IniSectionAdvanced, 'DefaultExecutable', BoolToStr(DefaultExecutable, True));
@@ -216,12 +252,14 @@ begin
   OutputFolder := Ini.ReadString(IniSectionOptions, 'OutputFolder', '');
   OutputFileFormat := TEnumUtils<TFileFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'OutputFileFormat', ''));
   BackgroundColor := StringToColorDef(Ini.ReadString(IniSectionOptions, 'BackgroundColor', ''), DefaultBackgroundColor);
+  AutoCrop := StrToBoolDef(Ini.ReadString(IniSectionOptions, 'AutoCrop', ''),  False);
 
   ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ResamplingFilter', ''));
   MaxAngle := Ini.ReadFloat(IniSectionAdvanced, 'MaxAngle', DefaultMaxAngle);
   ThresholdLevel := Ini.ReadInteger(IniSectionAdvanced, 'ThresholdLevel', DefaultThresholdLevel);
   ForcedOutputFormat := TEnumUtils<TForcedOutputFormat>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ForcedOutputFormat', ''));
   SkipAngle := Ini.ReadFloat(IniSectionAdvanced, 'SkipAngle', DefaultSkipAngle);
+  OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionAdvanced, 'OutputFileParamsEnabled', '[]')));
   JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
   TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
   DefaultExecutable := StrToBoolDef(Ini.ReadString(IniSectionAdvanced, 'DefaultExecutable', ''),  True);
@@ -234,12 +272,14 @@ begin
   OutputFolder := '';
   OutputFileFormat := ffSameAsInput;
   BackgroundColor := DefaultBackgroundColor;
+  AutoCrop := False;
 
   ResamplingFilter := rfDefaultLinear;
   MaxAngle := DefaultMaxAngle;
   ThresholdLevel := DefaultThresholdLevel;
   ForcedOutputFormat := fofNone;
   SkipAngle := DefaultSkipAngle;
+  OutputFileParamsEnabled := [ ];
   JpegCompressionQuality := DefaultJpegCompressionQuality;
   TiffCompressionScheme := DefaultTiffCompressionScheme;
   DefaultExecutable := True;

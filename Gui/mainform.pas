@@ -30,6 +30,7 @@ type
     BtnBrowseOutputDir: TButton;
     BtnAdvOptions: TButton;
     BtnAbout: TButton;
+    CheckAutoCrop: TCheckBox;
     CheckDefaultOutputFileOptions: TCheckBox;
     ColorBtnBackground: TColorButton;
     ComboFileFormat: TComboBox;
@@ -138,6 +139,7 @@ begin
   EdDirOutput.SelStart := Length(EdDirOutput.Text);
   ComboFileFormat.ItemIndex := Integer(AOptions.OutputFileFormat);
   ColorBtnBackground.ButtonColor := RGBToColor(GetRedValue(AOptions.BackgroundColor), GetGreenValue(AOptions.BackgroundColor), GetBlueValue(AOptions.BackgroundColor));
+  CheckAutoCrop.Checked := AOptions.AutoCrop;
 end;
 
 procedure TFormMain.GatherOptions(AOptions: TOptions);
@@ -157,9 +159,9 @@ begin
   AOptions.DefaultOutputFileOptions := CheckDefaultOutputFileOptions.Checked;
   AOptions.OutputFolder := EdDirOutput.Text;
   AOptions.OutputFileFormat := TFileFormat(PtrUInt(ComboFileFormat.Items.Objects[ComboFileFormat.ItemIndex]));
-
   LazColor := ColorBtnBackground.ButtonColor;
   AOptions.BackgroundColor := Color32(255, Red(LazColor), Green(LazColor), Blue(LazColor)).Color;
+  AOptions.AutoCrop := CheckAutoCrop.Checked;
 end;
 
 procedure TFormMain.RunnerFinished(Sender: TObject; Reason: TFinishReason);

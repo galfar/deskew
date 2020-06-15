@@ -12,25 +12,30 @@ type
 
   TFormAdvOptions = class(TForm)
     ActResetOptions: TAction;
-    AtcBrowseDeskewExe: TAction;
+    ActBrowseDeskewExe: TAction;
     ActionList: TActionList;
     BtnBrowseDeskewExePath: TButton;
     BtnResetOptions: TButton;
+    CheckJpegQuality: TCheckBox;
     CheckDefaultExecutable: TCheckBox;
+    CheckTiffCompression: TCheckBox;
+    ComboTiffCompression: TComboBox;
     ComboOutputFormat: TComboBox;
     ComboResampling: TComboBox;
     EdDeskewExePath: TEdit;
     LabDeskewExe: TLabel;
+    LabOutputFileParams: TLabel;
     LabResamling: TLabel;
     LabTitle: TLabel;
     LabForcedFormat: TLabel;
     LabMaxAngle: TLabel;
     LabSkipAngle: TLabel;
     Panel1: TPanel;
+    SpinEditJpegQuality: TSpinEdit;
     SpinEditMaxAngle: TFloatSpinEdit;
     SpinEditSkipAngle: TFloatSpinEdit;
     procedure ActResetOptionsExecute(Sender: TObject);
-    procedure AtcBrowseDeskewExeExecute(Sender: TObject);
+    procedure ActBrowseDeskewExeExecute(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
   public
@@ -53,20 +58,29 @@ uses
 
 procedure TFormAdvOptions.FormCreate(Sender: TObject);
 begin
-  ComboOutputFormat.Items.Clear;
-  ComboOutputFormat.Items.AddObject('Default (usually same as input)', TObject(fofNone));
-  ComboOutputFormat.Items.AddObject('1bit black and white', TObject(fofBinary1));
-  ComboOutputFormat.Items.AddObject('8bit grayscale', TObject(fofGray8));
-  ComboOutputFormat.Items.AddObject('24bit RGB', TObject(fofRgb24));
-  ComboOutputFormat.Items.AddObject('32bit RGB + opacity', TObject(fofRgba32));
+  ComboOutputFormat.Clear;
+  ComboOutputFormat.AddItem('Default (usually same as input)', TObject(fofNone));
+  ComboOutputFormat.AddItem('1bit black and white', TObject(fofBinary1));
+  ComboOutputFormat.AddItem('8bit grayscale', TObject(fofGray8));
+  ComboOutputFormat.AddItem('24bit RGB', TObject(fofRgb24));
+  ComboOutputFormat.AddItem('32bit RGB + opacity', TObject(fofRgba32));
   ComboOutputFormat.ItemIndex := 0;
 
-  ComboResampling.Items.Clear;
-  ComboResampling.Items.AddObject('Default (Bilinear)', TObject(rfDefaultLinear));
-  ComboResampling.Items.AddObject('Nearest', TObject(rfNearest));
-  ComboResampling.Items.AddObject('Bicubic', TObject(rfCubic));
-  ComboResampling.Items.AddObject('Lanczos', TObject(rfLanczos));
+  ComboResampling.Clear;
+  ComboResampling.AddItem('Default (Bilinear)', TObject(rfDefaultLinear));
+  ComboResampling.AddItem('Nearest', TObject(rfNearest));
+  ComboResampling.AddItem('Bicubic', TObject(rfCubic));
+  ComboResampling.AddItem('Lanczos', TObject(rfLanczos));
   ComboResampling.ItemIndex := 0;
+
+  ComboTiffCompression.Clear;
+  ComboTiffCompression.Items.Add('Uncompressed');
+  ComboTiffCompression.Items.Add('LZW');
+  ComboTiffCompression.Items.Add('RLE');
+  ComboTiffCompression.Items.Add('Deflate/ZLib');
+  ComboTiffCompression.Items.Add('JPEG');
+  ComboTiffCompression.Items.Add('Group 4 Fax');
+  ComboTiffCompression.ItemIndex := 0;
 
   if not Config.ShowDeskewExeOption then
   begin
@@ -87,13 +101,18 @@ end;
 
 procedure TFormAdvOptions.ApplyOptions(AOptions: TOptions);
 begin
-  CheckDefaultExecutable.Checked := AOptions.DefaultExecutable;
-  EdDeskewExePath.Text := AOptions.CustomExecutablePath;
-  EdDeskewExePath.SelStart := Length(EdDeskewExePath.Text);
   SpinEditMaxAngle.Value := AOptions.MaxAngle;
   SpinEditSkipAngle.Value := AOptions.SkipAngle;
   ComboResampling.ItemIndex := Integer(AOptions.ResamplingFilter);
   ComboOutputFormat.ItemIndex := Integer(AOptions.ForcedOutputFormat);
+  CheckJpegQuality.Checked := ffJpeg in AOptions.OutputFileParamsEnabled;
+  SpinEditJpegQuality.Value := AOptions.JpegCompressionQuality;
+  CheckTiffCompression.Checked := ffTiff in AOptions.OutputFileParamsEnabled;
+  ComboTiffCompression.ItemIndex := AOptions.TiffCompressionScheme;
+
+  CheckDefaultExecutable.Checked := AOptions.DefaultExecutable;
+  EdDeskewExePath.Text := AOptions.CustomExecutablePath;
+  EdDeskewExePath.SelStart := Length(EdDeskewExePath.Text);
 end;
 
 procedure TFormAdvOptions.GatherOptions(AOptions: TOptions);
@@ -102,17 +121,26 @@ begin
   AOptions.SkipAngle := SpinEditSkipAngle.Value;
   AOptions.ResamplingFilter := TResamplingFilter(PtrUInt(ComboResampling.Items.Objects[ComboResampling.ItemIndex]));
   AOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
+  AOptions.JpegCompressionQuality := SpinEditJpegQuality.Value;
+  AOptions.TiffCompressionScheme := ComboTiffCompression.ItemIndex;
+
+  AOptions.OutputFileParamsEnabled := [ ];
+  if CheckJpegQuality.Checked then Include(AOptions.OutputFileParamsEnabled, ffJpeg);
+  if CheckTiffCompression.Checked then Include(AOptions.OutputFileParamsEnabled, ffTiff);
+
   AOptions.DefaultExecutable := CheckDefaultExecutable.Checked;
   AOptions.CustomExecutablePath := EdDeskewExePath.Text;
 end;
 
 procedure TFormAdvOptions.DoIdle;
 begin
-  AtcBrowseDeskewExe.Enabled := not CheckDefaultExecutable.Checked;
-  EdDeskewExePath.Enabled := AtcBrowseDeskewExe.Enabled;
+  ActBrowseDeskewExe.Enabled := not CheckDefaultExecutable.Checked;
+  EdDeskewExePath.Enabled := ActBrowseDeskewExe.Enabled;
+  SpinEditJpegQuality.Enabled := CheckJpegQuality.Checked;
+  ComboTiffCompression.Enabled := CheckTiffCompression.Checked;
 end;
 
-procedure TFormAdvOptions.AtcBrowseDeskewExeExecute(Sender: TObject);
+procedure TFormAdvOptions.ActBrowseDeskewExeExecute(Sender: TObject);
 begin
   Module.OpenDialogSingle.Title := 'Select Deskew Binary Executable';
   if Module.OpenDialogSingle.Execute then

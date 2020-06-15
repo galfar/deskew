@@ -359,7 +359,7 @@ var
         else if Pos('j', S) = 1 then
         begin
           S := Copy(S, 2);
-          if not TryStrToInt(S,FJpegCompressionQuality) then
+          if not TryStrToInt(S, FJpegCompressionQuality) then
           begin
             FErrorMessage := 'Invalid JPEG output compression spec: ' + S;
             Exit(False);

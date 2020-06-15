@@ -18,6 +18,7 @@ function FindDeskewExePath: string;
 function DetermineConfigFolder: string;
 function ColorToString(Color: TColor32): string;
 function StringToColorDef(const Str: string; Default: TColor32): TColor32;
+function StrArrayJoin(const StringArray: array of string; const Separator: string): string;
 
 implementation
 
@@ -95,6 +96,17 @@ var
 begin
   S := '$' + Copy(Str, 2);
   Result := StrToDWordDef(S, Default);
+end;
+
+function StrArrayJoin(const StringArray: array of string; const Separator: string): string;
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := Low(StringArray) to High(StringArray) do
+    Result := Result + StringArray[I] + Separator;
+
+  Delete(Result, Length(Result), 1);
 end;
 
 class function TEnumUtils<T>.EnumToStr(const EnumValue: T): string;

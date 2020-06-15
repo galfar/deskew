@@ -1,5 +1,6 @@
 __history
 backup
+.hg
 
 _internal/*
 Dcu/*
