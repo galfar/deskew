@@ -2,9 +2,8 @@ Deskew
 =======================
 
 by Marek Mauder  
-<http://galfar.vevb.net/deskew>  
+<https://galfar.vevb.net/deskew>  
 <https://github.com/galfar/deskew>  
-<https://bitbucket.org/galfar/app-deskew>  
 
 
 **v1.30 2019-06-07**
@@ -27,8 +26,7 @@ License: MIT
 ### Downloads And Releases
 
 <https://github.com/galfar/deskew/releases>  
-<https://bitbucket.org/galfar/app-deskew/downloads/>  
-
+<https://galfar.vevb.net/deskew#downloads>  
 
 Usage
 ------------------------
@@ -78,7 +76,6 @@ By default scripts just call `deskew` command but you can pass a different one a
 
 File them here:  
 <https://github.com/galfar/deskew/issues>  
-<https://bitbucket.org/galfar/app-deskew/issues> 
 
 
 Version History
@@ -160,7 +157,6 @@ Win32, Win64, Linux 64bit, macOS 64bit, Linux ARMv7
 
 Latest source code can be found here:  
 <https://github.com/galfar/deskew>  
-<https://bitbucket.org/galfar/app-deskew> 
 
 ### Dependencies
 
