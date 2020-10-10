@@ -3,7 +3,7 @@ unit Utils;
 interface
 
 uses
-  Classes, SysUtils, TypInfo, ImagingTypes;
+  Classes, SysUtils, TypInfo, IniFiles, ImagingTypes;
 
 type
   // Workaround for generic functions needing FPC 3.1.1+
@@ -13,6 +13,13 @@ type
     class function StrToEnum(const Str: string): T;
     class function GetEnumPrefix: string;
   end;
+
+  TIniFileHelper = class helper for TIniFile
+  public
+    function ReadNiceBool(const Section, Ident: string; Default: Boolean): Boolean;
+    procedure WriteNiceBool(const Section, Ident: string; Value: Boolean);
+  end;
+
 
 function FindDeskewExePath: string;
 function DetermineConfigFolder: string;
@@ -140,6 +147,16 @@ begin
   Result := Copy(S, 1, 2);
   if S[3] in ['a'..'z'] then
     Result := Result + S[3];
+end;
+
+function TIniFileHelper.ReadNiceBool(const Section, Ident: string; Default: Boolean): Boolean;
+begin
+  Result := StrToBoolDef(ReadString(Section, Ident, ''),  Default);
+end;
+
+procedure TIniFileHelper.WriteNiceBool(const Section, Ident: string; Value: Boolean);
+begin
+  WriteString(Section, Ident, BoolToStr(Value, True));
 end;
 
 end.

@@ -143,7 +143,7 @@ Deskew is written in Object Pascal. You need Free Pascal or Delphi to recompile 
 
 There are project files for these IDEs:
 
-  1. Lazarus 2.0.6 (deskew.lpi)
+  1. Lazarus 2.0.10 (deskew.lpi)
   2. Delphi XE + 10.3 (deskew.dproj)
 
 Additionally, there are compile shell/batch scripts for standalone FPC compiler in `Scripts` folder.

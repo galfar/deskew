@@ -16,6 +16,7 @@ type
     ActionList: TActionList;
     BtnBrowseDeskewExePath: TButton;
     BtnResetOptions: TButton;
+    CheckThresholdAuto: TCheckBox;
     CheckJpegQuality: TCheckBox;
     CheckDefaultExecutable: TCheckBox;
     CheckTiffCompression: TCheckBox;
@@ -25,12 +26,14 @@ type
     EdDeskewExePath: TEdit;
     LabDeskewExe: TLabel;
     LabOutputFileParams: TLabel;
+    LabThresholding: TLabel;
     LabResamling: TLabel;
     LabTitle: TLabel;
     LabForcedFormat: TLabel;
     LabMaxAngle: TLabel;
     LabSkipAngle: TLabel;
     Panel1: TPanel;
+    SpinThresholdValue: TSpinEdit;
     SpinEditJpegQuality: TSpinEdit;
     SpinEditMaxAngle: TFloatSpinEdit;
     SpinEditSkipAngle: TFloatSpinEdit;
@@ -109,6 +112,8 @@ begin
   SpinEditJpegQuality.Value := AOptions.JpegCompressionQuality;
   CheckTiffCompression.Checked := ffTiff in AOptions.OutputFileParamsEnabled;
   ComboTiffCompression.ItemIndex := AOptions.TiffCompressionScheme;
+  CheckThresholdAuto.Checked := AOptions.ThresholdingAuto;
+  SpinThresholdValue.Value := AOptions.ThresholdLevel;
 
   CheckDefaultExecutable.Checked := AOptions.DefaultExecutable;
   EdDeskewExePath.Text := AOptions.CustomExecutablePath;
@@ -123,6 +128,8 @@ begin
   AOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
   AOptions.JpegCompressionQuality := SpinEditJpegQuality.Value;
   AOptions.TiffCompressionScheme := ComboTiffCompression.ItemIndex;
+  AOptions.ThresholdingAuto := CheckThresholdAuto.Checked;
+  AOptions.ThresholdLevel := SpinThresholdValue.Value;
 
   AOptions.OutputFileParamsEnabled := [ ];
   if CheckJpegQuality.Checked then Include(AOptions.OutputFileParamsEnabled, ffJpeg);
@@ -138,6 +145,7 @@ begin
   EdDeskewExePath.Enabled := ActBrowseDeskewExe.Enabled;
   SpinEditJpegQuality.Enabled := CheckJpegQuality.Checked;
   ComboTiffCompression.Enabled := CheckTiffCompression.Checked;
+  SpinThresholdValue.Enabled := not CheckThresholdAuto.Checked;
 end;
 
 procedure TFormAdvOptions.ActBrowseDeskewExeExecute(Sender: TObject);

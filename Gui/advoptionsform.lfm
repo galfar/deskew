@@ -1,27 +1,27 @@
 object FormAdvOptions: TFormAdvOptions
   Left = 503
-  Height = 372
+  Height = 447
   Top = 265
   Width = 454
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'Advanced Options'
-  ClientHeight = 372
+  ClientHeight = 447
   ClientWidth = 454
   Color = clWhite
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   Position = poMainFormCenter
-  LCLVersion = '2.0.6.0'
+  LCLVersion = '2.0.10.0'
   object Panel1: TPanel
     Left = 8
-    Height = 356
+    Height = 431
     Top = 8
     Width = 438
     Align = alClient
     BorderSpacing.Around = 8
     BevelOuter = bvNone
-    ClientHeight = 356
+    ClientHeight = 431
     ClientWidth = 438
     TabOrder = 0
     object LabTitle: TLabel
@@ -41,13 +41,13 @@ object FormAdvOptions: TFormAdvOptions
     end
     object LabMaxAngle: TLabel
       AnchorSideLeft.Control = LabForcedFormat
-      AnchorSideTop.Control = LabForcedFormat
+      AnchorSideTop.Control = LabOutputFileParams
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 15
-      Top = 109
+      Top = 185
       Width = 113
-      BorderSpacing.Top = 18
+      BorderSpacing.Top = 62
       Caption = 'Max. angle [degrees]:'
       ParentColor = False
     end
@@ -58,7 +58,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 129
       Height = 23
-      Top = 105
+      Top = 181
       Width = 64
       BorderSpacing.Left = 8
       DecimalPlaces = 1
@@ -74,7 +74,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Control = SpinEditSkipAngle
       Left = 235
       Height = 15
-      Top = 109
+      Top = 185
       Width = 109
       Anchors = [akTop, akRight]
       BorderSpacing.Top = 18
@@ -90,11 +90,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Side = asrBottom
       Left = 352
       Height = 23
-      Top = 105
+      Top = 181
       Width = 64
       Anchors = [akTop, akRight]
       MaxValue = 45
-      MinValue = 0
       TabOrder = 2
       Value = 0.01
     end
@@ -129,7 +128,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 15
-      Top = 287
+      Top = 343
       Width = 103
       BorderSpacing.Top = 12
       Caption = 'Deskew executable:'
@@ -141,7 +140,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrCenter
       Left = 8
       Height = 19
-      Top = 256
+      Top = 312
       Width = 182
       Caption = 'Use default Deskew executable'
       Checked = True
@@ -157,7 +156,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrCenter
       Left = 119
       Height = 23
-      Top = 283
+      Top = 339
       Width = 232
       Anchors = [akTop, akLeft, akRight]
       BorderSpacing.Left = 8
@@ -172,7 +171,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrBottom
       Left = 357
       Height = 25
-      Top = 282
+      Top = 338
       Width = 73
       Action = ActBrowseDeskewExe
       Anchors = [akTop, akRight]
@@ -187,7 +186,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrBottom
       Left = 8
       Height = 25
-      Top = 327
+      Top = 402
       Width = 108
       Action = ActResetOptions
       Anchors = [akLeft, akBottom]
@@ -225,13 +224,13 @@ object FormAdvOptions: TFormAdvOptions
     end
     object LabOutputFileParams: TLabel
       AnchorSideLeft.Control = LabForcedFormat
-      AnchorSideTop.Control = LabMaxAngle
+      AnchorSideTop.Control = LabForcedFormat
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 15
-      Top = 156
+      Top = 108
       Width = 161
-      BorderSpacing.Top = 32
+      BorderSpacing.Top = 17
       Caption = 'Output file format parameters:'
       ParentColor = False
     end
@@ -241,10 +240,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 10
       Height = 19
-      Top = 183
+      Top = 133
       Width = 84
       BorderSpacing.Left = 2
-      BorderSpacing.Top = 12
+      BorderSpacing.Top = 10
       Caption = 'JPEG quality'
       TabOrder = 8
     end
@@ -255,7 +254,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 98
       Height = 23
-      Top = 181
+      Top = 131
       Width = 66
       BorderSpacing.Left = 4
       Enabled = False
@@ -270,7 +269,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Side = asrBottom
       Left = 304
       Height = 23
-      Top = 181
+      Top = 131
       Width = 112
       Anchors = [akTop, akRight]
       Enabled = False
@@ -280,12 +279,12 @@ object FormAdvOptions: TFormAdvOptions
     end
     object CheckTiffCompression: TCheckBox
       AnchorSideLeft.Control = LabOutputFileParams
-      AnchorSideTop.Control = LabOutputFileParams
-      AnchorSideTop.Side = asrBottom
+      AnchorSideTop.Control = CheckJpegQuality
+      AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = ComboTiffCompression
       Left = 188
       Height = 19
-      Top = 183
+      Top = 133
       Width = 112
       Anchors = [akTop, akRight]
       BorderSpacing.Left = 20
@@ -294,10 +293,49 @@ object FormAdvOptions: TFormAdvOptions
       Caption = 'TIFF compression'
       TabOrder = 11
     end
+    object LabThresholding: TLabel
+      AnchorSideLeft.Control = LabForcedFormat
+      AnchorSideTop.Control = LabMaxAngle
+      AnchorSideTop.Side = asrBottom
+      Left = 8
+      Height = 15
+      Top = 216
+      Width = 72
+      BorderSpacing.Top = 16
+      Caption = 'Thresholding:'
+      ParentColor = False
+    end
+    object CheckThresholdAuto: TCheckBox
+      AnchorSideLeft.Control = LabThresholding
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = LabThresholding
+      AnchorSideTop.Side = asrCenter
+      Left = 130
+      Height = 19
+      Top = 214
+      Width = 46
+      BorderSpacing.Left = 50
+      Caption = 'Auto'
+      TabOrder = 12
+    end
+    object SpinThresholdValue: TSpinEdit
+      AnchorSideLeft.Control = CheckThresholdAuto
+      AnchorSideLeft.Side = asrBottom
+      AnchorSideTop.Control = LabThresholding
+      AnchorSideTop.Side = asrCenter
+      Left = 192
+      Height = 23
+      Top = 212
+      Width = 50
+      BorderSpacing.Left = 16
+      MaxValue = 255
+      TabOrder = 13
+      Value = 128
+    end
   end
   object ActionList: TActionList
-    left = 216
-    top = 8
+    Left = 216
+    Top = 8
     object ActBrowseDeskewExe: TAction
       Caption = 'Browse...'
       OnExecute = ActBrowseDeskewExeExecute

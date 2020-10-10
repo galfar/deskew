@@ -21,4 +21,5 @@ Gui/deskewgui.app
 *.lps
 *.dbg
 *.res
+*.stat
 

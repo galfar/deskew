@@ -55,15 +55,16 @@ type
 
     // Advanced options
     ResamplingFilter: TResamplingFilter;
-    MaxAngle: Double;
-    ThresholdLevel: Integer;
     ForcedOutputFormat: TForcedOutputFormat;
-    SkipAngle: Double;
     JpegCompressionQuality: Integer;
     TiffCompressionScheme: Integer;
+    OutputFileParamsEnabled: TFileFormatSet;
+    MaxAngle: Double;
+    SkipAngle: Double;
+    ThresholdingAuto: Boolean;
+    ThresholdLevel: Integer;
     DefaultExecutable: Boolean;
     CustomExecutablePath: string;
-    OutputFileParamsEnabled: TFileFormatSet;
 
     constructor Create;
     destructor Destroy; override;
@@ -87,7 +88,7 @@ const
   DefaultBackgroundColor = $FFFFFFFF; // white
   DefaultMaxAngle = 10.0;
   DefaultSkipAngle = 0.01;
-  DefaultThresholdLevel = -1; // auto
+  DefaultThresholdLevel = 128;
   DefaultJpegCompressionQuality = 90; // imaginglib default
   DefaultTiffCompressionScheme = TiffCompressionOptionLzw; // imaginglib default
   DefaultOutputFileNamePrefix = 'deskewed-';
@@ -219,51 +220,13 @@ begin
     AParams.AddStrings(['-q', ResamplingIds[ResamplingFilter]]);
   if OutputFileParamsEnabled <> [ ] then
     AParams.AddStrings(['-c', FileParamsToString]);
+  if not ThresholdingAuto then
+    AParams.AddStrings(['-t', IntToStr(ThresholdLevel)]);
 
 {$IFDEF DEBUG}
   AParams.AddStrings(['-s', 'p']);
 {$ENDIF}
   AParams.Add(FFiles[AFileIndex]);
-end;
-
-procedure TOptions.SaveToIni(Ini: TIniFile);
-begin
-  Ini.WriteString(IniSectionOptions, 'DefaultOutputFileOptions', BoolToStr(DefaultOutputFileOptions, True));
-  Ini.WriteString(IniSectionOptions, 'OutputFolder', OutputFolder);
-  Ini.WriteString(IniSectionOptions, 'OutputFileFormat', TEnumUtils<TFileFormat>.EnumToStr(OutputFileFormat));
-  Ini.WriteString(IniSectionOptions, 'BackgroundColor', ColorToString(BackgroundColor));
-  Ini.WriteString(IniSectionOptions, 'AutoCrop', BoolToStr(AutoCrop));
-
-  Ini.WriteString(IniSectionAdvanced, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
-  Ini.WriteFloat(IniSectionAdvanced, 'MaxAngle', MaxAngle);
-  Ini.WriteInteger(IniSectionAdvanced, 'ThresholdLevel', ThresholdLevel);
-  Ini.WriteString(IniSectionAdvanced, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
-  Ini.WriteFloat(IniSectionAdvanced, 'SkipAngle', SkipAngle);
-  Ini.WriteString(IniSectionAdvanced, 'OutputFileParamsEnabled', SetToString(PTypeInfo(TypeInfo(TFileFormatSet)), Integer(OutputFileParamsEnabled), True));
-  Ini.WriteInteger(IniSectionAdvanced, 'JpegCompressionQuality', JpegCompressionQuality);
-  Ini.WriteInteger(IniSectionAdvanced, 'TiffCompressionScheme', TiffCompressionScheme);
-  Ini.WriteString(IniSectionAdvanced, 'DefaultExecutable', BoolToStr(DefaultExecutable, True));
-  Ini.WriteString(IniSectionAdvanced, 'CustomExecutablePath', CustomExecutablePath);
-end;
-
-procedure TOptions.LoadFromIni(Ini: TIniFile);
-begin
-  DefaultOutputFileOptions := StrToBoolDef(Ini.ReadString(IniSectionOptions, 'DefaultOutputFileOptions', ''), True);
-  OutputFolder := Ini.ReadString(IniSectionOptions, 'OutputFolder', '');
-  OutputFileFormat := TEnumUtils<TFileFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'OutputFileFormat', ''));
-  BackgroundColor := StringToColorDef(Ini.ReadString(IniSectionOptions, 'BackgroundColor', ''), DefaultBackgroundColor);
-  AutoCrop := StrToBoolDef(Ini.ReadString(IniSectionOptions, 'AutoCrop', ''),  False);
-
-  ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ResamplingFilter', ''));
-  MaxAngle := Ini.ReadFloat(IniSectionAdvanced, 'MaxAngle', DefaultMaxAngle);
-  ThresholdLevel := Ini.ReadInteger(IniSectionAdvanced, 'ThresholdLevel', DefaultThresholdLevel);
-  ForcedOutputFormat := TEnumUtils<TForcedOutputFormat>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ForcedOutputFormat', ''));
-  SkipAngle := Ini.ReadFloat(IniSectionAdvanced, 'SkipAngle', DefaultSkipAngle);
-  OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionAdvanced, 'OutputFileParamsEnabled', '[]')));
-  JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
-  TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
-  DefaultExecutable := StrToBoolDef(Ini.ReadString(IniSectionAdvanced, 'DefaultExecutable', ''),  True);
-  CustomExecutablePath := Ini.ReadString(IniSectionAdvanced, 'CustomExecutablePath', '');
 end;
 
 procedure TOptions.Reset;
@@ -277,6 +240,7 @@ begin
   ResamplingFilter := rfDefaultLinear;
   MaxAngle := DefaultMaxAngle;
   ThresholdLevel := DefaultThresholdLevel;
+  ThresholdingAuto := True;
   ForcedOutputFormat := fofNone;
   SkipAngle := DefaultSkipAngle;
   OutputFileParamsEnabled := [ ];
@@ -284,6 +248,49 @@ begin
   TiffCompressionScheme := DefaultTiffCompressionScheme;
   DefaultExecutable := True;
   CustomExecutablePath := '';
+end;
+
+procedure TOptions.SaveToIni(Ini: TIniFile);
+begin
+  Ini.WriteNiceBool(IniSectionOptions, 'DefaultOutputFileOptions', DefaultOutputFileOptions);
+  Ini.WriteString(IniSectionOptions, 'OutputFolder', OutputFolder);
+  Ini.WriteString(IniSectionOptions, 'OutputFileFormat', TEnumUtils<TFileFormat>.EnumToStr(OutputFileFormat));
+  Ini.WriteString(IniSectionOptions, 'BackgroundColor', ColorToString(BackgroundColor));
+  Ini.WriteNiceBool(IniSectionOptions, 'AutoCrop', AutoCrop);
+
+  Ini.WriteString(IniSectionAdvanced, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
+  Ini.WriteFloat(IniSectionAdvanced, 'MaxAngle', MaxAngle);
+  Ini.WriteInteger(IniSectionAdvanced, 'ThresholdLevel', ThresholdLevel);
+  Ini.WriteNiceBool(IniSectionAdvanced, 'ThresholdingAuto', ThresholdingAuto);
+  Ini.WriteString(IniSectionAdvanced, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
+  Ini.WriteFloat(IniSectionAdvanced, 'SkipAngle', SkipAngle);
+  Ini.WriteString(IniSectionAdvanced, 'OutputFileParamsEnabled', SetToString(PTypeInfo(TypeInfo(TFileFormatSet)), Integer(OutputFileParamsEnabled), True));
+  Ini.WriteInteger(IniSectionAdvanced, 'JpegCompressionQuality', JpegCompressionQuality);
+  Ini.WriteInteger(IniSectionAdvanced, 'TiffCompressionScheme', TiffCompressionScheme);
+  Ini.WriteNiceBool(IniSectionAdvanced, 'DefaultExecutable', DefaultExecutable);
+  Ini.WriteString(IniSectionAdvanced, 'CustomExecutablePath', CustomExecutablePath);
+end;
+
+procedure TOptions.LoadFromIni(Ini: TIniFile);
+begin
+  DefaultOutputFileOptions := Ini.ReadNiceBool(IniSectionOptions, 'DefaultOutputFileOptions', True);
+  OutputFolder := Ini.ReadString(IniSectionOptions, 'OutputFolder', '');
+  OutputFileFormat := TEnumUtils<TFileFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'OutputFileFormat', ''));
+  BackgroundColor := StringToColorDef(Ini.ReadString(IniSectionOptions, 'BackgroundColor', ''), DefaultBackgroundColor);
+  AutoCrop := Ini.ReadNiceBool(IniSectionOptions, 'AutoCrop', False);
+
+  ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ResamplingFilter', ''));
+  MaxAngle := Ini.ReadFloat(IniSectionAdvanced, 'MaxAngle', DefaultMaxAngle);
+  ThresholdLevel := Ini.ReadInteger(IniSectionAdvanced, 'ThresholdLevel', DefaultThresholdLevel);
+  ThresholdingAuto := Ini.ReadNiceBool(IniSectionAdvanced, 'ThresholdingAuto', True);
+
+  ForcedOutputFormat := TEnumUtils<TForcedOutputFormat>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ForcedOutputFormat', ''));
+  SkipAngle := Ini.ReadFloat(IniSectionAdvanced, 'SkipAngle', DefaultSkipAngle);
+  OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionAdvanced, 'OutputFileParamsEnabled', '[]')));
+  JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
+  TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
+  DefaultExecutable := Ini.ReadNiceBool(IniSectionAdvanced, 'DefaultExecutable', True);
+  CustomExecutablePath := Ini.ReadString(IniSectionAdvanced, 'CustomExecutablePath', '');
 end;
 
 end.
