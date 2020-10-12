@@ -14,6 +14,8 @@ type
     ActResetOptions: TAction;
     ActBrowseDeskewExe: TAction;
     ActionList: TActionList;
+    Bevel1: TBevel;
+    Bevel2: TBevel;
     BtnBrowseDeskewExePath: TButton;
     BtnResetOptions: TButton;
     CheckThresholdAuto: TCheckBox;
@@ -24,7 +26,9 @@ type
     ComboOutputFormat: TComboBox;
     ComboResampling: TComboBox;
     EdDeskewExePath: TEdit;
+    EdExtraCmdArgs: TEdit;
     LabDeskewExe: TLabel;
+    LabExtraCmdArgs: TLabel;
     LabOutputFileParams: TLabel;
     LabThresholding: TLabel;
     LabResamling: TLabel;
@@ -114,6 +118,7 @@ begin
   ComboTiffCompression.ItemIndex := AOptions.TiffCompressionScheme;
   CheckThresholdAuto.Checked := AOptions.ThresholdingAuto;
   SpinThresholdValue.Value := AOptions.ThresholdLevel;
+  EdExtraCmdArgs.Text := AOptions.ExtraCmdLineArgs;
 
   CheckDefaultExecutable.Checked := AOptions.DefaultExecutable;
   EdDeskewExePath.Text := AOptions.CustomExecutablePath;
@@ -130,6 +135,7 @@ begin
   AOptions.TiffCompressionScheme := ComboTiffCompression.ItemIndex;
   AOptions.ThresholdingAuto := CheckThresholdAuto.Checked;
   AOptions.ThresholdLevel := SpinThresholdValue.Value;
+  AOptions.ExtraCmdLineArgs := EdExtraCmdArgs.Text;
 
   AOptions.OutputFileParamsEnabled := [ ];
   if CheckJpegQuality.Checked then Include(AOptions.OutputFileParamsEnabled, ffJpeg);

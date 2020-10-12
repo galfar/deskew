@@ -63,6 +63,7 @@ type
     SkipAngle: Double;
     ThresholdingAuto: Boolean;
     ThresholdLevel: Integer;
+    ExtraCmdLineArgs: string;
     DefaultExecutable: Boolean;
     CustomExecutablePath: string;
 
@@ -223,6 +224,9 @@ begin
   if not ThresholdingAuto then
     AParams.AddStrings(['-t', IntToStr(ThresholdLevel)]);
 
+  if ExtraCmdLineArgs <> '' then
+    AParams.AddStrings(ExtraCmdLineArgs.Split(' '));
+
 {$IFDEF DEBUG}
   AParams.AddStrings(['-s', 'p']);
 {$ENDIF}
@@ -246,6 +250,7 @@ begin
   OutputFileParamsEnabled := [ ];
   JpegCompressionQuality := DefaultJpegCompressionQuality;
   TiffCompressionScheme := DefaultTiffCompressionScheme;
+  ExtraCmdLineArgs := '';
   DefaultExecutable := True;
   CustomExecutablePath := '';
 end;
@@ -267,6 +272,7 @@ begin
   Ini.WriteString(IniSectionAdvanced, 'OutputFileParamsEnabled', SetToString(PTypeInfo(TypeInfo(TFileFormatSet)), Integer(OutputFileParamsEnabled), True));
   Ini.WriteInteger(IniSectionAdvanced, 'JpegCompressionQuality', JpegCompressionQuality);
   Ini.WriteInteger(IniSectionAdvanced, 'TiffCompressionScheme', TiffCompressionScheme);
+  Ini.WriteString(IniSectionAdvanced, 'ExtraCmdLineArgs', ExtraCmdLineArgs);
   Ini.WriteNiceBool(IniSectionAdvanced, 'DefaultExecutable', DefaultExecutable);
   Ini.WriteString(IniSectionAdvanced, 'CustomExecutablePath', CustomExecutablePath);
 end;
@@ -289,6 +295,7 @@ begin
   OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionAdvanced, 'OutputFileParamsEnabled', '[]')));
   JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
   TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
+  ExtraCmdLineArgs := Ini.ReadString(IniSectionAdvanced, 'ExtraCmdLineArgs', '');
   DefaultExecutable := Ini.ReadNiceBool(IniSectionAdvanced, 'DefaultExecutable', True);
   CustomExecutablePath := Ini.ReadString(IniSectionAdvanced, 'CustomExecutablePath', '');
 end;

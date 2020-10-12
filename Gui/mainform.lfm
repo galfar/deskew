@@ -1,7 +1,7 @@
 object FormMain: TFormMain
   Left = 637
   Height = 740
-  Top = 231
+  Top = 232
   Width = 521
   AllowDropFiles = True
   Caption = 'Deskew GUI'
@@ -15,7 +15,7 @@ object FormMain: TFormMain
   OnDropFiles = FormDropFiles
   Position = poWorkAreaCenter
   SessionProperties = 'Position'
-  LCLVersion = '2.0.6.0'
+  LCLVersion = '2.0.10.0'
   object Notebook: TNotebook
     Left = 8
     Height = 724
@@ -416,12 +416,12 @@ object FormMain: TFormMain
   end
   object ApplicationProperties: TApplicationProperties
     OnIdle = ApplicationPropertiesIdle
-    left = 176
-    top = 200
+    Left = 176
+    Top = 200
   end
   object ActionList: TActionList
-    left = 280
-    top = 200
+    Left = 280
+    Top = 200
     object ActDeskew: TAction
       Caption = 'Deskew!'
       OnExecute = ActDeskewExecute
