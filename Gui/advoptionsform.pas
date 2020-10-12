@@ -18,6 +18,7 @@ type
     Bevel2: TBevel;
     BtnBrowseDeskewExePath: TButton;
     BtnResetOptions: TButton;
+    CheckPrintParams: TCheckBox;
     CheckThresholdAuto: TCheckBox;
     CheckJpegQuality: TCheckBox;
     CheckDefaultExecutable: TCheckBox;
@@ -118,6 +119,7 @@ begin
   ComboTiffCompression.ItemIndex := AOptions.TiffCompressionScheme;
   CheckThresholdAuto.Checked := AOptions.ThresholdingAuto;
   SpinThresholdValue.Value := AOptions.ThresholdLevel;
+  CheckPrintParams.Checked := AOptions.PrintParams;
   EdExtraCmdArgs.Text := AOptions.ExtraCmdLineArgs;
 
   CheckDefaultExecutable.Checked := AOptions.DefaultExecutable;
@@ -135,6 +137,7 @@ begin
   AOptions.TiffCompressionScheme := ComboTiffCompression.ItemIndex;
   AOptions.ThresholdingAuto := CheckThresholdAuto.Checked;
   AOptions.ThresholdLevel := SpinThresholdValue.Value;
+  AOptions.PrintParams := CheckPrintParams.Checked;
   AOptions.ExtraCmdLineArgs := EdExtraCmdArgs.Text;
 
   AOptions.OutputFileParamsEnabled := [ ];

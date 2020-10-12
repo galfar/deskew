@@ -63,6 +63,7 @@ type
     SkipAngle: Double;
     ThresholdingAuto: Boolean;
     ThresholdLevel: Integer;
+    PrintParams: Boolean;
     ExtraCmdLineArgs: string;
     DefaultExecutable: Boolean;
     CustomExecutablePath: string;
@@ -93,6 +94,7 @@ const
   DefaultJpegCompressionQuality = 90; // imaginglib default
   DefaultTiffCompressionScheme = TiffCompressionOptionLzw; // imaginglib default
   DefaultOutputFileNamePrefix = 'deskewed-';
+  DefaultPrintParams = {$IFNDEF DEBUG}False{$ELSE}True{$ENDIF};
 
   FileExts: array[TFileFormat] of string = (
     '',    // ffSameAsInput
@@ -223,13 +225,12 @@ begin
     AParams.AddStrings(['-c', FileParamsToString]);
   if not ThresholdingAuto then
     AParams.AddStrings(['-t', IntToStr(ThresholdLevel)]);
+  if PrintParams then
+    AParams.AddStrings(['-s', 'p']);
 
   if ExtraCmdLineArgs <> '' then
     AParams.AddStrings(ExtraCmdLineArgs.Split(' '));
 
-{$IFDEF DEBUG}
-  AParams.AddStrings(['-s', 'p']);
-{$ENDIF}
   AParams.Add(FFiles[AFileIndex]);
 end;
 
@@ -250,6 +251,7 @@ begin
   OutputFileParamsEnabled := [ ];
   JpegCompressionQuality := DefaultJpegCompressionQuality;
   TiffCompressionScheme := DefaultTiffCompressionScheme;
+  PrintParams := DefaultPrintParams;
   ExtraCmdLineArgs := '';
   DefaultExecutable := True;
   CustomExecutablePath := '';
@@ -272,6 +274,7 @@ begin
   Ini.WriteString(IniSectionAdvanced, 'OutputFileParamsEnabled', SetToString(PTypeInfo(TypeInfo(TFileFormatSet)), Integer(OutputFileParamsEnabled), True));
   Ini.WriteInteger(IniSectionAdvanced, 'JpegCompressionQuality', JpegCompressionQuality);
   Ini.WriteInteger(IniSectionAdvanced, 'TiffCompressionScheme', TiffCompressionScheme);
+  Ini.WriteNiceBool(IniSectionAdvanced, 'PrintParams', PrintParams);
   Ini.WriteString(IniSectionAdvanced, 'ExtraCmdLineArgs', ExtraCmdLineArgs);
   Ini.WriteNiceBool(IniSectionAdvanced, 'DefaultExecutable', DefaultExecutable);
   Ini.WriteString(IniSectionAdvanced, 'CustomExecutablePath', CustomExecutablePath);
@@ -295,6 +298,7 @@ begin
   OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionAdvanced, 'OutputFileParamsEnabled', '[]')));
   JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
   TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
+  PrintParams := Ini.ReadNiceBool(IniSectionAdvanced, 'PrintParams', DefaultPrintParams);
   ExtraCmdLineArgs := Ini.ReadString(IniSectionAdvanced, 'ExtraCmdLineArgs', '');
   DefaultExecutable := Ini.ReadNiceBool(IniSectionAdvanced, 'DefaultExecutable', True);
   CustomExecutablePath := Ini.ReadString(IniSectionAdvanced, 'CustomExecutablePath', '');
