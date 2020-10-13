@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  # on each push and manual trigger
+  push:  
+    branches: [ master ]
+    paths-ignore: [ "Readme.md" ]
+  workflow_dispatch:    
+
+jobs:
+  build:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        # macos not supported yet by setup-lazarus
+        operating-system: [ubuntu-latest, windows-latest]
+        # currently stable=2.0.8 with setup-lazarus@v2.2.1 
+        lazarus-versions: [stable]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Lazarus
+        uses: gcarreno/setup-lazarus@v2.2.1
+        with:
+          lazarus-version: ${{ matrix.lazarus-versions }}
+          include-packages: "Synapse 40.1"
+      - name: Print Lazarus version
+        run: lazbuild --version
+      - name: Build Deskew CLI
+        run: lazbuild --build-mode=Release "deskew.lpi"
+      - name: Build Deskew GUI
+        run: lazbuild --build-mode=Release "Gui/deskewgui.lpi"      
+      - name:  Run tests
+        run:   |          
+          cd Bin 
+          ls
+          if [ "$RUNNER_OS" == "Linux" ]; then
+              ./runtests.sh
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+              ./RunTests.bat
+          fi
+        shell: bash   
+      - uses: actions/upload-artifact@v2
+        with:
+          name: deskew-binaries
+          path: |            
+            Bin/deskew*            
+          if-no-files-found: error
