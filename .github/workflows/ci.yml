@@ -14,15 +14,14 @@ jobs:
       matrix:
         # macos not supported yet by setup-lazarus
         operating-system: [ubuntu-latest, windows-latest]
-        # currently stable=2.0.8 with setup-lazarus@v2.2.1 
+        # currently stable=2.0.10 with setup-lazarus@v2.2.6 
         lazarus-versions: [stable]
     steps:
       - uses: actions/checkout@v2
       - name: Install Lazarus
-        uses: gcarreno/setup-lazarus@v2.2.1
+        uses: gcarreno/setup-lazarus@v2.2.6
         with:
-          lazarus-version: ${{ matrix.lazarus-versions }}
-          include-packages: "Synapse 40.1"
+          lazarus-version: ${{ matrix.lazarus-versions }}          
       - name: Print Lazarus version
         run: lazbuild --version
       - name: Build Deskew CLI
