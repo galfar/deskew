@@ -21,7 +21,7 @@ Win64 (`deskew.exe`), Win32 (`deskew32.exe`), Linux 64bit (`deskew`), macOS (`de
 
 GUI frontend for this CLI tool is available as well (Windows, Linux, and macOS).
 
-License: MIT
+License: MPL 2.0
 
 ### Downloads And Releases
 
