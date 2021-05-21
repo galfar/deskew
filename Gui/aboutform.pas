@@ -27,8 +27,10 @@ type
     LabWeb: TLabel;
     LabTitle: TLabel;
     LabVersion: TLabel;
+    LabGh: TLabel;
     procedure BtnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure LabGhClick(Sender: TObject);
     procedure LabWebClick(Sender: TObject);
   end;
 
@@ -75,6 +77,11 @@ begin
     ImageIcon.Stretch := False;
     ImageIcon.Picture.LoadFromResourceName(HInstance, Config.LogoImageResName);
   end;
+end;
+
+procedure TFormAbout.LabGhClick(Sender: TObject);
+begin
+  OpenURL(LabGh.Caption);
 end;
 
 procedure TFormAbout.LabWebClick(Sender: TObject);

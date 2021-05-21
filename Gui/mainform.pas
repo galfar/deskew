@@ -224,7 +224,6 @@ end;
 procedure TFormMain.ActDeskewExecute(Sender: TObject);
 begin
   GatherOptions(Module.Options);
-  FormAdvOptions.GatherOptions(Module.Options);
 
   ActFinish.Caption := 'Stop';
   MemoOutput.Clear;

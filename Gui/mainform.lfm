@@ -2,11 +2,11 @@ object FormMain: TFormMain
   Left = 637
   Height = 740
   Top = 232
-  Width = 521
+  Width = 530
   AllowDropFiles = True
   Caption = 'Deskew GUI'
   ClientHeight = 740
-  ClientWidth = 521
+  ClientWidth = 530
   Color = clWhite
   Constraints.MinHeight = 520
   Constraints.MinWidth = 520
@@ -20,7 +20,7 @@ object FormMain: TFormMain
     Left = 8
     Height = 724
     Top = 8
-    Width = 505
+    Width = 514
     PageIndex = 0
     Align = alClient
     BorderSpacing.Around = 8
@@ -31,7 +31,7 @@ object FormMain: TFormMain
         Left = 0
         Height = 57
         Top = 667
-        Width = 505
+        Width = 514
         Action = ActDeskew
         Align = alBottom
         Anchors = [akLeft]
@@ -43,17 +43,17 @@ object FormMain: TFormMain
         Left = 0
         Height = 465
         Top = 0
-        Width = 505
+        Width = 514
         Align = alClient
         BevelOuter = bvNone
         ClientHeight = 465
-        ClientWidth = 505
+        ClientWidth = 514
         TabOrder = 0
         object Label1: TLabel
           Left = 0
           Height = 23
           Top = 4
-          Width = 505
+          Width = 514
           Align = alTop
           BorderSpacing.Top = 4
           BorderSpacing.Bottom = 10
@@ -68,7 +68,7 @@ object FormMain: TFormMain
           Left = 0
           Height = 374
           Top = 37
-          Width = 505
+          Width = 514
           Align = alClient
           BorderSpacing.Bottom = 54
           ScrollBars = ssAutoBoth
@@ -88,7 +88,7 @@ object FormMain: TFormMain
           TabOrder = 1
         end
         object BtnClear: TButton
-          Left = 402
+          Left = 411
           Height = 37
           Top = 417
           Width = 103
@@ -99,7 +99,7 @@ object FormMain: TFormMain
           TabOrder = 2
         end
         object BtnAbout: TButton
-          Left = 468
+          Left = 477
           Height = 25
           Top = 0
           Width = 37
@@ -114,20 +114,20 @@ object FormMain: TFormMain
         Left = 0
         Height = 182
         Top = 471
-        Width = 505
+        Width = 514
         Align = alBottom
         AutoSize = True
         BorderSpacing.Top = 6
         BorderSpacing.Bottom = 14
         BevelOuter = bvNone
         ClientHeight = 182
-        ClientWidth = 505
+        ClientWidth = 514
         TabOrder = 1
         object Label2: TLabel
           Left = 0
           Height = 23
           Top = 4
-          Width = 505
+          Width = 514
           Align = alTop
           BorderSpacing.Top = 4
           BorderSpacing.Bottom = 4
@@ -142,12 +142,12 @@ object FormMain: TFormMain
           Left = 0
           Height = 143
           Top = 31
-          Width = 505
+          Width = 514
           Align = alClient
           BorderSpacing.Bottom = 8
           BevelOuter = bvNone
           ClientHeight = 143
-          ClientWidth = 505
+          ClientWidth = 514
           TabOrder = 0
           object ColorBtnBackground: TColorButton
             AnchorSideLeft.Control = LabBackColor
@@ -227,7 +227,7 @@ object FormMain: TFormMain
             Left = 95
             Height = 23
             Top = 39
-            Width = 323
+            Width = 332
             Anchors = [akTop, akLeft, akRight]
             BorderSpacing.Left = 12
             BorderSpacing.Right = 4
@@ -240,7 +240,7 @@ object FormMain: TFormMain
             AnchorSideRight.Control = Panel1
             AnchorSideRight.Side = asrBottom
             AnchorSideBottom.Side = asrCenter
-            Left = 424
+            Left = 433
             Height = 25
             Top = 38
             Width = 73
@@ -256,7 +256,7 @@ object FormMain: TFormMain
             AnchorSideTop.Side = asrCenter
             AnchorSideRight.Control = BtnBrowseOutputDir
             AnchorSideRight.Side = asrBottom
-            Left = 396
+            Left = 405
             Height = 25
             Top = 117
             Width = 101

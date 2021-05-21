@@ -3,8 +3,8 @@ object Module: TModule
   OnDestroy = DataModuleDestroy
   OldCreateOrder = False
   Height = 334
-  HorizontalOffset = 614
-  VerticalOffset = 85
+  HorizontalOffset = 753
+  VerticalOffset = 341
   Width = 442
   object OpenDialogMulti: TOpenDialog
     Options = [ofAllowMultiSelect, ofEnableSizing, ofViewDetail, ofAutoPreview]

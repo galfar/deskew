@@ -11,7 +11,7 @@ object FormAbout: TFormAbout
   Color = clWhite
   OnCreate = FormCreate
   Position = poMainFormCenter
-  LCLVersion = '1.8.4.0'
+  LCLVersion = '2.0.10.0'
   object ImageIcon: TImage
     Left = 14
     Height = 128
@@ -71,7 +71,7 @@ object FormAbout: TFormAbout
   object Label1: TLabel
     Left = 160
     Height = 15
-    Top = 119
+    Top = 104
     Width = 93
     Caption = 'by Marek Mauder'
     ParentColor = False
@@ -80,13 +80,26 @@ object FormAbout: TFormAbout
     Cursor = crHandPoint
     Left = 160
     Height = 15
-    Top = 136
+    Top = 121
     Width = 162
-    Caption = 'http://galfar.vevb.net/deskew/'
+    Caption = 'https://galfar.vevb.net/deskew'
     Font.Color = 16744448
     Font.Style = [fsUnderline]
     ParentColor = False
     ParentFont = False
     OnClick = LabWebClick
+  end
+  object LabGh: TLabel
+    Cursor = crHandPoint
+    Left = 160
+    Height = 15
+    Top = 137
+    Width = 181
+    Caption = 'https://github.com/galfar/deskew'
+    Font.Color = 16744448
+    Font.Style = [fsUnderline]
+    ParentColor = False
+    ParentFont = False
+    OnClick = LabGhClick
   end
 end
