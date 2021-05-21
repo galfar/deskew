@@ -19,7 +19,7 @@ get an image rotated so that the lines are horizontal.
 There are binaries built for these platforms (located in Bin folder):
 Win64 (`deskew.exe`), Win32 (`deskew32.exe`), Linux 64bit (`deskew`), macOS (`deskew-mac`), Linux ARMv7 (`deskew-arm`).
 
-GUI frontend for this CLI tool is available as well (Windows, Linux, and macOS).
+GUI frontend for this CLI tool is available as well (Windows, Linux, and macOS), see [GUI's Readme](Gui/Readme.md).
 
 License: MPL 2.0
 
