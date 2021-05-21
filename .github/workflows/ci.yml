@@ -4,40 +4,55 @@ on:
   # on each push and manual trigger
   push:  
     branches: [ master ]
-    paths-ignore: [ "Readme.md" ]
+    paths-ignore: [ "**/Readme.md" ]
   workflow_dispatch:    
 
 jobs:
   build:
     runs-on: ${{ matrix.operating-system }}
-    strategy:
+        strategy:
       matrix:
-        # macos not supported yet by setup-lazarus
-        operating-system: [ubuntu-latest, windows-latest]
-        # currently stable=2.0.10 with setup-lazarus@v2.2.6 
+        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        # currently stable=2.0.12 with setup-lazarus@v3.0.2 
         lazarus-versions: [stable]
     steps:
       - uses: actions/checkout@v2
       - name: Install Lazarus
-        uses: gcarreno/setup-lazarus@v2.2.6
+        uses: gcarreno/setup-lazarus@v3.0.2
         with:
           lazarus-version: ${{ matrix.lazarus-versions }}          
       - name: Print Lazarus version
         run: lazbuild --version
       - name: Build Deskew CLI
-        run: lazbuild --build-mode=Release "deskew.lpi"
+        shell: bash
+        run:  |  
+          if [ "$RUNNER_OS" == "macOS" ]; then
+              lazbuild --build-mode=Release-macOS "deskew.lpi"    
+          else
+              lazbuild --build-mode=Release "deskew.lpi"
+          fi
       - name: Build Deskew GUI
-        run: lazbuild --build-mode=Release "Gui/deskewgui.lpi"      
+        shell: bash
+        run:   |
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            lazbuild --build-mode=Release-macOS "Gui/deskewgui.lpi"
+          else
+            lazbuild --build-mode=Release "Gui/deskewgui.lpi"
+          fi  
+      - name: List Bin directory
+        shell: bash
+        run:  ls Bin            
       - name:  Run tests
+        shell: bash
         run:   |          
           cd Bin 
-          ls
           if [ "$RUNNER_OS" == "Linux" ]; then
               ./runtests.sh
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
-          fi
-        shell: bash   
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+              ./runtests.sh deskew-mac   
+          fi           
       - uses: actions/upload-artifact@v2
         with:
           name: deskew-binaries
