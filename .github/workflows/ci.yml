@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.operating-system }}
-        strategy:
+    strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
         # currently stable=2.0.12 with setup-lazarus@v3.0.2 
