@@ -24,8 +24,6 @@ type
     ActResetOptions: TAction;
     ActBrowseDeskewExe: TAction;
     ActionList: TActionList;
-    Bevel1: TBevel;
-    Bevel2: TBevel;
     BtnBrowseDeskewExePath: TButton;
     BtnResetOptions: TButton;
     BtnOk: TButton;
@@ -49,6 +47,8 @@ type
     LabMaxAngle: TLabel;
     LabSkipAngle: TLabel;
     Panel1: TPanel;
+    Shape1: TShape;
+    Shape2: TShape;
     SpinThresholdValue: TSpinEdit;
     SpinEditJpegQuality: TSpinEdit;
     SpinEditMaxAngle: TFloatSpinEdit;

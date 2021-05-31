@@ -1,34 +1,34 @@
 object FormAdvOptions: TFormAdvOptions
   Left = 685
-  Height = 539
+  Height = 593
   Top = 221
-  Width = 480
+  Width = 481
+  AutoSize = True
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'Advanced Options'
-  ClientHeight = 539
-  ClientWidth = 480
+  ClientHeight = 593
+  ClientWidth = 481
   Color = clWhite
   OnCreate = FormCreate
   OnShow = FormShow
   Position = poMainFormCenter
-  LCLVersion = '2.0.10.0'
   object Panel1: TPanel
     Left = 8
-    Height = 523
+    Height = 577
     Top = 8
-    Width = 464
+    Width = 465
     Align = alClient
     BorderSpacing.Around = 8
     BevelOuter = bvNone
-    ClientHeight = 523
-    ClientWidth = 464
+    ClientHeight = 577
+    ClientWidth = 465
     TabOrder = 0
     object LabTitle: TLabel
       Left = 0
-      Height = 23
+      Height = 34
       Top = 4
-      Width = 464
+      Width = 465
       Align = alTop
       BorderSpacing.Top = 4
       BorderSpacing.Bottom = 4
@@ -44,9 +44,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabThresholding
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 15
-      Top = 240
-      Width = 113
+      Height = 19
+      Top = 270
+      Width = 134
       BorderSpacing.Top = 16
       Caption = 'Max. angle [degrees]:'
       ParentColor = False
@@ -56,9 +56,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = LabMaxAngle
       AnchorSideTop.Side = asrCenter
-      Left = 129
-      Height = 23
-      Top = 236
+      Left = 150
+      Height = 29
+      Top = 265
       Width = 64
       BorderSpacing.Left = 8
       DecimalPlaces = 1
@@ -72,10 +72,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabMaxAngle
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = SpinEditSkipAngle
-      Left = 267
-      Height = 15
-      Top = 240
-      Width = 109
+      Left = 264
+      Height = 19
+      Top = 270
+      Width = 129
       Anchors = [akTop, akRight]
       BorderSpacing.Top = 18
       BorderSpacing.Right = 8
@@ -88,9 +88,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = ComboOutputFormat
       AnchorSideRight.Side = asrBottom
-      Left = 384
-      Height = 23
-      Top = 236
+      Left = 401
+      Height = 29
+      Top = 265
       Width = 64
       Anchors = [akTop, akRight]
       MaxValue = 45
@@ -102,9 +102,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabResamling
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 15
-      Top = 76
-      Width = 80
+      Height = 19
+      Top = 91
+      Width = 94
       BorderSpacing.Left = 8
       BorderSpacing.Top = 18
       Caption = 'Output format:'
@@ -114,11 +114,11 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideLeft.Control = ComboResampling
       AnchorSideTop.Control = LabForcedFormat
       AnchorSideTop.Side = asrCenter
-      Left = 138
-      Height = 23
-      Top = 72
+      Left = 155
+      Height = 35
+      Top = 83
       Width = 310
-      ItemHeight = 15
+      ItemHeight = 0
       Style = csDropDownList
       TabOrder = 1
     end
@@ -127,9 +127,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = CheckDefaultExecutable
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 15
-      Top = 406
-      Width = 103
+      Height = 19
+      Top = 448
+      Width = 124
       BorderSpacing.Top = 12
       Caption = 'Deskew executable:'
       ParentColor = False
@@ -140,9 +140,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       AnchorSideBottom.Side = asrCenter
       Left = 8
-      Height = 19
-      Top = 375
-      Width = 182
+      Height = 21
+      Top = 415
+      Width = 218
       BorderSpacing.Top = 18
       Caption = 'Use default Deskew executable'
       Checked = True
@@ -156,10 +156,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = BtnBrowseDeskewExePath
       AnchorSideBottom.Side = asrCenter
-      Left = 119
-      Height = 23
-      Top = 402
-      Width = 258
+      Left = 140
+      Height = 31
+      Top = 442
+      Width = 240
       Anchors = [akTop, akLeft, akRight]
       BorderSpacing.Left = 8
       TabOrder = 12
@@ -171,10 +171,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Control = Panel1
       AnchorSideRight.Side = asrBottom
       AnchorSideBottom.Side = asrBottom
-      Left = 383
-      Height = 25
-      Top = 401
-      Width = 73
+      Left = 386
+      Height = 33
+      Top = 441
+      Width = 71
       Action = ActBrowseDeskewExe
       Anchors = [akTop, akRight]
       AutoSize = True
@@ -187,14 +187,15 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Control = Panel1
       AnchorSideBottom.Side = asrBottom
       Left = 8
-      Height = 25
-      Top = 494
-      Width = 108
+      Height = 33
+      Top = 540
+      Width = 130
       Action = ActResetOptions
       Anchors = [akLeft, akBottom]
       AutoSize = True
       BorderSpacing.Left = 8
       BorderSpacing.Bottom = 4
+      Constraints.MinWidth = 130
       TabOrder = 14
     end
     object ComboResampling: TComboBox
@@ -202,12 +203,12 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = LabResamling
       AnchorSideTop.Side = asrCenter
-      Left = 138
-      Height = 23
-      Top = 39
+      Left = 155
+      Height = 35
+      Top = 46
       Width = 310
       BorderSpacing.Left = 20
-      ItemHeight = 15
+      ItemHeight = 0
       Style = csDropDownList
       TabOrder = 0
     end
@@ -216,9 +217,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabTitle
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 15
-      Top = 43
-      Width = 110
+      Height = 19
+      Top = 54
+      Width = 127
       BorderSpacing.Left = 8
       BorderSpacing.Top = 16
       Caption = 'Resampling method:'
@@ -229,9 +230,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabForcedFormat
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 15
-      Top = 109
-      Width = 161
+      Height = 19
+      Top = 128
+      Width = 192
       BorderSpacing.Top = 18
       Caption = 'Output file format parameters:'
       ParentColor = False
@@ -241,9 +242,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = LabOutputFileParams
       AnchorSideTop.Side = asrBottom
       Left = 10
-      Height = 19
-      Top = 134
-      Width = 84
+      Height = 21
+      Top = 157
+      Width = 97
       BorderSpacing.Left = 2
       BorderSpacing.Top = 10
       Caption = 'JPEG quality'
@@ -254,9 +255,9 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = CheckJpegQuality
       AnchorSideTop.Side = asrCenter
-      Left = 98
-      Height = 23
-      Top = 132
+      Left = 111
+      Height = 29
+      Top = 153
       Width = 66
       BorderSpacing.Left = 4
       Enabled = False
@@ -269,13 +270,13 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = ComboOutputFormat
       AnchorSideRight.Side = asrBottom
-      Left = 336
-      Height = 23
-      Top = 132
+      Left = 353
+      Height = 35
+      Top = 150
       Width = 112
       Anchors = [akTop, akRight]
       Enabled = False
-      ItemHeight = 15
+      ItemHeight = 0
       Style = csDropDownList
       TabOrder = 5
     end
@@ -284,10 +285,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Control = CheckJpegQuality
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = ComboTiffCompression
-      Left = 220
-      Height = 19
-      Top = 134
-      Width = 112
+      Left = 217
+      Height = 21
+      Top = 157
+      Width = 132
       Anchors = [akTop, akRight]
       BorderSpacing.Left = 20
       BorderSpacing.Top = 12
@@ -297,12 +298,12 @@ object FormAdvOptions: TFormAdvOptions
     end
     object LabThresholding: TLabel
       AnchorSideLeft.Control = LabForcedFormat
-      AnchorSideTop.Control = Bevel1
-      AnchorSideTop.Side = asrBottom
+      AnchorSideTop.Control = SpinThresholdValue
+      AnchorSideTop.Side = asrCenter
       Left = 8
-      Height = 15
-      Top = 209
-      Width = 72
+      Height = 19
+      Top = 235
+      Width = 85
       BorderSpacing.Top = 20
       Caption = 'Thresholding:'
       ParentColor = False
@@ -312,10 +313,10 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideLeft.Side = asrBottom
       AnchorSideTop.Control = LabThresholding
       AnchorSideTop.Side = asrCenter
-      Left = 130
-      Height = 19
-      Top = 207
-      Width = 46
+      Left = 143
+      Height = 21
+      Top = 234
+      Width = 54
       BorderSpacing.Left = 50
       Caption = 'Auto'
       TabOrder = 8
@@ -323,27 +324,27 @@ object FormAdvOptions: TFormAdvOptions
     object SpinThresholdValue: TSpinEdit
       AnchorSideLeft.Control = CheckThresholdAuto
       AnchorSideLeft.Side = asrBottom
-      AnchorSideTop.Control = LabThresholding
-      AnchorSideTop.Side = asrCenter
-      Left = 192
-      Height = 23
-      Top = 205
+      AnchorSideTop.Control = Shape1
+      AnchorSideTop.Side = asrBottom
+      Left = 213
+      Height = 29
+      Top = 230
       Width = 50
       BorderSpacing.Left = 16
+      BorderSpacing.Top = 20
       MaxValue = 255
       TabOrder = 9
       Value = 128
     end
     object LabExtraCmdArgs: TLabel
       AnchorSideLeft.Control = LabForcedFormat
-      AnchorSideTop.Control = Bevel2
-      AnchorSideTop.Side = asrBottom
-      AnchorSideBottom.Control = CheckDefaultExecutable
+      AnchorSideTop.Control = EdExtraCmdArgs
+      AnchorSideTop.Side = asrCenter
       AnchorSideBottom.Side = asrBottom
       Left = 8
-      Height = 15
-      Top = 342
-      Width = 171
+      Height = 19
+      Top = 378
+      Width = 201
       BorderSpacing.Top = 20
       BorderSpacing.Bottom = 12
       Caption = 'Extra command line parameters:'
@@ -352,64 +353,78 @@ object FormAdvOptions: TFormAdvOptions
     object EdExtraCmdArgs: TEdit
       AnchorSideLeft.Control = LabExtraCmdArgs
       AnchorSideLeft.Side = asrBottom
-      AnchorSideTop.Control = LabExtraCmdArgs
-      AnchorSideTop.Side = asrCenter
-      Left = 195
-      Height = 23
-      Top = 338
+      AnchorSideTop.Control = Shape2
+      AnchorSideTop.Side = asrBottom
+      Left = 225
+      Height = 31
+      Top = 372
       Width = 219
       BorderSpacing.Left = 16
+      BorderSpacing.Top = 20
       TabOrder = 10
-    end
-    object Bevel1: TBevel
-      AnchorSideLeft.Control = Panel1
-      AnchorSideTop.Control = SpinEditJpegQuality
-      AnchorSideTop.Side = asrBottom
-      Left = 0
-      Height = 8
-      Top = 181
-      Width = 150
-      BorderSpacing.Top = 26
-      Shape = bsTopLine
     end
     object CheckPrintParams: TCheckBox
       AnchorSideLeft.Control = LabMaxAngle
       AnchorSideTop.Control = LabMaxAngle
       AnchorSideTop.Side = asrBottom
       Left = 8
-      Height = 19
-      Top = 271
-      Width = 107
+      Height = 21
+      Top = 305
+      Width = 130
       BorderSpacing.Top = 16
       Caption = 'Print parameters'
       TabOrder = 15
     end
     object BtnOk: TButton
+      AnchorSideTop.Control = BtnBrowseDeskewExePath
+      AnchorSideTop.Side = asrBottom
       AnchorSideRight.Control = Panel1
       AnchorSideRight.Side = asrBottom
       AnchorSideBottom.Control = Panel1
       AnchorSideBottom.Side = asrBottom
-      Left = 333
-      Height = 25
-      Top = 498
-      Width = 131
-      Anchors = [akRight, akBottom]
+      Left = 335
+      Height = 33
+      Top = 544
+      Width = 130
+      Anchors = [akTop, akRight, akBottom]
+      AutoSize = True
+      BorderSpacing.Top = 70
       Caption = 'OK'
+      Constraints.MinWidth = 130
       Default = True
       ModalResult = 1
       OnClick = BtnOkClick
       TabOrder = 16
     end
-    object Bevel2: TBevel
+    object Shape1: TShape
+      AnchorSideLeft.Control = Panel1
+      AnchorSideTop.Control = SpinEditJpegQuality
+      AnchorSideTop.Side = asrBottom
+      AnchorSideRight.Control = Panel1
+      AnchorSideRight.Side = asrBottom
+      Left = 0
+      Height = 2
+      Top = 208
+      Width = 465
+      Anchors = [akTop, akLeft, akRight]
+      BorderSpacing.Top = 26
+      Brush.Style = bsClear
+      Pen.Color = 15724527
+    end
+    object Shape2: TShape
       AnchorSideLeft.Control = Panel1
       AnchorSideTop.Control = CheckPrintParams
       AnchorSideTop.Side = asrBottom
+      AnchorSideRight.Control = Panel1
+      AnchorSideRight.Side = asrBottom
       Left = 0
-      Height = 8
-      Top = 314
-      Width = 150
+      Height = 2
+      Top = 350
+      Width = 465
+      Anchors = [akTop, akLeft, akRight]
       BorderSpacing.Top = 24
-      Shape = bsTopLine
+      Brush.Style = bsClear
+      Pen.Color = 15724527
     end
   end
   object ActionList: TActionList
