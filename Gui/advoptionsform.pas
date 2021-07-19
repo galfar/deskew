@@ -79,6 +79,8 @@ uses
 
 procedure TFormAdvOptions.FormCreate(Sender: TObject);
 begin
+  {$IFDEF MSWINDOWS}Color := clWhite;{$ENDIF}
+
   ComboOutputFormat.Clear;
   ComboOutputFormat.AddItem('Default (usually same as input)', TObject(fofNone));
   ComboOutputFormat.AddItem('1bit black and white', TObject(fofBinary1));

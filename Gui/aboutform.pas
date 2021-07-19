@@ -55,6 +55,8 @@ procedure TFormAbout.FormCreate(Sender: TObject);
 var
   Icon: TIcon;
 begin
+  {$IFDEF MSWINDOWS}Color := clWhite;{$ENDIF}
+
   LabTitle.Caption := Application.Title;
   LabVersion.Caption := 'v' + Module.VersionString;
   LabWeb.Caption := Config.WebLink;
