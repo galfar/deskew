@@ -94,7 +94,16 @@ type
 implementation
 
 uses
-  ImagingUtility, ImagingTiff, Utils, TypInfo;
+  ImagingUtility, Utils, TypInfo;
+
+// From ImagingTiff.pas
+const
+  TiffCompressionOptionNone        = 0;
+  TiffCompressionOptionLzw         = 1;
+  TiffCompressionOptionPackbitsRle = 2;
+  TiffCompressionOptionDeflate     = 3;
+  TiffCompressionOptionJpeg        = 4;
+  TiffCompressionOptionGroup4      = 5;
 
 const
   DefaultBackgroundColor = $FFFFFFFF; // white

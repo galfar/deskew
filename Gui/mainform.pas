@@ -97,7 +97,7 @@ implementation
 {$R *.lfm}
 
 uses
-  ImagingUtility, Imaging, DataModule, AdvOptionsForm, AboutForm, Config;
+  ImagingUtility, DataModule, AdvOptionsForm, AboutForm, Config, Utils;
 
 { TFormMain }
 
