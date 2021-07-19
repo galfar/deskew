@@ -14,7 +14,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Spin, ActnList, Options, Config;
+  ExtCtrls, Spin, ActnList, Buttons, Options, Config;
 
 type
 
@@ -25,8 +25,8 @@ type
     ActBrowseDeskewExe: TAction;
     ActionList: TActionList;
     BtnBrowseDeskewExePath: TButton;
-    BtnResetOptions: TButton;
-    BtnOk: TButton;
+    BtnOk: TBitBtn;
+    BtnResetOptions: TBitBtn;
     CheckPrintParams: TCheckBox;
     CheckThresholdAuto: TCheckBox;
     CheckJpegQuality: TCheckBox;

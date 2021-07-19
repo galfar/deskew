@@ -1,17 +1,15 @@
 object FormAbout: TFormAbout
-  Left = 425
+  Left = 752
   Height = 209
-  Top = 332
+  Top = 476
   Width = 378
   BorderIcons = [biSystemMenu]
   BorderStyle = bsDialog
   Caption = 'About'
   ClientHeight = 209
   ClientWidth = 378
-  Color = clWhite
   OnCreate = FormCreate
   Position = poMainFormCenter
-  LCLVersion = '2.0.10.0'
   object ImageIcon: TImage
     Left = 14
     Height = 128
@@ -29,10 +27,10 @@ object FormAbout: TFormAbout
     AnchorSideRight.Side = asrCenter
     AnchorSideBottom.Control = Owner
     AnchorSideBottom.Side = asrBottom
-    Left = 162
-    Height = 25
-    Top = 174
-    Width = 55
+    Left = 158
+    Height = 20
+    Top = 179
+    Width = 63
     Anchors = [akLeft, akBottom]
     AutoSize = True
     BorderSpacing.Bottom = 10
@@ -43,9 +41,9 @@ object FormAbout: TFormAbout
   end
   object LabTitle: TLabel
     Left = 160
-    Height = 30
+    Height = 35
     Top = 24
-    Width = 90
+    Width = 121
     Caption = 'App Title'
     Font.Color = 11428096
     Font.Height = 30
@@ -61,27 +59,27 @@ object FormAbout: TFormAbout
     AnchorSideBottom.Control = LabTitle
     AnchorSideBottom.Side = asrBottom
     Left = 160
-    Height = 15
-    Top = 54
-    Width = 21
+    Height = 16
+    Top = 59
+    Width = 24
     Caption = 'v1.0'
     Layout = tlBottom
     ParentColor = False
   end
   object Label1: TLabel
     Left = 160
-    Height = 15
+    Height = 16
     Top = 104
-    Width = 93
+    Width = 105
     Caption = 'by Marek Mauder'
     ParentColor = False
   end
   object LabWeb: TLabel
     Cursor = crHandPoint
     Left = 160
-    Height = 15
+    Height = 16
     Top = 121
-    Width = 162
+    Width = 183
     Caption = 'https://galfar.vevb.net/deskew'
     Font.Color = 16744448
     Font.Style = [fsUnderline]
@@ -92,9 +90,9 @@ object FormAbout: TFormAbout
   object LabGh: TLabel
     Cursor = crHandPoint
     Left = 160
-    Height = 15
+    Height = 16
     Top = 137
-    Width = 181
+    Width = 201
     Caption = 'https://github.com/galfar/deskew'
     Font.Color = 16744448
     Font.Style = [fsUnderline]

@@ -15,7 +15,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms,
   Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
-  ComCtrls, ActnList,
+  ComCtrls, ActnList, Buttons,
   // App units
   Runner, Options;
 
@@ -33,13 +33,14 @@ type
     ActShowAdvOptions: TAction;
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
-    BtnAddFiles: TButton;
-    BtnDeskew: TButton;
-    BtnClear: TButton;
-    BtnFinish: TButton;
+    BitBtn1: TBitBtn;
+    BtnAddFiles: TBitBtn;
+    BtnAdvOptions: TBitBtn;
+    BtnClear: TBitBtn;
+    BtnDeskew: TBitBtn;
     BtnBrowseOutputDir: TButton;
-    BtnAdvOptions: TButton;
     BtnAbout: TButton;
+    BtnFinish: TBitBtn;
     CheckAutoCrop: TCheckBox;
     CheckDefaultOutputFileOptions: TCheckBox;
     ColorBtnBackground: TColorButton;
@@ -107,6 +108,9 @@ begin
   FRunner.OnProgress := RunnerProgress;
 
   Caption := Application.Title + ' v' + Module.VersionString;
+
+  MemoFiles.Clear;
+  MemoOutput.Clear;
 
   ComboFileFormat.Items.Clear;
   ComboFileFormat.Items.AddObject('Same as input', TObject(ffSameAsInput));
