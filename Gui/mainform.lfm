@@ -26,18 +26,18 @@ object FormMain: TFormMain
     object PageIn: TPage
       object PanelFiles: TPanel
         Left = 0
-        Height = 386
+        Height = 368
         Top = 0
         Width = 514
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 386
+        ClientHeight = 368
         ClientWidth = 514
         TabOrder = 0
         object MemoFiles: TMemo
           Left = 0
-          Height = 290
-          Top = 42
+          Height = 266
+          Top = 48
           Width = 514
           Align = alClient
           BorderSpacing.Bottom = 54
@@ -50,10 +50,10 @@ object FormMain: TFormMain
           WordWrap = False
         end
         object BtnAbout: TButton
-          Left = 472
-          Height = 20
+          Left = 490
+          Height = 33
           Top = 0
-          Width = 42
+          Width = 24
           Action = ActShowAbout
           Anchors = [akTop, akRight]
           AutoSize = True
@@ -71,11 +71,10 @@ object FormMain: TFormMain
         object BtnAddFiles: TBitBtn
           Left = 0
           Height = 31
-          Top = 348
+          Top = 330
           Width = 120
           Action = ActAddFiles
           Anchors = [akLeft, akBottom]
-          Default = True
           Font.Height = -16
           ParentFont = False
           TabOrder = 3
@@ -83,7 +82,7 @@ object FormMain: TFormMain
         object BtnClear: TBitBtn
           Left = 392
           Height = 31
-          Top = 352
+          Top = 334
           Width = 120
           Action = ActClearFiles
           Anchors = [akRight, akBottom]
@@ -93,7 +92,7 @@ object FormMain: TFormMain
         end
         object Label1: TLabel
           Left = 0
-          Height = 28
+          Height = 34
           Top = 4
           Width = 514
           Align = alTop
@@ -109,26 +108,26 @@ object FormMain: TFormMain
       end
       object PanelOptions: TPanel
         Left = 0
-        Height = 188
-        Top = 392
+        Height = 198
+        Top = 374
         Width = 514
         Align = alBottom
         AutoSize = True
         BorderSpacing.Top = 6
         BorderSpacing.Bottom = 14
         BevelOuter = bvNone
-        ClientHeight = 188
+        ClientHeight = 198
         ClientWidth = 514
         TabOrder = 1
         object Panel1: TPanel
           Left = 0
-          Height = 144
-          Top = 36
+          Height = 148
+          Top = 42
           Width = 514
           Align = alClient
           BorderSpacing.Bottom = 8
           BevelOuter = bvNone
-          ClientHeight = 144
+          ClientHeight = 148
           ClientWidth = 514
           TabOrder = 0
           object ColorBtnBackground: TColorButton
@@ -137,9 +136,9 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabBackColor
             AnchorSideTop.Side = asrCenter
             AnchorSideBottom.Side = asrCenter
-            Left = 130
+            Left = 134
             Height = 28
-            Top = 116
+            Top = 117
             Width = 64
             BorderSpacing.Left = 12
             BorderWidth = 2
@@ -151,26 +150,26 @@ object FormMain: TFormMain
             AnchorSideTop.Control = CheckDefaultOutputFileOptions
             AnchorSideTop.Side = asrBottom
             Left = 8
-            Height = 16
-            Top = 42
-            Width = 85
+            Height = 19
+            Top = 45
+            Width = 89
             BorderSpacing.Top = 12
             Caption = 'Output folder:'
             ParentColor = False
           end
           object LabBackColor: TLabel
             Left = 8
-            Height = 16
+            Height = 19
             Top = 122
-            Width = 110
+            Width = 114
             Caption = 'Background color:'
             ParentColor = False
           end
           object CheckDefaultOutputFileOptions: TCheckBox
             Left = 8
-            Height = 18
+            Height = 21
             Top = 12
-            Width = 194
+            Width = 212
             Caption = 'Use default output file options'
             Checked = True
             State = cbChecked
@@ -180,9 +179,9 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabOptOutputFolder
             AnchorSideTop.Side = asrBottom
             Left = 8
-            Height = 16
-            Top = 76
-            Width = 68
+            Height = 19
+            Top = 82
+            Width = 72
             BorderSpacing.Top = 18
             Caption = 'File format:'
             ParentColor = False
@@ -192,14 +191,13 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabOptFileFormat
             AnchorSideTop.Side = asrCenter
             AnchorSideBottom.Side = asrCenter
-            Left = 105
-            Height = 20
+            Left = 109
+            Height = 35
             Top = 74
             Width = 256
-            ItemHeight = 26
+            ItemHeight = 0
             Style = csDropDownList
             TabOrder = 3
-            Text = '0'
           end
           object EdDirOutput: TEdit
             AnchorSideLeft.Control = LabOptOutputFolder
@@ -207,10 +205,10 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabOptOutputFolder
             AnchorSideTop.Side = asrCenter
             AnchorSideRight.Control = BtnBrowseOutputDir
-            Left = 105
-            Height = 22
+            Left = 109
+            Height = 31
             Top = 39
-            Width = 311
+            Width = 319
             Anchors = [akTop, akLeft, akRight]
             BorderSpacing.Left = 12
             BorderSpacing.Right = 4
@@ -223,10 +221,10 @@ object FormMain: TFormMain
             AnchorSideRight.Control = Panel1
             AnchorSideRight.Side = asrBottom
             AnchorSideBottom.Side = asrCenter
-            Left = 422
-            Height = 20
-            Top = 40
-            Width = 84
+            Left = 434
+            Height = 33
+            Top = 38
+            Width = 72
             Action = ActBrowseOutputDir
             Anchors = [akTop, akRight]
             AutoSize = True
@@ -234,17 +232,17 @@ object FormMain: TFormMain
             BorderSpacing.Right = 8
             TabOrder = 2
           end
-          object CheckAutoCrop: TCheckBox
+          object CheckCropToInput: TCheckBox
             AnchorSideLeft.Control = ColorBtnBackground
             AnchorSideLeft.Side = asrBottom
             AnchorSideTop.Control = LabBackColor
             AnchorSideTop.Side = asrCenter
-            Left = 254
-            Height = 18
+            Left = 258
+            Height = 21
             Top = 121
-            Width = 78
+            Width = 108
             BorderSpacing.Left = 60
-            Caption = 'Auto crop'
+            Caption = 'Crop To Input'
             TabOrder = 4
           end
           object BtnAdvOptions: TBitBtn
@@ -252,10 +250,10 @@ object FormMain: TFormMain
             AnchorSideTop.Side = asrCenter
             AnchorSideRight.Control = BtnBrowseOutputDir
             AnchorSideRight.Side = asrBottom
-            Left = 415
-            Height = 28
-            Top = 116
-            Width = 91
+            Left = 420
+            Height = 33
+            Top = 115
+            Width = 86
             Action = ActShowAdvOptions
             Anchors = [akTop, akRight]
             AutoSize = True
@@ -264,7 +262,7 @@ object FormMain: TFormMain
         end
         object Label2: TLabel
           Left = 0
-          Height = 28
+          Height = 34
           Top = 4
           Width = 514
           Align = alTop
@@ -280,8 +278,8 @@ object FormMain: TFormMain
       end
       object BtnDeskew: TBitBtn
         Left = 0
-        Height = 51
-        Top = 594
+        Height = 59
+        Top = 586
         Width = 514
         Action = ActDeskew
         Align = alBottom

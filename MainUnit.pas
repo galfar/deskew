@@ -34,7 +34,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.30 (2019-06-07)'
+  SAppTitle = 'Deskew 1.31 (2021-09-02)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -74,7 +74,7 @@ begin
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
   WriteLn('    -g flags:      Operational flags (any combination of):');
-  WriteLn('                   c - auto crop, d - detect only (no output to file)');
+  WriteLn('                   c - crop to input size, d - detect only (no output to file)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
   WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
@@ -245,7 +245,7 @@ begin
 
     Time := GetTimeMicroseconds;
     ImageUtils.RotateImage(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor,
-      Options.ResamplingFilter, not (ofAutoCrop in Options.OperationalFlags));
+      Options.ResamplingFilter, not (ofCropToInput in Options.OperationalFlags));
     WriteTiming('Rotate image');
   end
   else

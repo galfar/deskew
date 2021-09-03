@@ -61,7 +61,7 @@ type
     OutputFolder: string;
     OutputFileFormat: TFileFormat;
     BackgroundColor: TColor32;
-    AutoCrop: Boolean;
+    CropToInput: Boolean;
 
     // Advanced options
     ResamplingFilter: TResamplingFilter;
@@ -228,7 +228,7 @@ begin
 
   if BackgroundColor <> $FF000000 then
     AParams.AddStrings(['-b', IntToHex(BackgroundColor, 8)]);
-  if AutoCrop then
+  if CropToInput then
     AParams.AddStrings(['-g', 'c']);
 
   // Advanced options
@@ -259,7 +259,7 @@ begin
   OutputFolder := '';
   OutputFileFormat := ffSameAsInput;
   BackgroundColor := DefaultBackgroundColor;
-  AutoCrop := False;
+  CropToInput := False;
 
   ResamplingFilter := rfDefaultLinear;
   MaxAngle := DefaultMaxAngle;
@@ -282,7 +282,7 @@ begin
   Ini.WriteString(IniSectionOptions, 'OutputFolder', OutputFolder);
   Ini.WriteString(IniSectionOptions, 'OutputFileFormat', TEnumUtils<TFileFormat>.EnumToStr(OutputFileFormat));
   Ini.WriteString(IniSectionOptions, 'BackgroundColor', ColorToString(BackgroundColor));
-  Ini.WriteNiceBool(IniSectionOptions, 'AutoCrop', AutoCrop);
+  Ini.WriteNiceBool(IniSectionOptions, 'CropToInput', CropToInput);
 
   Ini.WriteString(IniSectionAdvanced, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
   Ini.WriteFloat(IniSectionAdvanced, 'MaxAngle', MaxAngle);
@@ -305,7 +305,7 @@ begin
   OutputFolder := Ini.ReadString(IniSectionOptions, 'OutputFolder', '');
   OutputFileFormat := TEnumUtils<TFileFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'OutputFileFormat', ''));
   BackgroundColor := StringToColorDef(Ini.ReadString(IniSectionOptions, 'BackgroundColor', ''), DefaultBackgroundColor);
-  AutoCrop := Ini.ReadNiceBool(IniSectionOptions, 'AutoCrop', False);
+  CropToInput := Ini.ReadNiceBool(IniSectionOptions, 'CropToInput', False);
 
   ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ResamplingFilter', ''));
   MaxAngle := Ini.ReadFloat(IniSectionAdvanced, 'MaxAngle', DefaultMaxAngle);

@@ -38,7 +38,7 @@ type
   );
 
   TOperationalFlag = (
-    ofAutoCrop,
+    ofCropToInput,
     ofDetectOnly
   );
   TOperationalFlags = set of TOperationalFlag;
@@ -289,7 +289,7 @@ var
     else if Param = '-g' then
     begin
       if Pos('c', ValLower) > 0 then
-        Include(FOperationalFlags, ofAutoCrop);
+        Include(FOperationalFlags, ofCropToInput);
       if Pos('d', ValLower) > 0 then
         Include(FOperationalFlags, ofDetectOnly);
     end
@@ -418,7 +418,8 @@ begin
     '  content rect        = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
-    '  oper flags          = ' + Iff(ofAutoCrop in FOperationalFlags, 'auto-crop ', '') + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
+    '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
+                               + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
     '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +
     '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;
 end;
