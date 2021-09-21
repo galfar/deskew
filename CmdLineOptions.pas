@@ -70,8 +70,8 @@ type
     function ParseCommnadLine: Boolean;
     function OptionsToString: string;
 
-    property InputFile: string read FInputFile;
-    property OutputFile: string read FOutputFile;
+    property InputFileName: string read FInputFile;
+    property OutputFileName: string read FOutputFile;
     // Max expected rotation angle - algo then works in range [-MaxAngle, MaxAngle]
     property MaxAngle: Double read FMaxAngle;
     // Skew threshold angle - skip deskewing if detected skew angle is in range (-MinAngle, MinAngle)
@@ -139,7 +139,7 @@ end;
 
 function TCmdLineOptions.GetIsValid: Boolean;
 begin
-  Result := (InputFile <> '') and (MaxAngle > 0) and (SkipAngle >= 0) and
+  Result := (InputFileName <> '') and (MaxAngle > 0) and (SkipAngle >= 0) and
     ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0));
 end;
 
@@ -408,8 +408,8 @@ begin
 
   Result :=
     'Parameters: ' + CmdParams + sLineBreak +
-    '  input file          = ' + InputFile + sLineBreak +
-    '  output file         = ' + OutputFile + sLineBreak +
+    '  input file          = ' + InputFileName + sLineBreak +
+    '  output file         = ' + OutputFileName + sLineBreak +
     '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
     '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
     '  resampling filter   = ' + FilterStr + sLineBreak +
