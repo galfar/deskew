@@ -25,7 +25,7 @@ DESKEW=${1-deskew}
 ./$DESKEW -f b1 -o TestOut/Outf2.png ../TestImages/2.png
 ./$DESKEW -a 5 -l 2 -o TestOut/Outl1.tif ../TestImages/1.tif 
 ./$DESKEW -f rgba32 -b 40ff00ff -o TestOut/Outa6.png ../TestImages/6.png 
-./$DESKEW -f g8 -b 77 -o -s t TestOut/Outg6.png ../TestImages/6.png
+./$DESKEW -f g8 -b 77 -s t -o TestOut/Outg6.png ../TestImages/6.png
 ./$DESKEW -g d ../TestImages/5.png
 
 echo
