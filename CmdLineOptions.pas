@@ -107,7 +107,7 @@ type
 implementation
 
 uses
-  TypInfo, Imaging, ImagingTiff, System.IOUtils;
+  TypInfo, Imaging, ImagingTiff;
 
 const
   TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
