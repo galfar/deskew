@@ -218,7 +218,7 @@ var
     ValLower, S: string;
     TempColor: Cardinal;
     Val64: Int64;
-    I, J: Integer;
+    I, J, ValLength: Integer;
   begin
     Result := True;
     ValLower := LowerCase(Value);
@@ -250,15 +250,16 @@ var
     end
     else if Param = '-b' then
     begin
-      if TryStrToInt64('$' + ValLower, Val64) then
+      ValLength := Length(ValLower);
+      if (ValLength <= 8) and TryStrToInt64('$' + ValLower, Val64) then
       begin
         TempColor := Cardinal(Val64 and $FFFFFFFF);
-        if TempColor <= $FF then
+        if (TempColor <= $FF) and (ValLength <= 2) then
         begin
-          // Just one channel given, replicate for all channels + opaque
+          // Just one channel given, replicate for all channels + make opaque
           FBackgroundColor := Color32($FF, Byte(TempColor), Byte(TempColor), Byte(TempColor)).Color;
         end
-        else if (TempColor <= $FFFFFF) and (Length(ValLower) <= 6) then
+        else if (TempColor <= $FFFFFF) and (ValLength <= 6) then
         begin
           // RGB given, set alpha to 255 for background
           FBackgroundColor := $FF000000 or TempColor;
