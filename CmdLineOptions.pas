@@ -27,7 +27,6 @@ const
   DefaultThreshold = 128;
   DefaultMaxAngle = 10;
   DefaultSkipAngle = 0.01;
-  SDefaultOutputFile = 'out.png';
 
 type
   TThresholdingMethod = (
@@ -45,8 +44,8 @@ type
 
   TCmdLineOptions = class
   private
-    FInputFile: string;
-    FOutputFile: string;
+    FInputFileName: string;
+    FOutputFileName: string;
     FMaxAngle: Double;
     FSkipAngle: Double;
     FResamplingFilter: TResamplingFilter;
@@ -70,8 +69,8 @@ type
     function ParseCommnadLine: Boolean;
     function OptionsToString: string;
 
-    property InputFileName: string read FInputFile;
-    property OutputFileName: string read FOutputFile;
+    property InputFileName: string read FInputFileName;
+    property OutputFileName: string read FOutputFileName;
     // Max expected rotation angle - algo then works in range [-MaxAngle, MaxAngle]
     property MaxAngle: Double read FMaxAngle;
     // Skew threshold angle - skip deskewing if detected skew angle is in range (-MinAngle, MinAngle)
@@ -108,12 +107,24 @@ type
 implementation
 
 uses
-  TypInfo, Imaging, ImagingTiff;
+  TypInfo, Imaging, ImagingTiff, System.IOUtils;
 
 const
   TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
     'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4'
   );
+  SDefaultOutputFilePrefix = 'deskewed-';
+  SDefaultOutputFileExt = 'png';
+
+function EnsureTrailingPathDelimiter(const DirPath: string): string;
+begin
+  // IncludeTrailing... hapilly adds delimiter also to empty dir path
+  // (e.g. file in current working dir).
+  if DirPath <> '' then
+    Result := IncludeTrailingPathDelimiter(DirPath)
+  else
+    Result := DirPath;
+end;
 
 { TCmdLineOptions }
 
@@ -126,7 +137,6 @@ begin
   FThresholdingMethod := tmOtsu;
   FContentRect := Rect(0, 0, 0, 0); // whole page
   FBackgroundColor := $FF000000;
-  FOutputFile := SDefaultOutputFile;
   FOperationalFlags := [];
   FShowStats := False;
   FShowParams := False;
@@ -214,7 +224,9 @@ var
     ValLower := LowerCase(Value);
 
     if Param = '-o' then
-      FOutputFile := Value
+    begin
+      FOutputFileName := Value
+    end
     else if Param = '-a' then
     begin
       if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) then
@@ -382,13 +394,22 @@ begin
       end;
     end
     else
-      FInputFile := Param;
+      FInputFileName := Param;
 
     Inc(I);
   end;
 
-  if FInputFile = '' then
+  if FInputFileName = '' then
     FErrorMessage := 'No input file given';
+
+  if FOutputFileName = '' then
+  begin
+    // No user output file name given => use prefixed input file name as default
+    // (with PNG as file fomat to not introduce any new compression artifacts when
+    // not explicitly asked for ).
+    FOutputFileName := EnsureTrailingPathDelimiter(GetFileDir(FInputFileName)) +
+      SDefaultOutputFilePrefix + ChangeFileExt(GetFileName(FInputFileName), '.' + SDefaultOutputFileExt);
+  end;
 end;
 
 function TCmdLineOptions.OptionsToString: string;

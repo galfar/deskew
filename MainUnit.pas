@@ -34,14 +34,15 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.31 (2021-09-02)'
+  SAppTitle = 'Deskew 1.31 (2021-09-22)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
     {$IFEND}
     {$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF}
     + ' by Marek Mauder';
-  SAppHome = 'http://galfar.vevb.net/deskew/';
+  SAppHome = 'https://galfar.vevb.net/deskew/' + sLineBreak +
+             'https://github.com/galfar/deskew';
 
 var
   // Program options
@@ -62,13 +63,13 @@ begin
   WriteLn('deskew [-o output] [-a angle] [-b color] [..] input');
   WriteLn('    input:         Input image file');
   WriteLn('  Options:');
-  WriteLn('    -o output:     Output image file (default: out.png)');
+  WriteLn('    -o output:     Output image file name (default: prefixed input as png)');
   WriteLn('    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
   WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
   WriteLn('  Ext. options:');
-  WriteLn('    -q filter:     Resampling filter used for rotations (default: linear,');
+  WriteLn('    -q filter:     Resampling filter used for rotations (default: linear');
   WriteLn('                   values: nearest|linear|cubic|lanczos)');
-  WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: a)');
+  WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: auto)');
   WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
   WriteLn('                   left,top,right,bottom (default: whole page)');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
@@ -101,8 +102,7 @@ end;
 
 procedure ReportBadInput(const Msg: string; ShowUsage: Boolean = True);
 begin
-  WriteLn;
-  WriteLn('Error: ' + Msg);
+  WriteLn('ERROR: ' + Msg);
   if Options.ErrorMessage <> '' then
     WriteLn(Options.ErrorMessage);
   WriteLn;
@@ -310,6 +310,7 @@ begin
 
   WriteLn(SAppTitle);
   WriteLn(SAppHome);
+  WriteLn;
 
   Options := TCmdLineOptions.Create;
   InputImage := TSingleImage.Create;

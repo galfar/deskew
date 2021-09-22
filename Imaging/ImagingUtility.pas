@@ -156,7 +156,8 @@ function GetAppDir: string;
   at the same time (whereas ExtractFileName supports on default delimiter on current platform).}
 function GetFileName(const FileName: string): string;
 { Works like SysUtils.ExtractFileDir but supports '/' and '\' dir delimiters
-  at the same time (whereas ExtractFileDir supports on default delimiter on current platform).}
+  at the same time (whereas ExtractFileDir supports on default delimiter on current platform).
+  Returned name does not include trailing dir delimiter.}
 function GetFileDir(const FileName: string): string;
 { Returns True if Subject matches given Mask with optional case sensitivity.
   Mask can contain ? and * special characters: ? matches
