@@ -13,13 +13,12 @@ unit CmdLineOptions;
 interface
 
 uses
-{$IFNDEF FPC}
   Types,
-  StrUtils,
-{$ENDIF}
   SysUtils,
   Classes,
+  StrUtils,
   ImagingTypes,
+  Imaging,
   ImagingUtility,
   ImageUtils;
 
@@ -42,6 +41,14 @@ type
   );
   TOperationalFlags = set of TOperationalFlag;
 
+  TSizeUnit = (
+    suPixels,
+    suPercent,
+    suMm,
+    suCm,
+    suInch
+  );
+
   TCmdLineOptions = class
   private
     FInputFileName: string;
@@ -51,7 +58,8 @@ type
     FResamplingFilter: TResamplingFilter;
     FThresholdingMethod: TThresholdingMethod;
     FThresholdLevel: Integer;
-    FContentRect: TRect;
+    FContentRect: TFloatRect;
+    FContentSizeUnit: TSizeUnit;
     FBackgroundColor: TColor32;
     FForcedOutputFormat: TImageFormat;
     FOperationalFlags: TOperationalFlags;
@@ -65,9 +73,13 @@ type
     function GetIsValid: Boolean;
   public
     constructor Create;
-    // Parses command line arguments to get optiosn set by user
+    // Parses command line arguments to get options set by user
     function ParseCommnadLine: Boolean;
     function OptionsToString: string;
+
+    // Calculates final content rectangle in pixels for given image based
+    // on user input (content vs margin, units).
+    function CalcContentRectForImage(const ImageBounds: TRect; Metadata: TMetadata; out FinalRect: TRect): Boolean;
 
     property InputFileName: string read FInputFileName;
     property OutputFileName: string read FOutputFileName;
@@ -82,7 +94,9 @@ type
     // Threshold for black/white pixel classification for explicit thresholding method
     property ThresholdLevel: Integer read FThresholdLevel;
     // Rect where to do the skew detection on the page image
-    property ContentRect: TRect read FContentRect;
+    property ContentRect: TFloatRect read FContentRect;
+    // Unit of size of content or margin regions
+    property ContentSizeUnit: TSizeUnit read FContentSizeUnit;
     // Background color for the rotated image
     property BackgroundColor: TColor32 read FBackgroundColor;
     // Forced output format (applied just before saving the output)
@@ -107,14 +121,19 @@ type
 implementation
 
 uses
-  TypInfo, Imaging, ImagingTiff;
+  TypInfo, ImagingTiff;
 
 const
   TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
     'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4'
   );
+  SizeUnitTokens: array[TSizeUnit] of string = ('px', '%', 'mm', 'cm', 'in');
+
   SDefaultOutputFilePrefix = 'deskewed-';
   SDefaultOutputFileExt = 'png';
+
+var
+  FloatFmtSettings: TFormatSettings;
 
 function EnsureTrailingPathDelimiter(const DirPath: string): string;
 begin
@@ -126,6 +145,12 @@ begin
     Result := DirPath;
 end;
 
+function TranslateSizeToPixels(Size: Single; AUnit: TSizeUnit): Integer;
+begin
+
+
+end;
+
 { TCmdLineOptions }
 
 constructor TCmdLineOptions.Create;
@@ -135,7 +160,8 @@ begin
   FSkipAngle := DefaultSkipAngle;
   FResamplingFilter := rfLinear;
   FThresholdingMethod := tmOtsu;
-  FContentRect := Rect(0, 0, 0, 0); // whole page
+  FContentRect := FloatRect(0, 0, 0, 0); // whole page
+  FContentSizeUnit := suPixels;
   FBackgroundColor := $FF000000;
   FOperationalFlags := [];
   FShowStats := False;
@@ -212,6 +238,41 @@ var
     end;
   end;
 
+  function TryParseSizeRect(const StrArray: array of string; out SizeRect: TFloatRect): Boolean;
+  var
+    I, Len: Integer;
+    SingleArray: array of Single;
+  begin
+    Result := True;
+    Len := Length(StrArray);
+    SetLength(SingleArray, Len);
+
+    for I := 0 to Len - 1 do
+      if not TryStrToFloat(StrArray[I], SingleArray[I], FloatFmtSettings) then
+        Exit(False);
+
+    case Len of
+      1: SizeRect := FloatRect(SingleArray[0], SingleArray[0], SingleArray[0], SingleArray[0]);
+      2: SizeRect := FloatRect(SingleArray[0], SingleArray[1], SingleArray[0], SingleArray[1]);
+      4: SizeRect := FloatRect(SingleArray[0], SingleArray[1], SingleArray[2], SingleArray[3]);
+    else
+      Exit(False);
+    end;
+  end;
+
+  function TryParseSizeUnit(const Str: string; out SizeUnit: TSizeUnit): Boolean;
+  var
+    S: TSizeUnit;
+  begin
+    Result := False;
+    for S := Low(SizeUnitTokens) to High(SizeUnitTokens) do
+      if SameText(Str, SizeUnitTokens[S]) then
+      begin
+        SizeUnit := S;
+        Exit(True);
+      end;
+  end;
+
   function CheckParam(const Param, Value: string): Boolean;
   var
     StrArray: TDynStringArray;
@@ -219,6 +280,7 @@ var
     TempColor: Cardinal;
     Val64: Int64;
     I, J, ValLength: Integer;
+    ArgsOk: Boolean;
   begin
     Result := True;
     ValLower := LowerCase(Value);
@@ -318,13 +380,15 @@ var
     else if Param = '-r' then
     begin
       StrArray := SplitString(ValLower, ',');
-      if Length(StrArray) = 4 then
-      begin
-        FContentRect.Left := StrToInt(StrArray[0]);
-        FContentRect.Top := StrToInt(StrArray[1]);
-        FContentRect.Right := StrToInt(StrArray[2]);
-        FContentRect.Bottom := StrToInt(StrArray[3]);
-      end;
+      ValLength := Length(StrArray);
+      // Allow also unit-less entry for backward compatibility
+      ArgsOk := (ValLength in [4, 5]) and TryParseSizeRect(Copy(StrArray, 0, 4), FContentRect);
+
+      if ArgsOk and (ValLength = 5) then
+        ArgsOk := TryParseSizeUnit(StrArray[4], FContentSizeUnit);
+
+      if not ArgsOk then
+        FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
     end
     else if Param = '-c' then
     begin
@@ -413,6 +477,63 @@ begin
   end;
 end;
 
+function TCmdLineOptions.CalcContentRectForImage(const ImageBounds: TRect; Metadata: TMetadata;
+  out FinalRect: TRect): Boolean;
+var
+  PixXSize, PixYSize: Single;
+  ImageSize: TSize;
+
+  function MakeRect(const R: TFloatRect; WidthFactor, HeightFactor: Single): TRect;
+  begin
+    Result := Rect(Round(R.Left * WidthFactor),
+                   Round(R.Top * HeightFactor),
+                   Round(R.Right * WidthFactor),
+                   Round(R.Bottom * HeightFactor));
+  end;
+
+begin
+  if IsFloatRectEmpty(ContentRect) then
+  begin
+    FinalRect := ImageBounds;
+    Exit(True);
+  end;
+
+  case ContentSizeUnit of
+    suPixels: FinalRect := MakeRect(ContentRect, 1, 1);
+    suPercent:
+      begin
+        FinalRect := MakeRect(ContentRect,
+                              RectWidth(ImageBounds) / 100,
+                              RectHeight(ImageBounds) / 100);
+      end;
+    suMm:
+      begin
+        if not Metadata.GetPhysicalPixelSize(TResolutionUnit.ruDpcm, PixXSize, PixYSize) then
+          Exit(False);
+        FinalRect := MakeRect(ContentRect, PixXSize / 10, PixYSize / 10);
+      end;
+    suCm:
+      begin
+        if not Metadata.GetPhysicalPixelSize(TResolutionUnit.ruDpcm, PixXSize, PixYSize) then
+          Exit(False);
+        FinalRect := MakeRect(ContentRect, PixXSize, PixYSize);
+      end;
+    suInch:
+      begin
+        if not Metadata.GetPhysicalPixelSize(TResolutionUnit.ruDpi, PixXSize, PixYSize) then
+          Exit(False);
+        FinalRect := MakeRect(ContentRect, PixXSize, PixYSize);
+      end;
+    else
+      Assert(False);
+  end;
+
+  if not IntersectRect(FinalRect, FinalRect, ImageBounds) then
+    FinalRect := ImageBounds;
+
+  Result := True;
+end;
+
 function TCmdLineOptions.OptionsToString: string;
 var
   I: Integer;
@@ -437,7 +558,8 @@ begin
     '  resampling filter   = ' + FilterStr + sLineBreak +
     '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
     '  threshold level     = ' + IntToStr(ThresholdLevel) + sLineBreak +
-    '  content rect        = ' + Format('%d,%d,%d,%d', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom]) + sLineBreak +
+    '  content rect        = ' + Format('%n,%n,%n,%n %s', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom,
+                                        SizeUnitTokens[ContentSizeUnit]], FloatFmtSettings) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
     '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
@@ -445,5 +567,10 @@ begin
     '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +
     '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;
 end;
+
+initialization
+  FloatFmtSettings := DefaultFormatSettings;
+  FloatFmtSettings.ThousandSeparator := #0;
+  FloatFmtSettings.DecimalSeparator  := '.';
 
 end.

@@ -178,11 +178,10 @@ begin
   end;
 
   // Determine the content rect - where exactly to detect rotated text
-  ContentRect := InputImage.BoundsRect;
-  if not IsRectEmpty(Options.ContentRect) then
+  if not Options.CalcContentRectForImage(InputImage.BoundsRect, GlobalMetadata, ContentRect) then
   begin
-    if not IntersectRect(ContentRect, Options.ContentRect, InputImage.BoundsRect) then
-      ContentRect := InputImage.BoundsRect;
+    raise Exception.Create('Could not determine content rectangle in pixels.' + sLineBreak +
+      'Image does not contain DPI information or Deskew failed to read it.');
   end;
 
   // Main step - calculate image rotation SkewAngle

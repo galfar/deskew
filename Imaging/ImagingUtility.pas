@@ -353,6 +353,7 @@ function FloatRect(ALeft, ATop, ARight, ABottom: Single): TFloatRect;
 function FloatRectWidth(const R: TFloatRect): Single;
 function FloatRectHeight(const R: TFloatRect): Single;
 function FloatRectFromRect(const R: TRect): TFloatRect;
+function IsFloatRectEmpty(const R: TFloatRect): Boolean;
 
 { Formats given message for usage in Exception.Create(..). Use only
   in except block - returned message contains message of last raised exception.}
@@ -1616,6 +1617,11 @@ end;
 function FloatRectFromRect(const R: TRect): TFloatRect;
 begin
   Result := FloatRect(R.Left, R.Top, R.Right, R.Bottom);
+end;
+
+function IsFloatRectEmpty(const R: TFloatRect): Boolean;
+begin
+  Result := (R.Right <= R.Left) or (R.Bottom <= R.Top);
 end;
 
 function FormatExceptMsg(const Msg: string; const Args: array of const): string;
