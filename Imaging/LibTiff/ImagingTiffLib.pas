@@ -445,7 +445,7 @@ var
 
   procedure SaveMetadata(Tiff: PTiff; TiffPage: Integer);
   var
-    XRes, YRes: Single;
+    XRes, YRes: Double;
     ResUnit: TResolutionUnit;
     TiffResUnit, StoredTiffResUnit: Word;
   begin

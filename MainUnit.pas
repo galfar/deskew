@@ -70,9 +70,11 @@ begin
   WriteLn('    -q filter:     Resampling filter used for rotations (default: linear');
   WriteLn('                   values: nearest|linear|cubic|lanczos)');
   WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: auto)');
-  WriteLn('    -r rect:       Skew detection only in content rectangle (pixels):');
-  WriteLn('                   left,top,right,bottom (default: whole page)');
+  WriteLn('    -r rect:       Skew detection only in content rectangle:');
+  WriteLn('                   left,top,right,bottom[,unit] (default: whole page)');
+  WriteLn('                   unit: px|%|mm|cm|in');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
+  WriteLn('    -p dpi:        Print resolution override');
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
   WriteLn('    -g flags:      Operational flags (any combination of):');
   WriteLn('                   c - crop to input size, d - detect only (no output to file)');
@@ -177,9 +179,19 @@ begin
       end;
   end;
 
+  if Options.DpiOverride > 0 then
+  begin
+    // If user DPI override is set we use it for both input and output.
+    GlobalMetadata.SetPhysicalPixelSize(ruDpi, Options.DpiOverride, Options.DpiOverride);
+  end;
+
   // Determine the content rect - where exactly to detect rotated text
   if not Options.CalcContentRectForImage(InputImage.BoundsRect, GlobalMetadata, ContentRect) then
   begin
+    // User most probably defined content/margins with physical resolution units (cm, inch, ...)
+    // but the image has no physical resolution info inside or Deskew is not able to read it.
+    // We could use some default (e.g. 96 DPI) but let's rather fail here
+    // so the user clearly sees that the expected outcome is not possible.
     raise Exception.Create('Could not determine content rectangle in pixels.' + sLineBreak +
       'Image does not contain DPI information or Deskew failed to read it.');
   end;

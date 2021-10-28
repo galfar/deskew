@@ -62,6 +62,7 @@ type
     FContentSizeUnit: TSizeUnit;
     FBackgroundColor: TColor32;
     FForcedOutputFormat: TImageFormat;
+    FDpiOverride: Integer;
     FOperationalFlags: TOperationalFlags;
     FShowStats: Boolean;
     FShowParams: Boolean;
@@ -101,6 +102,9 @@ type
     property BackgroundColor: TColor32 read FBackgroundColor;
     // Forced output format (applied just before saving the output)
     property ForcedOutputFormat: TImageFormat read FForcedOutputFormat;
+    // DPI to use when input image has not print resolution info or
+    // override it when it's present
+    property DpiOverride: Integer read FDpiOverride;
     // On/Off flags that control parts of the whole operation
     property OperationalFlags: TOperationalFlags read FOperationalFlags;
     // Show skew detection stats
@@ -143,12 +147,6 @@ begin
     Result := IncludeTrailingPathDelimiter(DirPath)
   else
     Result := DirPath;
-end;
-
-function TranslateSizeToPixels(Size: Single; AUnit: TSizeUnit): Integer;
-begin
-
-
 end;
 
 { TCmdLineOptions }
@@ -390,6 +388,11 @@ var
       if not ArgsOk then
         FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
     end
+    else if Param = '-p' then
+    begin
+      if not TryStrToInt(Value, FDpiOverride) or (FDpiOverride < 1) then
+        FErrorMessage := 'Invalid value for DPI override parameter: ' + Value;
+    end
     else if Param = '-c' then
     begin
       StrArray := SplitString(ValLower, ',');
@@ -480,10 +483,9 @@ end;
 function TCmdLineOptions.CalcContentRectForImage(const ImageBounds: TRect; Metadata: TMetadata;
   out FinalRect: TRect): Boolean;
 var
-  PixXSize, PixYSize: Single;
-  ImageSize: TSize;
+  PixXSize, PixYSize: Double;
 
-  function MakeRect(const R: TFloatRect; WidthFactor, HeightFactor: Single): TRect;
+  function MakeRect(const R: TFloatRect; WidthFactor, HeightFactor: Double): TRect;
   begin
     Result := Rect(Round(R.Left * WidthFactor),
                    Round(R.Top * HeightFactor),
@@ -561,6 +563,7 @@ begin
     '  content rect        = ' + Format('%n,%n,%n,%n %s', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom,
                                         SizeUnitTokens[ContentSizeUnit]], FloatFmtSettings) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
+    '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
     '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
                                + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
