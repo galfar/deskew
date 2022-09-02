@@ -1,0 +1,49 @@
+name: Build on ARM
+
+on: [workflow_dispatch]
+
+jobs:
+  build_job:
+    runs-on: ubuntu-latest
+    name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
+
+    strategy:
+      matrix:
+        include:
+          - arch: aarch64
+            distro: ubuntu_latest
+          - arch: armv7
+            distro: ubuntu_latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: uraimo/run-on-arch-action@v2.2.1
+        name: Build artifact
+        id: build
+        with:
+          arch: ${{ matrix.arch }}
+          distro: ${{ matrix.distro }}
+
+          githubToken: ${{ github.token }}
+
+          install: |
+            apt-get update
+            apt-get -y install fpc
+            apt-get -y install libtiff5
+
+          run: |
+            uname -a
+            fpc -iWTPTO
+
+            ./Scripts/compile.sh
+            cd Bin
+            ./runtests.sh
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: deskew-artifacts-${{ matrix.arch }}-${{ matrix.distro }}
+          path: |
+            Bin
+          if-no-files-found: error
+

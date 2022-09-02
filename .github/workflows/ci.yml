@@ -2,10 +2,10 @@ name: CI
 
 on:
   # on each push and manual trigger
-  push:  
+  push:
     branches: [ master ]
     paths-ignore: [ "**/Readme.md" ]
-  workflow_dispatch:    
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,24 +13,27 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        # currently stable="Lazarus 2.2.0 / FPC 3.2.2" with setup-lazarus@v3.0.16 
+        # currently stable="Lazarus 2.2.2 / FPC 3.2.2" with setup-lazarus@v3.2
         lazarus-versions: [stable]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install Lazarus
-        uses: gcarreno/setup-lazarus@v3.0.16
+        uses: gcarreno/setup-lazarus@v3.2
         with:
-          lazarus-version: ${{ matrix.lazarus-versions }}          
+          lazarus-version: ${{ matrix.lazarus-versions }}
+
       - name: Print Lazarus version
         run: lazbuild --version
+
       - name: Build Deskew CLI
         shell: bash
-        run:  |  
+        run:  |
           if [ "$RUNNER_OS" == "macOS" ]; then
-              lazbuild --build-mode=Release-macOS "deskew.lpi"    
+              lazbuild --build-mode=Release-macOS "deskew.lpi"
           else
               lazbuild --build-mode=Release "deskew.lpi"
           fi
+
       - name: Build Deskew GUI
         shell: bash
         run:   |
@@ -38,24 +41,28 @@ jobs:
             lazbuild --build-mode=Release-macOS "Gui/deskewgui.lpi"
           else
             lazbuild --build-mode=Release "Gui/deskewgui.lpi"
-          fi  
+          fi
+
       - name: List Bin directory
         shell: bash
-        run:  ls Bin            
+        run:  ls Bin
+
       - name:  Run tests
         shell: bash
-        run:   |          
-          cd Bin 
+        run:   |
+          cd Bin
           if [ "$RUNNER_OS" == "Linux" ]; then
               ./runtests.sh
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              ./runtests.sh deskew-mac   
-          fi           
-      - uses: actions/upload-artifact@v2
+              ./runtests.sh deskew-mac
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
         with:
           name: deskew-binaries
-          path: |            
-            Bin/deskew*            
+          path: |
+            Bin/deskew*
           if-no-files-found: error
