@@ -49,4 +49,4 @@ v0.90 2019-01-04:
 Compiling Deskew
 ------------------------
 
-Deskew GUI is written in Object Pascal using Lazarus and it's LCL framework. Any recent Lazarus version should work.
+Deskew GUI is written in Object Pascal using Lazarus and its LCL framework. Any recent Lazarus version should work.

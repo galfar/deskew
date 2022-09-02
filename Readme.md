@@ -5,9 +5,7 @@ by Marek Mauder
 <https://galfar.vevb.net/deskew>  
 <https://github.com/galfar/deskew>  
 
-
 **v1.30 2019-06-07**
-
 
 Overview
 ------------------------
@@ -16,8 +14,8 @@ Deskew is a command line tool for deskewing scanned text documents.
 It uses Hough transform to detect "text lines" in the image. As an output, you
 get an image rotated so that the lines are horizontal.
 
-There are binaries built for these platforms (located in Bin folder):
-Win64 (`deskew.exe`), Win32 (`deskew32.exe`), Linux 64bit (`deskew`), macOS (`deskew-mac`), Linux ARMv7 (`deskew-arm`).
+There are pre-compiled binaries built for these platforms (located in Bin folder):
+Win64 (`deskew.exe`), Win32 (`deskew32.exe`), Linux x86_64 (`deskew`), macOS x86_64 (`deskew-mac`), Linux ARM aarch64 (`deskew-arm64`) and v7 (`deskew-arm`).
 
 GUI frontend for this CLI tool is available as well (Windows, Linux, and macOS), see [GUI's Readme](Gui/Readme.md).
 
@@ -67,15 +65,18 @@ For TIFF support in Linux and macOS you need to have libtiff 4.x installed (pack
 
 For macOS you can download prebuilt libtiff binaries here: <https://galfar.github.io/store/TiffLibBins-macOS.zip>. Just put the files inside the archive to the same folder as `deskew-mac` executable.
 
+On ARM targets linking to libtiff is disabled at the moment (known
+to crash with deskew). If you want to try yourself enable it in `ImagingTiff.pas` unit.
+
 You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
 By default scripts just call `deskew` command but you can pass a different one as a parameter
 (e.g. `runtests.sh deskew-arm`).
 
-### Bugs, Issues, Proposals 
+### Bugs, Issues, Proposals
 
 File them here:  
-<https://github.com/galfar/deskew/issues>  
+<https://github.com/galfar/deskew/issues>
 
 
 Version History
@@ -143,20 +144,20 @@ Deskew is written in Object Pascal. You need Free Pascal or Delphi to recompile 
 
 There are project files for these IDEs:
 
-  1. Lazarus 2.0.10 (deskew.lpi)
+  1. Lazarus 2.2.2 (deskew.lpi)
   2. Delphi XE + 10.3 (deskew.dproj)
 
 Additionally, there are compile shell/batch scripts for standalone FPC compiler in `Scripts` folder.
 
 ### Supported/Tested Platforms
 
-Deskew is precompiled and was tested on these platforms:
-Win32, Win64, Linux 64bit, macOS 64bit, Linux ARMv7
+Deskew can be compiled and was tested on these platforms:
+Win32, Win64, Linux x86_64, macOS x86_64, Linux ARM aarch64 + v7.
 
 ### Source Code
 
 Latest source code can be found here:  
-<https://github.com/galfar/deskew>  
+<https://github.com/galfar/deskew>
 
 ### Dependencies
 
