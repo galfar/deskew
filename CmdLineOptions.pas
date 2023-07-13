@@ -25,6 +25,7 @@ uses
 const
   DefaultThreshold = 128;
   DefaultMaxAngle = 10;
+  DefaultMinTestedPixels = 25;
   DefaultSkipAngle = 0.01;
 
 type
@@ -54,6 +55,7 @@ type
     FInputFileName: string;
     FOutputFileName: string;
     FMaxAngle: Double;
+    FMinTestedPixels: Integer;
     FSkipAngle: Double;
     FResamplingFilter: TResamplingFilter;
     FThresholdingMethod: TThresholdingMethod;
@@ -86,6 +88,8 @@ type
     property OutputFileName: string read FOutputFileName;
     // Max expected rotation angle - algo then works in range [-MaxAngle, MaxAngle]
     property MaxAngle: Double read FMaxAngle;
+    // Minimum tested pixels for any rotation
+    property MinTestedPixels: Integer read FMinTestedPixels;
     // Skew threshold angle - skip deskewing if detected skew angle is in range (-MinAngle, MinAngle)
     property SkipAngle: Double read FSkipAngle;
     // Resampling filter used for rotations
@@ -155,6 +159,7 @@ constructor TCmdLineOptions.Create;
 begin
   FThresholdLevel := DefaultThreshold;
   FMaxAngle := DefaultMaxAngle;
+  FMinTestedPixels := DefaultMinTestedPixels;
   FSkipAngle := DefaultSkipAngle;
   FResamplingFilter := rfLinear;
   FThresholdingMethod := tmOtsu;
@@ -174,6 +179,7 @@ end;
 function TCmdLineOptions.GetIsValid: Boolean;
 begin
   Result := (InputFileName <> '') and (MaxAngle > 0) and (SkipAngle >= 0) and
+    (MinTestedPixels > 0) and
     ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0));
 end;
 
@@ -291,6 +297,11 @@ var
     begin
       if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) then
         FErrorMessage := 'Invalid value for max angle parameter: ' + Value;
+    end
+    else if Param = '-m' then
+    begin
+      if not TryStrToInt(Value, FMinTestedPixels) then
+        FErrorMessage := 'Invalid value for minimum tested pixels parameter: ' + Value;
     end
     else if Param = '-l' then
     begin
@@ -556,6 +567,7 @@ begin
     '  input file          = ' + InputFileName + sLineBreak +
     '  output file         = ' + OutputFileName + sLineBreak +
     '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
+    '  min tested pixels   = ' + FloatToStr(MinTestedPixels) + sLineBreak +
     '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
     '  resampling filter   = ' + FilterStr + sLineBreak +
     '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
