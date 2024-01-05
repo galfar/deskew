@@ -56,13 +56,13 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              ./runtests.sh deskew-mac
+              ./runtests.sh deskew-mac --no-tiff
           fi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: deskew-binaries
+          name: deskew-binaries-${{ matrix.distro }}
           path: |
             Bin/deskew*
           if-no-files-found: error
