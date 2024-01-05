@@ -13,12 +13,12 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        # currently stable="Lazarus 2.2.2 / FPC 3.2.2" with setup-lazarus@v3.2
+        # currently stable="Lazarus 3.0 / FPC 3.2.2" with setup-lazarus@v3.2.17
         lazarus-versions: [stable]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Lazarus
-        uses: gcarreno/setup-lazarus@v3.2
+        uses: gcarreno/setup-lazarus@v3
         with:
           lazarus-version: ${{ matrix.lazarus-versions }}
 
