@@ -28,21 +28,22 @@ uses
   ImagingFormats,
   ImagingUtility,
   ImagingExtras,
+  ImagingTiff,
   // Project units
   CmdLineOptions,
   ImageUtils,
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.31 (2021-09-22)'
+  SAppTitle = 'Deskew 1.32 (2024-01-06)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
     {$IFEND}
     {$IFDEF DEBUG} + ' (DEBUG)'{$ENDIF}
     + ' by Marek Mauder';
-  SAppHome = 'https://galfar.vevb.net/deskew/' + sLineBreak +
-             'https://github.com/galfar/deskew';
+  SAppHome = 'https://github.com/galfar/deskew' + sLineBreak +
+             'https://galfar.vevb.net/deskew';
 
 var
   // Program options
@@ -152,8 +153,68 @@ var
     WriteLn('  best count:         ', FormatNiceNumber(Stats.BestCount));
   end;
 
+  procedure EnsurePixelFormatForRotation;
+  begin
+    // Rotation is optimized for Gray8, RGB24, and ARGB32 formats at this time
+    if not (OutputImage.Format in ImageUtils.SupportedRotationFormats) then
+    begin
+      if OutputImage.Format = ifIndex8 then
+      begin
+        if PaletteHasAlpha(OutputImage.Palette, OutputImage.PaletteEntries) then
+          OutputImage.Format := ifA8R8G8B8
+        else if PaletteIsGrayScale(OutputImage.Palette, OutputImage.PaletteEntries) then
+          OutputImage.Format := ifGray8
+        else
+          OutputImage.Format := ifR8G8B8;
+      end
+      else if OutputImage.FormatInfo.HasAlphaChannel then
+        OutputImage.Format := ifA8R8G8B8
+      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then
+        OutputImage.Format := ifGray8
+      else
+        OutputImage.Format := ifR8G8B8;
+    end;
+
+    if (Options.BackgroundColor and $FF000000) <> $FF000000 then
+    begin
+      // User explicitly requested some alpha in background color
+      OutputImage.Format := ifA8R8G8B8;
+    end
+    else if (OutputImage.Format = ifGray8) and not (
+      (GetRedValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor)) and
+      (GetBlueValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor))) then
+    begin
+      // Some non-grayscale background for gray image was requested
+      OutputImage.Format := ifR8G8B8;
+    end;
+  end;
+
+  function ChangeOutputFormatIfNeeded: Boolean;
+  begin
+    Result := False;
+
+    if (Options.ForcedOutputFormat <> ifUnknown) and (OutputImage.Format <> Options.ForcedOutputFormat) then
+    begin
+      // Force output format. For example Deskew won't automatically
+      // save image as binary if the input was binary since it
+      // might degrade the output a lot (rotation adds a lot of colors to image).
+      OutputImage.Format := Options.ForcedOutputFormat;
+      Result := True;
+    end;
+
+    if ((Imaging.FindImageFileFormatByName(Options.OutputFileName) is TBaseTiffFileFormat) and
+        (Options.TiffCompressionScheme = TiffCompressionOptionGroup4)) then
+    begin
+      // Special handling for TIFF compression - user explicitly requested
+      // CCITT Group 4 (T.6) compression which is for 1bit images only.
+      OutputImage.Format := ifBinary;
+      Result := True;
+    end;
+  end;
+
 begin
   Result := False;
+
   Threshold := 0;
   WriteLn('Preparing input image (', ExtractFileName(Options.InputFileName), ' [',
     InputImage.Width, 'x', InputImage.Height, '/', string(InputImage.FormatInfo.Name), ']) ...');
@@ -221,38 +282,7 @@ begin
     // one so the color space is preserved if possible.
     WriteLn('Rotating image...');
 
-    // Rotation is optimized for Gray8, RGB24, and ARGB32 formats at this time
-    if not (OutputImage.Format in ImageUtils.SupportedRotationFormats) then
-    begin
-      if OutputImage.Format = ifIndex8 then
-      begin
-        if PaletteHasAlpha(OutputImage.Palette, OutputImage.PaletteEntries) then
-          OutputImage.Format := ifA8R8G8B8
-        else if PaletteIsGrayScale(OutputImage.Palette, OutputImage.PaletteEntries) then
-          OutputImage.Format := ifGray8
-        else
-          OutputImage.Format := ifR8G8B8;
-      end
-      else if OutputImage.FormatInfo.HasAlphaChannel then
-        OutputImage.Format := ifA8R8G8B8
-      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then
-        OutputImage.Format := ifGray8
-      else
-        OutputImage.Format := ifR8G8B8;
-    end;
-
-    if (Options.BackgroundColor and $FF000000) <> $FF000000 then
-    begin
-      // User explicitly requested some alpha in background color
-      OutputImage.Format := ifA8R8G8B8;
-    end
-    else if (OutputImage.Format = ifGray8) and not (
-      (GetRedValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor)) and
-      (GetBlueValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor))) then
-    begin
-      // Some non-grayscale background for gray image was requested
-      OutputImage.Format := ifR8G8B8;
-    end;
+    EnsurePixelFormatForRotation;
 
     Time := GetTimeMicroseconds;
     ImageUtils.RotateImage(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor,
@@ -262,14 +292,8 @@ begin
   else
     WriteLn('Skipping deskewing step, skew angle lower than threshold of ', Options.SkipAngle:4:2);
 
-  if (Options.ForcedOutputFormat <> ifUnknown) and (OutputImage.Format <> Options.ForcedOutputFormat) then
-  begin
-    // Force output format. For example Deskew won't automatically
-    // save image as binary if the input was binary since it
-    // might degrade the output a lot (rotation adds a lot of colors to image).
-    OutputImage.Format := Options.ForcedOutputFormat;
-    Result := True;
-  end;
+  Result := ChangeOutputFormatIfNeeded or Result;
+  // Result is True if the image was actually changed during the whole procedure
 end;
 
 procedure RunDeskew;
@@ -383,6 +407,7 @@ begin
             // No change to image made, just copy it to the desired destination
             CopyFile(Options.InputFileName, Options.OutputFileName);
           end;
+
           WriteTiming('Save output file');
         end;
 
