@@ -24,9 +24,9 @@ jobs:
 
       - name: Print info
         run: | 
-          lazbuild --version
-          fpc -iWTPTO
-          uname -a            
+          echo "Lazarus:" $(lazbuild --version)
+          echo "FPC:" $(fpc -iWTPTO)
+          echo "OS:" $(uname -a)            
 
       - name: Build Deskew CLI
         shell: bash
