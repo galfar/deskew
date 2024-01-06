@@ -23,12 +23,14 @@ jobs:
           lazarus-version: ${{ matrix.lazarus-versions }}
 
       - name: Print info
+        shell: bash
         run: | 
           echo "Lazarus:" $(lazbuild --version)
           echo "FPC:" $(fpc -iWTPTO)
           echo "OS:" $(uname -a)            
 
       - name: Build Deskew CLI        
+        shell: bash
         run:  |
           if [ "$RUNNER_OS" == "macOS" ]; then
               lazbuild --build-mode=Release-macOS "deskew.lpi"
@@ -37,6 +39,7 @@ jobs:
           fi
 
       - name: Build Deskew GUI        
+        shell: bash
         run:   |
           if [ "$RUNNER_OS" == "macOS" ]; then
             lazbuild --build-mode=Release-macOS "Gui/deskewgui.lpi"
@@ -44,10 +47,12 @@ jobs:
             lazbuild --build-mode=Release "Gui/deskewgui.lpi"
           fi
 
-      - name: List Bin directory        
+      - name: List Bin directory
+        shell: bash
         run:  ls Bin
 
-      - name: Run tests        
+      - name: Run tests
+        shell: bash
         run:   |
           cd Bin
           if [ "$RUNNER_OS" == "Linux" ]; then
