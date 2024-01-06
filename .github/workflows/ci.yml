@@ -22,8 +22,11 @@ jobs:
         with:
           lazarus-version: ${{ matrix.lazarus-versions }}
 
-      - name: Print Lazarus version
-        run: lazbuild --version
+      - name: Print info
+        run: | 
+          lazbuild --version
+          fpc -iWTPTO
+          uname -a            
 
       - name: Build Deskew CLI
         shell: bash
@@ -62,7 +65,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: deskew-binaries-${{ matrix.distro }}
+          name: deskew-binaries-${{ matrix.operating-system }}
           path: |
             Bin/deskew*
           if-no-files-found: error
