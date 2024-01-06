@@ -38,12 +38,12 @@ done
 ./$DESKEW -g d ../TestImages/5.png
 
 if [[ $NOTIFF == 0 ]]; then
-  ./$DESKEW -t a -a 5 -o TestOut/Out1.tif ../TestImages/1.tif
+  ./$DESKEW -t a -a 5 -o TestOut/Out1.tif ../TestImages/1-lzw.tif
   ./$DESKEW -b DD -c j95,tjpeg -o TestOut/Out-tiff-jpeg.tif ../TestImages/tiff-jpeg.tif
-  ./$DESKEW -t 128 -o TestOut/Oute1.tif ../TestImages/1.tif
-  ./$DESKEW -b FF0000 -o TestOut/Outb1.tif ../TestImages/1.tif
-  ./$DESKEW -f b1 -o TestOut/Outf1.tif ../TestImages/1.tif
-  ./$DESKEW -a 5 -l 2 -o TestOut/Outl1.tif ../TestImages/1.tif
+  ./$DESKEW -t 128 -c tinput -o TestOut/Out1-g4.tif ../TestImages/1-g4.tif
+  ./$DESKEW -b FF0000 -c tdeflate -o TestOut/Out1-deflate.tif ../TestImages/1-lzw.tif
+  ./$DESKEW -f b1 -o TestOut/Out1-b1.tif ../TestImages/1-lzw.tif
+  ./$DESKEW -a 5 -l 2 -o TestOut/Outl1.tif ../TestImages/1-lzw.tif
 fi
 
 echo

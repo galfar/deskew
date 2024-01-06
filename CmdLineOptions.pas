@@ -20,6 +20,7 @@ uses
   ImagingTypes,
   Imaging,
   ImagingUtility,
+  ImagingTiff,
   ImageUtils;
 
 const
@@ -75,12 +76,14 @@ type
   public
     constructor Create;
     // Parses command line arguments to get options set by user
-    function ParseCommnadLine: Boolean;
+    function ParseCommandLine: Boolean;
     function OptionsToString: string;
 
     // Calculates final content rectangle in pixels for given image based
     // on user input (content vs margin, units).
     function CalcContentRectForImage(const ImageBounds: TRect; Metadata: TMetadata; out FinalRect: TRect): Boolean;
+
+    function TrySetTiffCompressionFromMetadata(Metadata: TMetadata): Boolean;
 
     property InputFileName: string read FInputFileName;
     property OutputFileName: string read FOutputFileName;
@@ -122,14 +125,17 @@ type
     property ErrorMessage: string read FErrorMessage;
   end;
 
+const
+  TiffCompressionOptionAsInput = TiffCompressionOptionGroup4 + 1;
+
 implementation
 
 uses
-  TypInfo, ImagingTiff;
+  TypInfo;
 
 const
-  TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
-    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4'
+  TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionAsInput] of string = (
+    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4', 'input'
   );
   SizeUnitTokens: array[TSizeUnit] of string = ('px', '%', 'mm', 'cm', 'in');
 
@@ -177,7 +183,7 @@ begin
     ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0));
 end;
 
-function TCmdLineOptions.ParseCommnadLine: Boolean;
+function TCmdLineOptions.ParseCommandLine: Boolean;
 var
   I: LongInt;
   Param, Arg: string;
@@ -536,6 +542,39 @@ begin
   Result := True;
 end;
 
+function TCmdLineOptions.TrySetTiffCompressionFromMetadata(Metadata: TMetadata): Boolean;
+var
+  CompName: string;
+begin
+  Result := True;
+  Assert(FTiffCompressionScheme = TiffCompressionOptionAsInput);
+  if not Metadata.HasMetaItem(SMetaTiffCompressionName) then
+  begin
+    FTiffCompressionScheme := -1;
+    Exit(False);
+  end;
+
+  CompName := Metadata.MetaItems[SMetaTiffCompressionName];
+
+  // Names from "TTiffLibFileFormat.LoadData"
+  if CompName = 'None' then
+    FTiffCompressionScheme := TiffCompressionOptionNone
+  else if CompName = 'LZW' then
+    FTiffCompressionScheme := TiffCompressionOptionLzw
+  else if CompName = 'JPEG' then
+    FTiffCompressionScheme := TiffCompressionOptionJpeg
+  else if CompName = 'Deflate' then
+    FTiffCompressionScheme := TiffCompressionOptionDeflate
+  else if StrUtils.MatchStr(CompName, ['CCITT Group 4 Fax', 'CCITT']) then
+    FTiffCompressionScheme := TiffCompressionOptionGroup4;
+
+  if FTiffCompressionScheme = TiffCompressionOptionAsInput then
+  begin
+    FTiffCompressionScheme := -1;
+    Exit(False);
+  end;
+end;
+
 function TCmdLineOptions.OptionsToString: string;
 var
   I: Integer;
@@ -572,7 +611,7 @@ begin
 end;
 
 initialization
-  FloatFmtSettings := DefaultFormatSettings;
+  FloatFmtSettings := SysUtils.FormatSettings;
   FloatFmtSettings.ThousandSeparator := #0;
   FloatFmtSettings.DecimalSeparator  := '.';
 
