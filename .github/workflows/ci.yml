@@ -28,8 +28,7 @@ jobs:
           echo "FPC:" $(fpc -iWTPTO)
           echo "OS:" $(uname -a)            
 
-      - name: Build Deskew CLI
-        shell: bash
+      - name: Build Deskew CLI        
         run:  |
           if [ "$RUNNER_OS" == "macOS" ]; then
               lazbuild --build-mode=Release-macOS "deskew.lpi"
@@ -37,8 +36,7 @@ jobs:
               lazbuild --build-mode=Release "deskew.lpi"
           fi
 
-      - name: Build Deskew GUI
-        shell: bash
+      - name: Build Deskew GUI        
         run:   |
           if [ "$RUNNER_OS" == "macOS" ]; then
             lazbuild --build-mode=Release-macOS "Gui/deskewgui.lpi"
@@ -46,12 +44,10 @@ jobs:
             lazbuild --build-mode=Release "Gui/deskewgui.lpi"
           fi
 
-      - name: List Bin directory
-        shell: bash
+      - name: List Bin directory        
         run:  ls Bin
 
-      - name:  Run tests
-        shell: bash
+      - name: Run tests        
         run:   |
           cd Bin
           if [ "$RUNNER_OS" == "Linux" ]; then
@@ -62,10 +58,19 @@ jobs:
               ./runtests.sh deskew-mac --no-tiff
           fi
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
         with:
           name: deskew-binaries-${{ matrix.operating-system }}
           path: |
             Bin/deskew*
+          if-no-files-found: error
+          
+      - name: Upload artifacts
+        if: github.event_name == 'workflow_dispatch' 
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskew-artifacts-${{ matrix.operating-system }}
+          path: |
+            Bin
           if-no-files-found: error
