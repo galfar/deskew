@@ -84,7 +84,7 @@ begin
   WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
   WriteLn('                   can be defined - delimited by commas. Supported specs:');
   WriteLn('                   jXX - JPEG compression quality, XX is in range [1,100(best)]');
-  WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4');
+  WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4|input');
 
 
   Count := GetFileFormatCount;
@@ -202,13 +202,22 @@ var
       Result := True;
     end;
 
-    if ((Imaging.FindImageFileFormatByName(Options.OutputFileName) is TBaseTiffFileFormat) and
-        (Options.TiffCompressionScheme = TiffCompressionOptionGroup4)) then
+    // Special handling for TIFF compression
+    if Imaging.FindImageFileFormatByName(Options.OutputFileName) is TBaseTiffFileFormat then
     begin
-      // Special handling for TIFF compression - user explicitly requested
-      // CCITT Group 4 (T.6) compression which is for 1bit images only.
-      OutputImage.Format := ifBinary;
-      Result := True;
+      if Options.TiffCompressionScheme = TiffCompressionOptionAsInput then
+      begin
+        if not Options.TrySetTiffCompressionFromMetadata(Imaging.GlobalMetadata) then
+          WriteLn('Could not set TIFF output compression from input, using default.');
+      end;
+
+      if Options.TiffCompressionScheme = TiffCompressionOptionGroup4 then
+      begin
+        // User explicitly requested
+        // CCITT Group 4 (T.6) compression which is for 1bit images only.
+        OutputImage.Format := ifBinary;
+        Result := True;
+      end;
     end;
   end;
 
@@ -322,7 +331,7 @@ procedure RunDeskew;
     SrcStream.Free;
   end;
 
-  procedure SetImagingOptions;
+  procedure SetImagingOutputOptions;
   begin
     if Options.JpegCompressionQuality <> -1 then
     begin
@@ -331,7 +340,10 @@ procedure RunDeskew;
       Imaging.SetOption(ImagingJNGQuality, Options.JpegCompressionQuality);
     end;
     if Options.TiffCompressionScheme <> -1 then
+    begin
+      Assert(Options.TiffCompressionScheme in [TiffCompressionOptionNone..TiffCompressionOptionGroup4]);
       Imaging.SetOption(ImagingTiffCompression, Options.TiffCompressionScheme);
+    end;
   end;
 
 var
@@ -353,9 +365,8 @@ begin
 
   try
     try
-      if Options.ParseCommnadLine and Options.IsValid then
+      if Options.ParseCommandLine and Options.IsValid then
       begin
-        SetImagingOptions;
         if Options.ShowParams then
           WriteLn(Options.OptionsToString);
 
@@ -397,6 +408,7 @@ begin
           Time := GetTimeMicroseconds;
           if Changed then
           begin
+            SetImagingOutputOptions;
             // Make sure recognized metadata stays (like scanning DPI info)
             GlobalMetadata.CopyLoadedMetaItemsForSaving;
             // Save the output
