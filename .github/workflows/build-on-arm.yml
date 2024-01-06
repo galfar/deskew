@@ -32,8 +32,8 @@ jobs:
             apt-get -y install libtiff5
 
           run: |
-            uname -a
-            fpc -iWTPTO
+            echo "FPC:" $(fpc -iWTPTO)
+            echo "OS:" $(uname -a)     
 
             ./Scripts/compile.sh
             cd Bin
