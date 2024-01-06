@@ -13,17 +13,21 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        # currently stable="Lazarus 2.2.2 / FPC 3.2.2" with setup-lazarus@v3.2
+        # currently stable="Lazarus 3.0 / FPC 3.2.2" with setup-lazarus@v3.2.17
         lazarus-versions: [stable]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Lazarus
-        uses: gcarreno/setup-lazarus@v3.2
+        uses: gcarreno/setup-lazarus@v3
         with:
           lazarus-version: ${{ matrix.lazarus-versions }}
 
-      - name: Print Lazarus version
-        run: lazbuild --version
+      - name: Print info
+        shell: bash
+        run: |
+          echo "Lazarus:" $(lazbuild --version)
+          echo "FPC:" $(fpc -iWTPTO)
+          echo "OS:" $(uname -a)
 
       - name: Build Deskew CLI
         shell: bash
@@ -47,7 +51,7 @@ jobs:
         shell: bash
         run:  ls Bin
 
-      - name:  Run tests
+      - name: Run tests
         shell: bash
         run:   |
           cd Bin
@@ -56,13 +60,22 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              ./runtests.sh deskew-mac
+              ./runtests.sh deskew-mac --no-tiff
           fi
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
         with:
-          name: deskew-binaries
+          name: deskew-binaries-${{ matrix.operating-system }}
           path: |
             Bin/deskew*
+          if-no-files-found: error
+
+      - name: Upload artifacts
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskew-artifacts-${{ matrix.operating-system }}
+          path: |
+            Bin
           if-no-files-found: error

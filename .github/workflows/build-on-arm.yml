@@ -1,6 +1,11 @@
 name: Build on ARM
 
-on: [workflow_dispatch]
+on:
+  # on each push and manual trigger
+  push:
+    branches: [ master ]
+    paths-ignore: [ "**/Readme.md" ]
+  workflow_dispatch:
 
 jobs:
   build_job:
@@ -16,9 +21,9 @@ jobs:
             distro: ubuntu_latest
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: uraimo/run-on-arch-action@v2.2.1
-        name: Build artifact
+      - uses: actions/checkout@v4
+      - uses: uraimo/run-on-arch-action@v2
+        name: Build binaries
         id: build
         with:
           arch: ${{ matrix.arch }}
@@ -32,15 +37,24 @@ jobs:
             apt-get -y install libtiff5
 
           run: |
-            uname -a
-            fpc -iWTPTO
+            echo "FPC:" $(fpc -iWTPTO)
+            echo "OS:" $(uname -a)
 
             ./Scripts/compile.sh
             cd Bin
             ./runtests.sh --no-tiff
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: deskew-binaries-${{ matrix.arch }}-${{ matrix.distro }}
+          path: |
+            Bin/deskew*
+          if-no-files-found: error
+
+      - name: Upload artifacts
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
         with:
           name: deskew-artifacts-${{ matrix.arch }}-${{ matrix.distro }}
           path: |
