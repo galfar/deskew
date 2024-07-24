@@ -9,7 +9,6 @@ uses
 const
   ApplicationTitle = 'Deskew GUI';
   WebLink = 'http://galfar.vevb.net/deskew/';
-  LogoImageResName = '';
   ShowDeskewExeOption = True;
 
 procedure AfterMainFormCreation(MainForm: TFormMain);

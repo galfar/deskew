@@ -105,9 +105,10 @@ procedure TFormMain.FormCreate(Sender: TObject);
 begin
 {$IF Defined(MSWINDOWS)}
   Color := clWhite;
-  // Is there a dependable monospaced font for Linux?
   // macOS has Courier New but changing the font from default messes up colors in dark mode.
   MemoOutput.Font.Name := 'Courier New';
+{$ELSEIF Defined(LINUX)}
+  MemoOutput.Font.Name := 'Monospace';
 {$ENDIF}
 
   FRunner := TRunner.Create(MemoOutput);

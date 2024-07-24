@@ -27,10 +27,10 @@ type
     LabWeb: TLabel;
     LabTitle: TLabel;
     LabVersion: TLabel;
-    LabGh: TLabel;
+    LabGitHub: TLabel;
     procedure BtnCloseClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure LabGhClick(Sender: TObject);
+    procedure LabGitHubClick(Sender: TObject);
     procedure LabWebClick(Sender: TObject);
   end;
 
@@ -52,38 +52,17 @@ begin
 end;
 
 procedure TFormAbout.FormCreate(Sender: TObject);
-var
-  Icon: TIcon;
 begin
   {$IFDEF MSWINDOWS}Color := clWhite;{$ENDIF}
 
   LabTitle.Caption := Application.Title;
   LabVersion.Caption := 'v' + Module.VersionString;
   LabWeb.Caption := Config.WebLink;
-
-  if Config.LogoImageResName = '' then
-  begin
-    Icon := TIcon.Create;
-    try
-      Icon.LoadFromResourceName(HInstance, 'MAINICON');
-      ImageIcon.Picture.Assign(Icon);
-  {$IF Defined(DARWIN)}
-      ImageIcon.Stretch := False; // Currently broken in Cocoa WS
-  {$ENDIF}
-    finally
-      Icon.Free;
-    end;
-  end
-  else
-  begin
-    ImageIcon.Stretch := False;
-    ImageIcon.Picture.LoadFromResourceName(HInstance, Config.LogoImageResName);
-  end;
 end;
 
-procedure TFormAbout.LabGhClick(Sender: TObject);
+procedure TFormAbout.LabGitHubClick(Sender: TObject);
 begin
-  OpenURL(LabGh.Caption);
+  OpenURL(LabGitHub.Caption);
 end;
 
 procedure TFormAbout.LabWebClick(Sender: TObject);
