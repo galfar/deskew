@@ -348,7 +348,6 @@ procedure RunDeskew;
 
 var
   Changed: Boolean;
-  I: Integer;
 begin
 {$IF Defined(FPC) and not Defined(MSWINDOWS)}
   // Flush after WriteLn also when output is redirected to file/pipe
@@ -445,9 +444,11 @@ begin
     InputImage.Free;
     OutputImage.Free;
 
-  {$IFDEF DEBUG}
-    ReadLn;
-  {$ENDIF}
+  {$IF Defined(DEBUG) and Defined(DELPHI) and Defined(MSWINDOWS)}
+    {$WARN SYMBOL_PLATFORM OFF}
+    if DebugHook <> 0 then
+      ReadLn;
+  {$IFEND}
   end;
 end;
 
