@@ -1,6 +1,6 @@
 {
   Vampyre Imaging Library
-  by Marek Mauder 
+  by Marek Mauder
   http://imaginglib.sourceforge.net
 
   The contents of this file are used with permission, subject to the Mozilla
@@ -38,19 +38,22 @@ unit ImagingTiffLib;
 
 {$I ImagingOptions.inc}
 
-{$IF Defined(LINUX) or Defined(BSD) or Defined(MACOS)}
+{$IF Defined(LINUX) or Defined(BSD) or Defined(MACOS)
+    or (Defined(DELPHI) and Defined(WIN64))}
   // Use LibTiff dynamic library in Linux/BSD instead of precompiled objects.
   // It's installed on most systems so let's use it and keep the binary smaller.
   // In macOS it's usually not installed but if it is let's use it.
+  // Also try to use dynamic library with 64bit Delphi Windows.
   {$DEFINE USE_DYN_LIB}
 {$IFEND}
 
-{$IF Defined(POSIX) and Defined(CPUX64)}
+{$IF Defined(POSIX) and (Defined(CPU64) or Defined(CPU64BITS))}  // 64bit CPU defines for both FPC and Delphi
   // Workaround for problem on 64bit Linux where thandle_t in libtiff is
   // still 32bit so it cannot be used to pass pointers (for IO functions).
   {$DEFINE HANDLE_NOT_POINTER_SIZED}
 {$IFEND}
 
+// You can force usage of dynamic library everywhere by defining USE_DYN_LIB here.
 {.$DEFINE USE_DYN_LIB}
 
 interface

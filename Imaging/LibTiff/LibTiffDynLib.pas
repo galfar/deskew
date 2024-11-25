@@ -43,13 +43,14 @@ type
   tstrip_t = LongWord;
 
 const
-  // LibTiff 4.0
+  // LibTiff 4.0+
+  // Note: Linux SONAME (and packages) for libtiff v4.0 is actually named libtiff5 (and libtiff6 for v4.5+ since 2023)
 {$IF Defined(MSWINDOWS)}
   SLibName = 'libtiff.dll'; // make sure you have DLL with the same bitness as your app!
 {$ELSEIF Defined(DARWIN)} // macOS
-  SLibName = 'libtiff.5.dylib';
+  SLibName = 'libtiff.dylib';
 {$ELSE} // Linux, BSD
-  SLibName = 'libtiff.so.5'; // yes, SONAME for libtiff v4.0 is actually libtiff5 (and libtiff.so.4 is libtiff v3.9)
+  SLibName = 'libtiff.so';
 {$IFEND}
 
   TIFF_NOTYPE                           = 0;
@@ -800,4 +801,3 @@ finalization
   FreeTiffLibrary;
 {$ENDIF}
 end.
-
