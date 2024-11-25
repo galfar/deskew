@@ -16,9 +16,9 @@ jobs:
       matrix:
         include:
           - arch: aarch64
-            distro: ubuntu22.04
+            distro: ubuntu_latest
           - arch: armv7
-            distro: ubuntu22.04
+            distro: ubuntu_latest
 
     steps:
       - uses: actions/checkout@v4
@@ -31,13 +31,14 @@ jobs:
 
           githubToken: ${{ github.token }}
 
-          install: |
-            echo "OS:" $(uname -a)
-          
-            apt-get update
-            apt-get -y install fpc
-            # ubuntu 22.04 is the last with libtiff5, newer have libtiff6
-            apt-get -y install libtiff5
+          install: |                      
+            # ubuntu_latest is 24.04 as of 11-2024
+            echo "OS:" $(uname -a)            
+                      
+            apt update
+            apt -y install fpc
+            # Just get the -dev, instead of libtiff5 vs libtiff6 in some newer distros
+            apt -y install libtiff-dev
 
           run: |
             echo "FPC:" $(fpc -iWTPTO)            
@@ -45,7 +46,7 @@ jobs:
 
             ./Scripts/compile.sh
             cd Bin
-            ./runtests.sh --no-tiff
+            ./runtests.sh
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
