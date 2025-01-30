@@ -37,14 +37,15 @@ type
   work only in defined part of image (useful when the document has text only in
   smaller area of page and non-text features outside the area confuse the rotation detector).
   Various calculations stats can be retrieved by passing Stats parameter.}
-function CalcRotationAngle(const MaxAngle: Double; Treshold: Integer;
-  Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect = nil;
+function CalcRotationAngle(const MaxAngle: Double; const MinTestedPixels: Integer;
+  Treshold: Integer; Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect = nil;
   Stats: PCalcSkewAngleStats = nil): Double;
 
 implementation
 
-function CalcRotationAngle(const MaxAngle: Double; Treshold: Integer;
-  Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect; Stats: PCalcSkewAngleStats): Double;
+function CalcRotationAngle(const MaxAngle: Double; const MinTestedPixels: Integer;
+  Treshold: Integer; Width, Height: Integer; Pixels: PByteArray; DetectionArea:
+  PRect; Stats: PCalcSkewAngleStats): Double;
 const
   // Number of "best" lines we take into account when determining
   // resulting rotation angle (lines with most votes).
@@ -193,8 +194,12 @@ begin
 
   // Average angles of the selected lines to get the rotation angle of the image
   SumAngles := 0;
-  for I := 0 to BestLinesCount - 1 do
-    SumAngles := SumAngles + BestLines[I].Alpha;
+  // We want to make sure there are enough pixels to be meaningful
+  if (AccumulatedCounts div AlphaSteps) >= MinTestedPixels then
+  begin
+    for I := 0 to BestLinesCount - 1 do
+      SumAngles := SumAngles + BestLines[I].Alpha;
+  end;
 
   Result := SumAngles / BestLinesCount;
 

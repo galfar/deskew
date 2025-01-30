@@ -66,6 +66,7 @@ begin
   WriteLn('  Options:');
   WriteLn('    -o output:     Output image file name (default: prefixed input as png)');
   WriteLn('    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
+  WriteLn('    -m min_tested: Minimum number of tested pixels for any rotation (default: 25)');
   WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
   WriteLn('  Ext. options:');
   WriteLn('    -q filter:     Resampling filter used for rotations (default: linear');
@@ -269,8 +270,8 @@ begin
   // Main step - calculate image rotation SkewAngle
   WriteLn('Calculating skew angle...');
   Time := GetTimeMicroseconds;
-  SkewAngle := CalcRotationAngle(Options.MaxAngle, Threshold,
-    InputImage.Width, InputImage.Height, InputImage.Bits,
+  SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.MinTestedPixels,
+    Threshold, InputImage.Width, InputImage.Height, InputImage.Bits,
     @ContentRect, @Stats);
   WriteTiming('Skew detection');
   WriteLn('Skew angle found [deg]: ', SkewAngle:4:3);
