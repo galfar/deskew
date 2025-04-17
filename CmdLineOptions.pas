@@ -52,6 +52,7 @@ type
 
   TCmdLineOptions = class
   private
+    // Option values
     FInputFileName: string;
     FOutputFileName: string;
     FMaxAngle: Double;
@@ -70,13 +71,23 @@ type
     FShowTimings: Boolean;
     FJpegCompressionQuality: Integer;
     FTiffCompressionScheme: Integer;
+    // Others
     FFormatSettings: TFormatSettings;
     FErrorMessage: string;
+
     function GetIsValid: Boolean;
+    // Reverts to default values
+    procedure Reset;
+    // Check a single parameter
+    function CheckParam(const Param, Value: string): Boolean;
   public
     constructor Create;
-    // Parses command line arguments to get options set by user
+
+    // Parses command line arguments provided as an array of strings
+    function Parse(Args: TStringDynArray): Boolean; overload;
+    // Calles Parse() to get options set by user using global ParamStr/ParamCount
     function ParseCommandLine: Boolean;
+
     function OptionsToString: string;
 
     // Calculates final content rectangle in pixels for given image based
@@ -128,6 +139,8 @@ type
 const
   TiffCompressionOptionAsInput = TiffCompressionOptionGroup4 + 1;
 
+function EnsureTrailingPathDelimiter(const DirPath: string): string;
+
 implementation
 
 uses
@@ -159,22 +172,8 @@ end;
 
 constructor TCmdLineOptions.Create;
 begin
-  FThresholdLevel := DefaultThreshold;
-  FMaxAngle := DefaultMaxAngle;
-  FSkipAngle := DefaultSkipAngle;
-  FResamplingFilter := rfLinear;
-  FThresholdingMethod := tmOtsu;
-  FContentRect := FloatRect(0, 0, 0, 0); // whole page
-  FContentSizeUnit := suPixels;
-  FBackgroundColor := $FF000000;
-  FOperationalFlags := [];
-  FShowStats := False;
-  FShowParams := False;
-  FShowTimings:= False;
-  FForcedOutputFormat := ifUnknown;
-  FJpegCompressionQuality := -1; // use imaginglib default
-  FTiffCompressionScheme := -1; // use imaginglib default
   FFormatSettings := ImagingUtility.GetFormatSettingsForFloats;
+  Reset;
 end;
 
 function TCmdLineOptions.GetIsValid: Boolean;
@@ -183,64 +182,38 @@ begin
     ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0));
 end;
 
-function TCmdLineOptions.ParseCommandLine: Boolean;
+procedure TCmdLineOptions.Reset;
+begin
+  FInputFileName := '';
+  FOutputFileName := '';
+  FMaxAngle := DefaultMaxAngle;
+  FSkipAngle := DefaultSkipAngle;
+  FResamplingFilter := rfLinear;
+  FThresholdingMethod := tmOtsu;
+  FThresholdLevel := DefaultThreshold;
+  FContentRect := FloatRect(0, 0, 0, 0); // whole page
+  FContentSizeUnit := suPixels;
+  FBackgroundColor := $FF000000;
+  FForcedOutputFormat := ifUnknown;
+  FDpiOverride := 0;
+  FOperationalFlags := [];
+  FShowStats := False;
+  FShowParams := False;
+  FShowTimings:= False;
+  FJpegCompressionQuality := -1; // use imaginglib default
+  FTiffCompressionScheme := -1; // use imaginglib default
+
+  FErrorMessage := '';
+end;
+
+function TCmdLineOptions.CheckParam(const Param, Value: string): Boolean;
 var
-  I: LongInt;
-  Param, Arg: string;
-
-  // From Delphi RTL StrUtils.pas - for compiling in Delphi 7
-  function SplitString(const S, Delimiters: string): TDynStringArray;
-  var
-    StartIdx: Integer;
-    FoundIdx: Integer;
-    SplitPoints: Integer;
-    CurrentSplit: Integer;
-    I: Integer;
-
-    function FindDelimiter(const Delimiters, S: string; StartIdx: Integer = 1): Integer;
-    var
-      Stop: Boolean;
-      Len: Integer;
-    begin
-      Result := 0;
-      Len := Length(S);
-      Stop := False;
-      while (not Stop) and (StartIdx <= Len) do
-        if IsDelimiter(Delimiters, S, StartIdx) then
-        begin
-          Result := StartIdx;
-          Stop := True;
-        end
-        else
-          Inc(StartIdx);
-    end;
-
-  begin
-    Result := nil;
-    if S <> '' then
-    begin
-      SplitPoints := 0;
-      for I := 1 to Length(S) do
-      begin
-        if IsDelimiter(Delimiters, S, I) then
-          Inc(SplitPoints);
-      end;
-
-      SetLength(Result, SplitPoints + 1);
-      StartIdx := 1;
-      CurrentSplit := 0;
-      repeat
-        FoundIdx := FindDelimiter(Delimiters, S, StartIdx);
-        if FoundIdx <> 0 then
-        begin
-          Result[CurrentSplit] := Copy(S, StartIdx, FoundIdx - StartIdx);
-          Inc(CurrentSplit);
-          StartIdx := FoundIdx + 1;
-        end;
-      until CurrentSplit = SplitPoints;
-      Result[SplitPoints] := Copy(S, StartIdx, Length(S) - StartIdx + 1);
-    end;
-  end;
+  StrArray: TDynStringArray;
+  ValLower, S: string;
+  TempColor: Cardinal;
+  Val64: Int64;
+  I, J, ValLength: Integer;
+  ArgsOk: Boolean;
 
   function TryParseSizeRect(const StrArray: array of string; out SizeRect: TFloatRect): Boolean;
   var
@@ -277,198 +250,196 @@ var
       end;
   end;
 
-  function CheckParam(const Param, Value: string): Boolean;
-  var
-    StrArray: TDynStringArray;
-    ValLower, S: string;
-    TempColor: Cardinal;
-    Val64: Int64;
-    I, J, ValLength: Integer;
-    ArgsOk: Boolean;
-  begin
-    Result := True;
-    ValLower := LowerCase(Value);
+begin
+  Result := True;
+  ValLower := LowerCase(Value);
 
-    if Param = '-o' then
+  if Param = '-o' then
+  begin
+    FOutputFileName := Value
+  end
+  else if Param = '-a' then
+  begin
+    if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) then
+      FErrorMessage := 'Invalid value for max angle parameter: ' + Value;
+  end
+  else if Param = '-l' then
+  begin
+    if not TryStrToFloat(Value, FSkipAngle, FFormatSettings) then
+      FErrorMessage := 'Invalid value for skip angle parameter: ' + Value;
+  end
+  else if Param = '-t' then
+  begin
+    if ValLower = 'a' then
+      FThresholdingMethod := tmOtsu
+    else
     begin
-      FOutputFileName := Value
-    end
-    else if Param = '-a' then
+      FThresholdingMethod := tmExplicit;
+      if not TryStrToInt(Value, FThresholdLevel) then
+        FErrorMessage := 'Invalid value for treshold parameter: ' + Value;
+    end;
+  end
+  else if Param = '-b' then
+  begin
+    ValLength := Length(ValLower);
+    if (ValLength <= 8) and TryStrToInt64('$' + ValLower, Val64) then
     begin
-      if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) then
-        FErrorMessage := 'Invalid value for max angle parameter: ' + Value;
-    end
-    else if Param = '-l' then
-    begin
-      if not TryStrToFloat(Value, FSkipAngle, FFormatSettings) then
-        FErrorMessage := 'Invalid value for skip angle parameter: ' + Value;
-    end
-    else if Param = '-t' then
-    begin
-      if ValLower = 'a' then
-        FThresholdingMethod := tmOtsu
+      TempColor := Cardinal(Val64 and $FFFFFFFF);
+      if (TempColor <= $FF) and (ValLength <= 2) then
+      begin
+        // Just one channel given, replicate for all channels + make opaque
+        FBackgroundColor := Color32($FF, Byte(TempColor), Byte(TempColor), Byte(TempColor)).Color;
+      end
+      else if (TempColor <= $FFFFFF) and (ValLength <= 6) then
+      begin
+        // RGB given, set alpha to 255 for background
+        FBackgroundColor := $FF000000 or TempColor;
+      end
       else
       begin
-        FThresholdingMethod := tmExplicit;
-        if not TryStrToInt(Value, FThresholdLevel) then
-          FErrorMessage := 'Invalid value for treshold parameter: ' + Value;
+        // Full ARGB given
+        FBackgroundColor := TempColor;
       end;
     end
-    else if Param = '-b' then
+    else
+      FErrorMessage := 'Invalid value for background color parameter: ' + Value;
+  end
+  else if Param = '-f' then
+  begin
+    if ValLower = 'b1' then          FForcedOutputFormat := ifBinary
+    else if ValLower = 'g8' then     FForcedOutputFormat := ifGray8
+    else if ValLower = 'rgb24' then  FForcedOutputFormat := ifR8G8B8
+    else if ValLower = 'rgba32' then FForcedOutputFormat := ifA8R8G8B8
+    else
+      FErrorMessage := 'Invalid value for format parameter: ' + Value;
+  end
+  else if Param = '-q' then
+  begin
+    if ValLower = 'nearest' then      FResamplingFilter := rfNearest
+    else if ValLower = 'linear' then  FResamplingFilter := rfLinear
+    else if ValLower = 'cubic' then   FResamplingFilter := rfCubic
+    else if ValLower = 'lanczos' then FResamplingFilter := rfLanczos
+    else
+      FErrorMessage := 'Invalid value for resampling filter parameter: ' + Value;
+  end
+  else if Param = '-g' then
+  begin
+    if Pos('c', ValLower) > 0 then
+       Include(FOperationalFlags, ofCropToInput);
+    if Pos('d', ValLower) > 0 then
+       Include(FOperationalFlags, ofDetectOnly);
+  end
+  else if Param = '-s' then
+  begin
+    if Pos('s', ValLower) > 0 then FShowStats := True;
+    if Pos('p', ValLower) > 0 then FShowParams := True;
+    if Pos('t', ValLower) > 0 then FShowTimings := True;
+  end
+  else if Param = '-r' then
+  begin
+    StrArray := SplitString(ValLower, ',');
+    ValLength := Length(StrArray);
+    // Allow also unit-less entry for backward compatibility
+    ArgsOk := (ValLength in [4, 5]) and TryParseSizeRect(Copy(StrArray, 0, 4), FContentRect);
+
+    if ArgsOk and (ValLength = 5) then
+      ArgsOk := TryParseSizeUnit(StrArray[4], FContentSizeUnit);
+
+    if not ArgsOk then
+      FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
+  end
+  else if Param = '-p' then
+  begin
+    if not TryStrToInt(Value, FDpiOverride) or (FDpiOverride < 1) then
+      FErrorMessage := 'Invalid value for DPI override parameter: ' + Value;
+  end
+  else if Param = '-c' then
+  begin
+    StrArray := SplitString(ValLower, ',');
+    for I := 0 to High(StrArray) do
     begin
-      ValLength := Length(ValLower);
-      if (ValLength <= 8) and TryStrToInt64('$' + ValLower, Val64) then
+      S := StrArray[I];
+      if Pos('t', S) = 1 then
       begin
-        TempColor := Cardinal(Val64 and $FFFFFFFF);
-        if (TempColor <= $FF) and (ValLength <= 2) then
+        S := Copy(S, 2);
+        FTiffCompressionScheme := -1;
+
+        for J := Low(TiffCompressionNames) to High(TiffCompressionNames) do
         begin
-          // Just one channel given, replicate for all channels + make opaque
-          FBackgroundColor := Color32($FF, Byte(TempColor), Byte(TempColor), Byte(TempColor)).Color;
-        end
-        else if (TempColor <= $FFFFFF) and (ValLength <= 6) then
+          if S = TiffCompressionNames[J] then
+          begin
+            FTiffCompressionScheme := J;
+            Break;
+          end;
+        end;
+
+        if FTiffCompressionScheme = -1 then
         begin
-          // RGB given, set alpha to 255 for background
-          FBackgroundColor := $FF000000 or TempColor;
-        end
-        else
+          FErrorMessage := 'Invalid TIFF output compression spec: ' + S;
+          Exit(False);
+        end;
+      end
+      else if Pos('j', S) = 1 then
+      begin
+        S := Copy(S, 2);
+        if not TryStrToInt(S, FJpegCompressionQuality) then
         begin
-          // Full ARGB given
-          FBackgroundColor := TempColor;
+          FErrorMessage := 'Invalid JPEG output compression spec: ' + S;
+          Exit(False);
         end;
       end
       else
-        FErrorMessage := 'Invalid value for background color parameter: ' + Value;
-    end
-    else if Param = '-f' then
-    begin
-      if ValLower = 'b1' then
-        FForcedOutputFormat := ifBinary
-      else if ValLower = 'g8' then
-        FForcedOutputFormat := ifGray8
-      else if ValLower = 'rgb24' then
-        FForcedOutputFormat := ifR8G8B8
-      else if ValLower = 'rgba32' then
-        FForcedOutputFormat := ifA8R8G8B8
-      else
-        FErrorMessage := 'Invalid value for format parameter: ' + Value;
-    end
-    else if Param = '-q' then
-    begin
-      if ValLower = 'nearest' then
-        FResamplingFilter := rfNearest
-      else if ValLower = 'linear' then
-        FResamplingFilter := rfLinear
-      else if ValLower = 'cubic' then
-        FResamplingFilter := rfCubic
-      else if ValLower = 'lanczos' then
-        FResamplingFilter := rfLanczos
-      else
-        FErrorMessage := 'Invalid value for resampling filter parameter: ' + Value;
-    end
-    else if Param = '-g' then
-    begin
-      if Pos('c', ValLower) > 0 then
-        Include(FOperationalFlags, ofCropToInput);
-      if Pos('d', ValLower) > 0 then
-        Include(FOperationalFlags, ofDetectOnly);
-    end
-    else if Param = '-s' then
-    begin
-      if Pos('s', ValLower) > 0 then
-        FShowStats := True;
-      if Pos('p', ValLower) > 0 then
-        FShowParams := True;
-      if Pos('t', ValLower) > 0 then
-        FShowTimings := True;
-    end
-    else if Param = '-r' then
-    begin
-      StrArray := SplitString(ValLower, ',');
-      ValLength := Length(StrArray);
-      // Allow also unit-less entry for backward compatibility
-      ArgsOk := (ValLength in [4, 5]) and TryParseSizeRect(Copy(StrArray, 0, 4), FContentRect);
-
-      if ArgsOk and (ValLength = 5) then
-        ArgsOk := TryParseSizeUnit(StrArray[4], FContentSizeUnit);
-
-      if not ArgsOk then
-        FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
-    end
-    else if Param = '-p' then
-    begin
-      if not TryStrToInt(Value, FDpiOverride) or (FDpiOverride < 1) then
-        FErrorMessage := 'Invalid value for DPI override parameter: ' + Value;
-    end
-    else if Param = '-c' then
-    begin
-      StrArray := SplitString(ValLower, ',');
-      for I := 0 to High(StrArray) do
       begin
-        S := StrArray[I];
-        if Pos('t', S) = 1 then
-        begin
-          S := Copy(S, 2);
-          FTiffCompressionScheme := -1;
-
-          for J := Low(TiffCompressionNames) to High(TiffCompressionNames) do
-          begin
-            if S = TiffCompressionNames[J] then
-            begin
-              FTiffCompressionScheme := J;
-              Break;
-            end;
-          end;
-
-          if FTiffCompressionScheme = -1 then
-          begin
-            FErrorMessage := 'Invalid TIFF output compression spec: ' + S;
-            Exit(False);
-          end;
-        end
-        else if Pos('j', S) = 1 then
-        begin
-          S := Copy(S, 2);
-          if not TryStrToInt(S, FJpegCompressionQuality) then
-          begin
-            FErrorMessage := 'Invalid JPEG output compression spec: ' + S;
-            Exit(False);
-          end;
-        end
-        else
-        begin
-          FErrorMessage := 'Invalid output compression parameter: ' + S;
-          Exit(False);
-        end;
+        FErrorMessage := 'Invalid output compression parameter: ' + S;
+        Exit(False);
       end;
-    end
-    else
-    begin
-      FErrorMessage := 'Unknown parameter: ' + Param;
     end;
-
-    if FErrorMessage <> '' then
-      Result := False;
+  end
+  else
+  begin
+    FErrorMessage := 'Unknown parameter: ' + Param;
   end;
 
-begin
-  Result := True;
-  I := 1;
+  if FErrorMessage <> '' then
+    Result := False;
+end;
 
-  while I <= ParamCount do
+function TCmdLineOptions.Parse(Args: TStringDynArray): Boolean;
+var
+  I: Integer;
+  Param, Value: string;
+begin
+  Reset;
+  Result := True;
+  I := 0;
+
+  while I <= High(Args) do
   begin
-    Param := ParamStr(I);
+    Param := Args[I];
     if Pos('-', Param) = 1 then
     begin
-      Arg := ParamStr(I + 1);
-      Inc(I);
-      if not CheckParam(Param, Arg) then
+      if I + 1 <= High(Args) then // Check if value exists
       begin
-        Result := False;
-        Exit;
+        Value := Args[I + 1];
+        Inc(I); // Consume the value argument
+        if not CheckParam(Param, Value) then
+          Exit(False);
+      end
+      else
+      begin
+        FErrorMessage := 'Missing value for parameter: ' + Param;
+        Exit(False);
       end;
     end
-    else
+    else // Not starting with '-', assume it's the input file
+    begin
+      if FInputFileName <> '' then
+      begin
+        FErrorMessage := Format('Multiple input files specified (%s, %s)', [Param, FInputFileName]);
+        Exit(False);
+      end;
       FInputFileName := Param;
+    end;
 
     Inc(I);
   end;
@@ -484,6 +455,17 @@ begin
     FOutputFileName := EnsureTrailingPathDelimiter(GetFileDir(FInputFileName)) +
       SDefaultOutputFilePrefix + ChangeFileExt(GetFileName(FInputFileName), '.' + SDefaultOutputFileExt);
   end;
+end;
+
+function TCmdLineOptions.ParseCommandLine: Boolean;
+var
+  Args: TStringDynArray;
+  I: Integer;
+begin
+  SetLength(Args, ParamCount);
+  for I := 0 to ParamCount - 1 do
+    Args[I] := ParamStr(I + 1);
+  Result := Parse(Args);
 end;
 
 function TCmdLineOptions.CalcContentRectForImage(const ImageBounds: TRect; Metadata: TMetadata;

@@ -50,6 +50,10 @@ unit ImagingJpeg;
   {$DEFINE PASJPEG}
 {$IFEND}
 
+{$IF Defined(PASJPEG)}
+  {$UNDEF IMJPEGLIB}
+{$IFEND}
+
 { We usually want to skip the rest of the corrupted file when loading JEPG files
   instead of getting exception. JpegLib's error handler can only be
   exited using setjmp/longjmp ("non-local goto") functions to get error
