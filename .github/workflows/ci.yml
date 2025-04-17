@@ -47,14 +47,20 @@ jobs:
             lazbuild --build-mode=Release "Gui/deskewgui.lpi"
           fi
 
+      - name: Build unit tests
+        shell: bash
+        run:  lazbuild "Tests/tests.lpi"
+
       - name: List Bin directory
         shell: bash
-        run:  ls Bin
+        run:  ls -lh Bin
 
       - name: Run tests
         shell: bash
         run:   |
           cd Bin
+          ./tests -a -p --format=plain --no-addresses
+
           if [ "$RUNNER_OS" == "Linux" ]; then
               ./runtests.sh
           elif [ "$RUNNER_OS" == "Windows" ]; then
