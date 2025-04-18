@@ -31,21 +31,28 @@ jobs:
 
           githubToken: ${{ github.token }}
 
-          install: |                      
+          install: |
             # ubuntu_latest is 24.04 as of 11-2024
-            echo "OS:" $(uname -a)            
-                      
+            echo "OS:" $(uname -a)
+            echo "   " $(lsb_release -d)
+            echo
+
             apt update
             apt -y install fpc
             # Just get the -dev, instead of libtiff5 vs libtiff6 in some newer distros
             apt -y install libtiff-dev
 
           run: |
-            echo "FPC:" $(fpc -iWTPTO)            
-            echo "OS:" $(uname -a)
+            echo "FPC:" $(fpc -iWTPTO)
+            echo
 
             ./Scripts/compile.sh
+            ./Scripts/tests-compile.sh
+
             cd Bin
+            ls -lh Bin
+
+            ./tests -a -p --format=plain --no-addresses
             ./runtests.sh
 
       - name: Upload binaries

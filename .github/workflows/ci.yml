@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        # currently stable="Lazarus 3.0 / FPC 3.2.2" with setup-lazarus@v3.2.17
+        # currently stable="Lazarus 3.6 / FPC 3.2.2" with setup-lazarus@v3.3.1
         lazarus-versions: [stable]
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,9 @@ jobs:
           echo "Lazarus:" $(lazbuild --version)
           echo "FPC:" $(fpc -iWTPTO)
           echo "OS:" $(uname -a)
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            echo $(lsb_release -d)
+          fi
 
       - name: Build Deskew CLI
         shell: bash
