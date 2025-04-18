@@ -2,10 +2,12 @@
 set -eu
 
 ROOTDIR="$(dirname "$0")/.."
-mkdir -p "$ROOTDIR/Dcu"
+pushd $ROOTDIR
 
-OUTPUT="-FE$ROOTDIR/Bin -FU$ROOTDIR/Dcu"
-IMGDIR="$ROOTDIR/Imaging"
+mkdir -p "./Dcu"
+
+OUTPUT="-FE./Bin -FU./Dcu"
+IMGDIR="./Imaging"
 UNITS="-Fu$IMGDIR -Fu$IMGDIR/ZLib -Fu$IMGDIR/JpegLib -Fu$IMGDIR/LibTiff"
 # This is how you suppress -vn set in fpc.cfg
 OPTIONS="-B -O3 -Xs -Mdelphi -vn-"
