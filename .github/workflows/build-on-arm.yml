@@ -50,7 +50,7 @@ jobs:
             ./Scripts/tests-compile.sh
 
             cd Bin
-            ls -lh Bin
+            ls -lh ./
 
             ./tests -a -p --format=plain --no-addresses
             ./runtests.sh
