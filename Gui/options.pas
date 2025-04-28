@@ -173,24 +173,37 @@ end;
 
 function TOptions.GetOutputFilePath(const InputFilePath: string): string;
 var
-  FileName: string;
+  FileName, InputFolder, UsedOutputFolder: string;
 begin
   FileName := ExtractFileName(InputFilePath);
+  InputFolder := ExtractFilePath(InputFilePath);
 
   if DefaultOutputFileOptions then
   begin
-    Result := ExtractFilePath(InputFilePath) + DefaultOutputFileNamePrefix + FileName;
+    Result := InputFolder + DefaultOutputFileNamePrefix + FileName;
   end
   else
   begin
     if OutputFileFormat <> ffSameAsInput then
       FileName := ChangeFileExt(FileName, '.' + FileExts[OutputFileFormat]);
 
-    Result := IncludeTrailingPathDelimiter(OutputFolder) + FileName;
+    UsedOutputFolder := OutputFolder;
 
-    // Try to avoid overwriting existing file (in case in-folder = out-folder)
-    if FileExists(Result) then
-      Result := IncludeTrailingPathDelimiter(OutputFolder) + DefaultOutputFileNamePrefix + FileName;
+    if UsedOutputFolder = '' then
+    begin
+      // No output folder is speficied, use the same as input
+      UsedOutputFolder := InputFolder;
+    end;
+
+    UsedOutputFolder := IncludeTrailingPathDelimiter(UsedOutputFolder);
+
+    if UsedOutputFolder = InputFolder then
+    begin
+       // Try to avoid overwriting existing file (in case in-folder = out-folder)
+       Result := UsedOutputFolder + DefaultOutputFileNamePrefix + FileName;
+    end
+    else
+      Result := UsedOutputFolder + FileName;
   end;
 end;
 
