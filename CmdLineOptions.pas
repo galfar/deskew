@@ -26,6 +26,7 @@ uses
 const
   DefaultThreshold = 128;
   DefaultMaxAngle = 10;
+  DefaultAngleStep = 0.1;
   DefaultSkipAngle = 0.01;
 
 type
@@ -56,6 +57,7 @@ type
     FInputFileName: string;
     FOutputFileName: string;
     FMaxAngle: Double;
+    FAngleStep: Double;
     FSkipAngle: Double;
     FResamplingFilter: TResamplingFilter;
     FThresholdingMethod: TThresholdingMethod;
@@ -98,8 +100,10 @@ type
 
     property InputFileName: string read FInputFileName;
     property OutputFileName: string read FOutputFileName;
-    // Max expected rotation angle - algo then works in range [-MaxAngle, MaxAngle]
+    // Max expected rotation angle - detection algorithm then works in range [-MaxAngle, MaxAngle]
     property MaxAngle: Double read FMaxAngle;
+    // Size of a single angle step during detection (in range [-MaxAngle, MaxAngle])
+    property AngleStep: Double read FAngleStep;
     // Skew threshold angle - skip deskewing if detected skew angle is in range (-MinAngle, MinAngle)
     property SkipAngle: Double read FSkipAngle;
     // Resampling filter used for rotations
@@ -116,7 +120,7 @@ type
     property BackgroundColor: TColor32 read FBackgroundColor;
     // Forced output format (applied just before saving the output)
     property ForcedOutputFormat: TImageFormat read FForcedOutputFormat;
-    // DPI to use when input image has not print resolution info or
+    // DPI to use when input image has no print resolution info or
     // override it when it's present
     property DpiOverride: Integer read FDpiOverride;
     // On/Off flags that control parts of the whole operation
@@ -144,7 +148,7 @@ function EnsureTrailingPathDelimiter(const DirPath: string): string;
 implementation
 
 uses
-  TypInfo;
+  TypInfo, Math;
 
 const
   TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionAsInput] of string = (
@@ -187,6 +191,7 @@ begin
   FInputFileName := '';
   FOutputFileName := '';
   FMaxAngle := DefaultMaxAngle;
+  FAngleStep := DefaultAngleStep;
   FSkipAngle := DefaultSkipAngle;
   FResamplingFilter := rfLinear;
   FThresholdingMethod := tmOtsu;
@@ -208,7 +213,7 @@ end;
 
 function TCmdLineOptions.CheckParam(const Param, Value: string): Boolean;
 var
-  StrArray: TDynStringArray;
+  StrArray: TStringDynArray;
   ValLower, S: string;
   TempColor: Cardinal;
   Val64: Int64;
@@ -262,6 +267,12 @@ begin
   begin
     if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) then
       FErrorMessage := 'Invalid value for max angle parameter: ' + Value;
+  end
+  else if Param = '-d' then
+  begin
+    if not TryStrToFloat(Value, FAngleStep, FFormatSettings) or
+       not InRange(FAngleStep, 0.01, 5) then
+      FErrorMessage := 'Invalid value for angle step parameter: ' + Value;
   end
   else if Param = '-l' then
   begin
@@ -324,16 +335,16 @@ begin
   end
   else if Param = '-g' then
   begin
-    if Pos('c', ValLower) > 0 then
+    if ContainsText('c', Value) then
        Include(FOperationalFlags, ofCropToInput);
-    if Pos('d', ValLower) > 0 then
+    if ContainsText('d', Value) then
        Include(FOperationalFlags, ofDetectOnly);
   end
   else if Param = '-s' then
   begin
-    if Pos('s', ValLower) > 0 then FShowStats := True;
-    if Pos('p', ValLower) > 0 then FShowParams := True;
-    if Pos('t', ValLower) > 0 then FShowTimings := True;
+    if ContainsText('s', Value) then FShowStats := True;
+    if ContainsText('p', Value) then FShowParams := True;
+    if ContainsText('t', Value) then FShowTimings := True;
   end
   else if Param = '-r' then
   begin
@@ -576,16 +587,17 @@ begin
     'Parameters: ' + CmdParams + sLineBreak +
     '  input file          = ' + InputFileName + sLineBreak +
     '  output file         = ' + OutputFileName + sLineBreak +
-    '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
     '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
     '  resampling filter   = ' + FilterStr + sLineBreak +
+    '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
+    '  angle step          = ' + FloatToStr(AngleStep) + sLineBreak +
     '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
     '  threshold level     = ' + IntToStr(ThresholdLevel) + sLineBreak +
     '  content rect        = ' + Format('%n,%n,%n,%n %s', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom,
                                         SizeUnitTokens[ContentSizeUnit]], FloatFmtSettings) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
-    '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
+    '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +
     '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
                                + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
     '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +

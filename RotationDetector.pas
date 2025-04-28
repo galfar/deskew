@@ -31,26 +31,32 @@ type
 { Calculates rotation angle for given 8bit grayscale image.
   Useful for finding skew of scanned documents etc.
   Uses Hough transform internally.
-  MaxAngle is maximal (abs. value) expected skew angle in degrees (to speed things up)
-  and Threshold (0..255) is used to classify pixel as black (text) or white (background).
+
+  Parameters:
+  - MaxAngle is maximal (abs. value) expected skew angle in degrees (to speed things up)
+  - AngleStep: step used in alpha parameter quantization (degrees)
+  - Threshold (0..255) is used to classify pixel as black (text) or white (background).
+
+  MaxAngle and AngleStep are mainly responsible for acheivable accuracy
+  and the running time. Detection runs in the range [-MaxAngle, MaxAngle], the size
+  of a single step is AngleStep.
+
   Area of interest rectangle can be defined to restrict the detection to
   work only in defined part of image (useful when the document has text only in
   smaller area of page and non-text features outside the area confuse the rotation detector).
   Various calculations stats can be retrieved by passing Stats parameter.}
-function CalcRotationAngle(const MaxAngle: Double; Treshold: Integer;
+function CalcRotationAngle(const MaxAngle, AngleStep: Double; Threshold: Integer;
   Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect = nil;
   Stats: PCalcSkewAngleStats = nil): Double;
 
 implementation
 
-function CalcRotationAngle(const MaxAngle: Double; Treshold: Integer;
+function CalcRotationAngle(const MaxAngle, AngleStep: Double; Threshold: Integer;
   Width, Height: Integer; Pixels: PByteArray; DetectionArea: PRect; Stats: PCalcSkewAngleStats): Double;
 const
   // Number of "best" lines we take into account when determining
   // resulting rotation angle (lines with most votes).
   BestLinesCount = 20;
-  // Angle step used in alpha parameter quantization (degrees)
-  AlphaStep = 0.1;
 type
   TLine = record
     Count: Integer;
@@ -70,13 +76,13 @@ var
   // Classifies pixel at [X, Y] as black or white using threshold.
   function IsPixelBlack(X, Y: Integer): Boolean;
   begin
-    Result := Pixels[Y * Width + X] < Treshold;
+    Result := Pixels[Y * Width + X] < Threshold;
   end;
 
   // Calculates final angle for given angle step.
   function GetFinalAngle(StepIndex: Integer): Double;
   begin
-    Result := AlphaStart + StepIndex * AlphaStep;
+    Result := AlphaStart + StepIndex * AngleStep;
   end;
 
   // Calculates angle and distance parameters for all lines
@@ -177,7 +183,7 @@ begin
     Dec(PageHeight); // Don't check for black pixels outsize of image in CalcHoughTransform()
 
   AlphaStart := -MaxAngle;
-  AlphaSteps := Ceil(2 * MaxAngle / AlphaStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
+  AlphaSteps := Ceil(2 * MaxAngle / AngleStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
   MinDist := -Max(PageWidth, PageHeight);
   DistCount := 2 * (PageWidth + PageHeight);
 

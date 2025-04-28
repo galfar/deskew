@@ -35,7 +35,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.33 (2025-04-18)'
+  SAppTitle = 'Deskew 1.33 (2025-04-28)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -63,13 +63,16 @@ begin
   WriteLn('Usage:');
   WriteLn('deskew [-o output] [-a angle] [-b color] [..] input');
   WriteLn('    input:         Input image file');
+
   WriteLn('  Options:');
   WriteLn('    -o output:     Output image file name (default: prefixed input as png)');
-  WriteLn('    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
   WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
-  WriteLn('  Ext. options:');
   WriteLn('    -q filter:     Resampling filter used for rotations (default: linear');
   WriteLn('                   values: nearest|linear|cubic|lanczos)');
+  WriteLn('    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
+
+  WriteLn('  Ext. options:');
+  WriteLn('    -d angle:      Angle step during detection in degrees (default: 0.1)');
   WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: auto)');
   WriteLn('    -r rect:       Skew detection only in content rectangle:');
   WriteLn('                   left,top,right,bottom[,unit] (default: whole page)');
@@ -269,7 +272,7 @@ begin
   // Main step - calculate image rotation SkewAngle
   WriteLn('Calculating skew angle...');
   Time := GetTimeMicroseconds;
-  SkewAngle := CalcRotationAngle(Options.MaxAngle, Threshold,
+  SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.AngleStep, Threshold,
     InputImage.Width, InputImage.Height, InputImage.Bits,
     @ContentRect, @Stats);
   WriteTiming('Skew detection');
