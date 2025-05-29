@@ -1,23 +1,39 @@
 unit TestCmdLineArgs;
 
-{$mode delphi}{$H+}
-
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry,
+  Classes, SysUtils,
+{$IFDEF FPC}
+  fpcunit, testregistry,
+{$ELSE}
+  TestFramework,
+{$ENDIF}
   ImagingUtility,
+  Utils,
   CmdLineOptions;
 
 type
-
   TTestCmdLineOptions= class(TTestCase)
   private
     FCmdOptions: TCmdLineOptions;
 
-    class procedure AssertEquals(const AMessage: string; Expected, Actual: Double); overload;
-    class procedure AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect); overload;
+{$IFNDEF FPC}
+    procedure AssertTrue(const Msg: string; const ACondition: Boolean;
+      AddrOfError: Pointer = nil); overload;
+    procedure AssertTrue(const ACondition: Boolean; AddrOfError: Pointer = nil); overload;
+    procedure AssertFalse(const Msg: string; const ACondition: Boolean;
+      AddrOfError: Pointer = nil); overload;
+
+    procedure AssertEquals(const AMessage: string; Expected, Actual: string); overload;
+{$ENDIF}
+
+    procedure AssertEquals(const AMessage: string; Expected, Actual: Double); overload;
+    procedure AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect); overload;
     procedure AssertParseSuccesAndEmptyError(const ParseResult: Boolean; const AMessage: string = '');
+    procedure AssertParseFailAndErrorContains(const ParseResult: Boolean; const ErrorMsgPart: string;
+      const AMessage: string = '');
+
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -37,24 +53,49 @@ type
     procedure TestDpiOverride;
 
     // Test methods for content rect
-    procedure TestContentRect_LTRB;
+    procedure TestContentRect;
+    procedure TestContentMargins;
   end;
 
 implementation
 
 uses
-  Math, ImageUtils, ImagingTypes;
+  Math, StrUtils, ImageUtils, ImagingTypes;
 
 const
   Epsilon = 0.001;
 
-class procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; Expected, Actual: Double);
+{$IFNDEF FPC}
+procedure TTestCmdLineOptions.AssertTrue(const Msg: string; const ACondition: Boolean;
+  AddrOfError: Pointer);
 begin
-  AssertTrue(ComparisonMsg(AMessage, FloatToStr(Expected), FloatToStr(Actual)),
-    SameValue(Expected, Actual, Epsilon), CallerAddr);
+  CheckTrue(ACondition, Msg);
 end;
 
-class procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect);
+procedure TTestCmdLineOptions.AssertTrue(const ACondition: Boolean;
+  AddrOfError: Pointer);
+begin
+  AssertTrue('', ACondition, AddrOfError);
+end;
+
+procedure TTestCmdLineOptions.AssertFalse(const Msg: string; const ACondition: Boolean;
+  AddrOfError: Pointer);
+begin
+  CheckFalse(ACondition, Msg);
+end;
+
+procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; Expected, Actual: string);
+begin
+  CheckEquals(Expected, Actual, AMessage);
+end;
+{$ENDIF}
+
+procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; Expected, Actual: Double);
+begin
+  CheckEquals(Expected, Actual, Epsilon, AMessage);
+end;
+
+procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect);
 const
   SCompare = '"%s" expected: <%g,%g,%g,%g> but was: <%g,%g,%g,%g>';
 var
@@ -81,9 +122,21 @@ var
   Prefix: string;
 begin
   Prefix := Iff(AMessage = '', '', AMessage + ': ');
-  AssertTrue(Prefix + 'Parse Success', ParseResult, CallerAddr);
+  AssertTrue(Prefix + 'Parse, ErrorMsg: ' + FCmdOptions.ErrorMessage, ParseResult, CallerAddr);
   AssertTrue(Prefix + 'IsValid', FCmdOptions.IsValid, CallerAddr);
   AssertTrue(Prefix + 'Error Message Empty', '' = FCmdOptions.ErrorMessage, CallerAddr);
+end;
+
+procedure TTestCmdLineOptions.AssertParseFailAndErrorContains(const ParseResult: Boolean; const ErrorMsgPart: string;
+  const AMessage: string = '');
+var
+  Prefix: string;
+begin
+  Prefix := Iff(AMessage = '', '', AMessage + ': ');
+  AssertFalse(Prefix + 'IsValid', FCmdOptions.IsValid, CallerAddr);
+  AssertTrue(Prefix + 'Error Message Contains "' + ErrorMsgPart + '" in "' + FCmdOptions.ErrorMessage + '"',
+             ContainsText(FCmdOptions.ErrorMessage, ErrorMsgPart),
+             CallerAddr);
 end;
 
 procedure TTestCmdLineOptions.SetUp;
@@ -148,12 +201,12 @@ begin
 
   ParseResult := FCmdOptions.Parse(['-o', '../dir/output.tif', '../other-dir/input.jpg']);
   AssertParseSuccesAndEmptyError(ParseResult, 'Folders');
-  AssertEquals('../other-dir/input.jpg', FCmdOptions.InputFileName);
-  AssertEquals('../dir/output.tif', FCmdOptions.OutputFileName);
+  CheckEquals('../other-dir/input.jpg', FCmdOptions.InputFileName);
+  CheckEquals('../dir/output.tif', FCmdOptions.OutputFileName);
 
   ParseResult := FCmdOptions.Parse(['-o', '"output with space.png"', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, 'Output with space');
-  AssertEquals('"output with space.png"', FCmdOptions.OutputFileName);
+  CheckEquals('"output with space.png"', FCmdOptions.OutputFileName);
 end;
 
 procedure TTestCmdLineOptions.TestMaxAngle;
@@ -203,19 +256,45 @@ begin
   AssertEquals('DPI Override Set', 300, FCmdOptions.DpiOverride);
 end;
 
-procedure TTestCmdLineOptions.TestContentRect_LTRB;
+procedure TTestCmdLineOptions.TestContentRect;
 var
   ParseResult: Boolean;
 begin
   ParseResult := FCmdOptions.Parse(['-r', '10,20,190,80', 'in.png']);
-  AssertParseSuccesAndEmptyError(ParseResult);
+  AssertParseSuccesAndEmptyError(ParseResult, '4 values');
 
   AssertEquals('ContentRect', FloatRect(10, 20, 190, 80), FCmdOptions.ContentRect);
-  AssertTrue('ContentRect Unit Pixels (Default)', suPixels = FCmdOptions.ContentSizeUnit);
+  AssertTrue('Unit Pixels (Default)', suPixels = FCmdOptions.ContentSizeUnit);
+
+  ParseResult := FCmdOptions.Parse(['-r', '10', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '1 value');
+  ParseResult := FCmdOptions.Parse(['-r', '1,1,1,1,1', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '5 values, not unit');
+  ParseResult := FCmdOptions.Parse(['-r', '1,1,1,1,nm', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '5 values, bad unit');
+  ParseResult := FCmdOptions.Parse(['-r', '1,1,%', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '3 values, unit');
+
+  ParseResult := FCmdOptions.Parse(['-r', '0,0,190,80,%', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '4 values + unit');
+  AssertEquals('ContentRect', FloatRect(0, 0, 190, 80), FCmdOptions.ContentRect);
+  AssertTrue('Unit: Pct', suPercent = FCmdOptions.ContentSizeUnit);
+
+  AssertTrue('Parse: cm', FCmdOptions.Parse(['-r', '0,0,190,80,cm', 'in.png']));
+  AssertTrue('Unit: cm', suCm = FCmdOptions.ContentSizeUnit);
+  AssertTrue('Parse: mm', FCmdOptions.Parse(['-r', '0,0,190,80,mm', 'in.png']));
+  AssertTrue('Unit: mm', suMm = FCmdOptions.ContentSizeUnit);
+  AssertTrue('Parse: inch', FCmdOptions.Parse(['-r', '0,0,190,80,in', 'in.png']));
+  AssertTrue('Unit: inch', suInch = FCmdOptions.ContentSizeUnit);
+end;
+
+procedure TTestCmdLineOptions.TestContentMargins;
+begin
+
 end;
 
 initialization
 
-  RegisterTest(TTestCmdLineOptions);
+  RegisterTest(TTestCmdLineOptions{$IFNDEF FPC}.Suite{$ENDIF});
 end.
 

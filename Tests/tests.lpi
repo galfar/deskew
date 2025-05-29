@@ -37,7 +37,6 @@
       <Unit>
         <Filename Value="TestCmdLineArgs.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="TestCmdLineArgs"/>
       </Unit>
       <Unit>
         <Filename Value="..\CmdLineOptions.pas"/>
@@ -79,6 +78,11 @@
       </Checks>
       <VerifyObjMethodCallValidity Value="True"/>
     </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf3"/>
+      </Debugging>
+    </Linking>
     <Other>
       <Verbosity>
         <ShowNotes Value="False"/>
