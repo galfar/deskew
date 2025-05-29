@@ -17,6 +17,7 @@ uses
   SysUtils,
   Classes,
   StrUtils,
+  Utils,
   ImagingTypes,
   Imaging,
   ImagingUtility,
@@ -43,14 +44,6 @@ type
   );
   TOperationalFlags = set of TOperationalFlag;
 
-  TSizeUnit = (
-    suPixels,
-    suPercent,
-    suMm,
-    suCm,
-    suInch
-  );
-
   TCmdLineOptions = class
   private
     // Option values
@@ -63,6 +56,7 @@ type
     FThresholdingMethod: TThresholdingMethod;
     FThresholdLevel: Integer;
     FContentRect: TFloatRect;
+    FContentMargins: TFloatRect;
     FContentSizeUnit: TSizeUnit;
     FBackgroundColor: TColor32;
     FForcedOutputFormat: TImageFormat;
@@ -112,9 +106,13 @@ type
     property ThresholdingMethod: TThresholdingMethod read FThresholdingMethod;
     // Threshold for black/white pixel classification for explicit thresholding method
     property ThresholdLevel: Integer read FThresholdLevel;
-    // Rect where to do the skew detection on the page image
+    // Rect where to do the skew detection on the page image.
+    // Alternatively, you can use ContentMargins to define the content rectangle.
     property ContentRect: TFloatRect read FContentRect;
-    // Unit of size of content or margin regions
+    // Margins of the page image to ignore when doing skew detection.
+    // This is alternative way to define content rectangle.
+    property ContentMargins: TFloatRect read FContentMargins;
+    // Unit of size of content or margin regions (ContentRect and ContentMargins)
     property ContentSizeUnit: TSizeUnit read FContentSizeUnit;
     // Background color for the rotated image
     property BackgroundColor: TColor32 read FBackgroundColor;
@@ -172,6 +170,7 @@ begin
     Result := DirPath;
 end;
 
+
 { TCmdLineOptions }
 
 constructor TCmdLineOptions.Create;
@@ -196,7 +195,8 @@ begin
   FResamplingFilter := rfLinear;
   FThresholdingMethod := tmOtsu;
   FThresholdLevel := DefaultThreshold;
-  FContentRect := FloatRect(0, 0, 0, 0); // whole page
+  FContentRect := NullFloatRect;    // whole page
+  FContentMargins := NullFloatRect; // whole page
   FContentSizeUnit := suPixels;
   FBackgroundColor := $FF000000;
   FForcedOutputFormat := ifUnknown;
@@ -206,7 +206,7 @@ begin
   FShowParams := False;
   FShowTimings:= False;
   FJpegCompressionQuality := -1; // use imaginglib default
-  FTiffCompressionScheme := -1; // use imaginglib default
+  FTiffCompressionScheme := -1;  // use imaginglib default
 
   FErrorMessage := '';
 end;
@@ -227,6 +227,7 @@ var
   begin
     Result := True;
     Len := Length(StrArray);
+    Assert(Len <= 4);
     SetLength(SingleArray, Len);
 
     for I := 0 to Len - 1 do
@@ -348,13 +349,67 @@ begin
   end
   else if Param = '-r' then
   begin
+    if not IsFloatRectNull(FContentMargins) then
+    begin
+      FErrorMessage := 'Cannot accept content rectangle when content margins are already defined';
+      Exit(False);
+    end;
+
     StrArray := SplitString(ValLower, ',');
     ValLength := Length(StrArray);
+
     // Allow also unit-less entry for backward compatibility
     ArgsOk := (ValLength in [4, 5]) and TryParseSizeRect(Copy(StrArray, 0, 4), FContentRect);
 
     if ArgsOk and (ValLength = 5) then
       ArgsOk := TryParseSizeUnit(StrArray[4], FContentSizeUnit);
+
+    if not ArgsOk then
+      FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
+  end
+  else if Param = '-m' then
+  begin
+    if not IsFloatRectNull(FContentRect) then
+    begin
+      FErrorMessage := 'Cannot accept content margins when content rectangle is already defined';
+      Exit(False);
+    end;
+
+    StrArray := SplitString(ValLower, ',');
+    ValLength := Length(StrArray);
+
+    // Allow 1, 2, 4 values + optional unit
+    ArgsOk := (ValLength in [1..5]);
+
+    if not ArgsOk then
+    begin
+      FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
+      Exit(False);
+    end;
+
+    case ValLength of
+      1, 4:
+        begin
+          // Just margin values without unit
+          ArgsOk := TryParseSizeRect(StrArray, FContentMargins);
+        end;
+      3, 5:
+        begin
+          // Margin values and unit
+          ArgsOk := TryParseSizeUnit(StrArray[ValLength - 1], FContentSizeUnit) and
+                    TryParseSizeRect(Copy(StrArray, 0, ValLength - 1), FContentMargins);
+        end;
+      2:
+        begin
+          // More complicated case: either one value + unit, or two value without unit
+          if TryParseSizeUnit(StrArray[1], FContentSizeUnit) then
+            ArgsOk := TryParseSizeRect(Copy(StrArray, 0, 1), FContentMargins)
+          else
+            ArgsOk := TryParseSizeRect(StrArray, FContentMargins);
+        end;
+      else
+        Assert(False);
+    end;
 
     if not ArgsOk then
       FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
@@ -482,55 +537,42 @@ end;
 function TCmdLineOptions.CalcContentRectForImage(const ImageBounds: TRect; Metadata: TMetadata;
   out FinalRect: TRect): Boolean;
 var
-  PixXSize, PixYSize: Double;
-
-  function MakeRect(const R: TFloatRect; WidthFactor, HeightFactor: Double): TRect;
-  begin
-    Result := Rect(Round(R.Left * WidthFactor),
-                   Round(R.Top * HeightFactor),
-                   Round(R.Right * WidthFactor),
-                   Round(R.Bottom * HeightFactor));
-  end;
-
+  MarginsInPx: TRect;
 begin
-  if IsFloatRectEmpty(ContentRect) then
+  Assert(not IsRectEmpty(ImageBounds));
+
+  // We have 3 cases here:
+  // 1. no content area reduction is defined
+  // 3. page margins (content inside) are defined
+  // 2. content rect on page is defined
+
+  if IsFloatRectNull(ContentRect) and IsFloatRectNull(ContentMargins) then
   begin
     FinalRect := ImageBounds;
     Exit(True);
   end;
 
-  case ContentSizeUnit of
-    suPixels: FinalRect := MakeRect(ContentRect, 1, 1);
-    suPercent:
-      begin
-        FinalRect := MakeRect(ContentRect,
-                              RectWidth(ImageBounds) / 100,
-                              RectHeight(ImageBounds) / 100);
-      end;
-    suMm:
-      begin
-        if not Metadata.GetPhysicalPixelSize(TResolutionUnit.ruDpcm, PixXSize, PixYSize) then
-          Exit(False);
-        FinalRect := MakeRect(ContentRect, PixXSize / 10, PixYSize / 10);
-      end;
-    suCm:
-      begin
-        if not Metadata.GetPhysicalPixelSize(TResolutionUnit.ruDpcm, PixXSize, PixYSize) then
-          Exit(False);
-        FinalRect := MakeRect(ContentRect, PixXSize, PixYSize);
-      end;
-    suInch:
-      begin
-        if not Metadata.GetPhysicalPixelSize(TResolutionUnit.ruDpi, PixXSize, PixYSize) then
-          Exit(False);
-        FinalRect := MakeRect(ContentRect, PixXSize, PixYSize);
-      end;
-    else
-      Assert(False);
+  if not IsFloatRectNull(ContentMargins) then
+  begin
+    // Margings to pixels
+    MarginsInPx := CalcRectInPixels(ContentMargins, ContentSizeUnit,
+                                    ImageBounds, Metadata);
+
+    // Remove margins from page
+    FinalRect := Rect(MarginsInPx.Left,
+                      MarginsInPx.Top,
+                      ImageBounds.Right - MarginsInPx.Right,
+                      ImageBounds.Bottom - MarginsInPx.Bottom);
   end;
 
-  if not IntersectRect(FinalRect, FinalRect, ImageBounds) then
-    FinalRect := ImageBounds;
+  if not IsFloatRectNull(ContentRect) then
+  begin
+    FinalRect := CalcRectInPixels(ContentRect, ContentSizeUnit,
+                                  ImageBounds, Metadata);
+  end;
+
+  if IsRectEmpty(FinalRect) or not IntersectRect(FinalRect, FinalRect, ImageBounds) then
+    Exit(False);
 
   Result := True;
 end;
@@ -572,6 +614,13 @@ function TCmdLineOptions.OptionsToString: string;
 var
   I: Integer;
   CompJpegStr, CompTiffStr, FilterStr, CmdParams: string;
+
+  function RectToStr(const R: TFloatRect): string;
+  begin
+    Result := Format('%n,%n,%n,%n %s', [R.Left, R.Top, R.Right, R.Bottom,
+      SizeUnitTokens[ContentSizeUnit]], FloatFmtSettings);
+  end;
+
 begin
   CmdParams := '';
   for I := 1 to ParamCount do
@@ -593,8 +642,8 @@ begin
     '  angle step          = ' + FloatToStr(AngleStep) + sLineBreak +
     '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
     '  threshold level     = ' + IntToStr(ThresholdLevel) + sLineBreak +
-    '  content rect        = ' + Format('%n,%n,%n,%n %s', [ContentRect.Left, ContentRect.Top, ContentRect.Right, ContentRect.Bottom,
-                                        SizeUnitTokens[ContentSizeUnit]], FloatFmtSettings) + sLineBreak +
+    '  content rect        = ' + RectToStr(ContentRect) + sLineBreak +
+    '  content margins     = ' + RectToStr(ContentMargins) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
     '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +

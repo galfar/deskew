@@ -31,11 +31,12 @@ uses
   ImagingTiff,
   // Project units
   CmdLineOptions,
+  Utils,
   ImageUtils,
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.33 (2025-04-28)'
+  SAppTitle = 'Deskew 1.33 (2025-05-29)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -74,9 +75,12 @@ begin
   WriteLn('  Ext. options:');
   WriteLn('    -d angle:      Angle step during detection in degrees (default: 0.1)');
   WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: auto)');
+  WriteLn('    -m margins:    Skew detection only outside page margins:');
+  WriteLn('                   L,T,R,B[,unit] or H,V[,unit] or A[,unit] (default: whole page)');
+  WriteLn('                   unit: px|%|mm|cm|in (default: px)');
   WriteLn('    -r rect:       Skew detection only in content rectangle:');
-  WriteLn('                   left,top,right,bottom[,unit] (default: whole page)');
-  WriteLn('                   unit: px|%|mm|cm|in');
+  WriteLn('                   L,T,R,B[,unit] (default: whole page)');
+  WriteLn('                   unit: px|%|mm|cm|in (default: px)');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
   WriteLn('    -p dpi:        Print resolution override');
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
@@ -86,7 +90,7 @@ begin
   WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
   WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
   WriteLn('                   can be defined - delimited by commas. Supported specs:');
-  WriteLn('                   jXX - JPEG compression quality, XX is in range [1,100(best)]');
+  WriteLn('                   jXX - JPEG compression quality, XX in range [1,100(best)]');
   WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4|input');
 
 
@@ -270,7 +274,9 @@ begin
   end;
 
   // Main step - calculate image rotation SkewAngle
-  WriteLn('Calculating skew angle...');
+  WriteLn('Calculating skew angle',
+    Iff(EqualRect(InputImage.BoundsRect, ContentRect), '', ' (in ' + RectToStr(ContentRect) +')'),
+    '...');
   Time := GetTimeMicroseconds;
   SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.AngleStep, Threshold,
     InputImage.Width, InputImage.Height, InputImage.Bits,
