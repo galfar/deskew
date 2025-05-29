@@ -336,16 +336,16 @@ begin
   end
   else if Param = '-g' then
   begin
-    if ContainsText('c', Value) then
+    if ContainsText(Value, 'c') then
        Include(FOperationalFlags, ofCropToInput);
-    if ContainsText('d', Value) then
+    if ContainsText(Value, 'd') then
        Include(FOperationalFlags, ofDetectOnly);
   end
   else if Param = '-s' then
   begin
-    if ContainsText('s', Value) then FShowStats := True;
-    if ContainsText('p', Value) then FShowParams := True;
-    if ContainsText('t', Value) then FShowTimings := True;
+    if ContainsText(Value, 's') then FShowStats := True;
+    if ContainsText(Value, 'p') then FShowParams := True;
+    if ContainsText(Value, 't') then FShowTimings := True;
   end
   else if Param = '-r' then
   begin

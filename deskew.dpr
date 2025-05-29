@@ -20,7 +20,13 @@ uses
   RotationDetector in 'RotationDetector.pas',
   CmdLineOptions in 'CmdLineOptions.pas',
   ImageUtils in 'ImageUtils.pas',
-  MainUnit in 'MainUnit.pas';
+  Utils in 'Utils.pas',
+  MainUnit in 'MainUnit.pas',
+  Imaging in 'Imaging\Imaging.pas',
+  ImagingClasses in 'Imaging\ImagingClasses.pas',
+  ImagingFormats in 'Imaging\ImagingFormats.pas',
+  ImagingTypes in 'Imaging\ImagingTypes.pas',
+  ImagingUtility in 'Imaging\ImagingUtility.pas';
 
 begin
 {$IFDEF DEBUG}

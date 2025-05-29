@@ -18,6 +18,7 @@ uses
   RotationDetector in 'RotationDetector.pas',
   CmdLineOptions in 'CmdLineOptions.pas',
   ImageUtils in 'ImageUtils.pas',
+  Utils in 'Utils.pas',
   MainUnit in 'MainUnit.pas';
 
 begin
