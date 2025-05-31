@@ -14,16 +14,6 @@
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
     </PropertyGroup>
-    <PropertyGroup Condition="('$(Platform)'=='Android' and '$(Base)'=='true') or '$(Base_Android)'!=''">
-        <Base_Android>true</Base_Android>
-        <CfgParent>Base</CfgParent>
-        <Base>true</Base>
-    </PropertyGroup>
-    <PropertyGroup Condition="('$(Platform)'=='Android64' and '$(Base)'=='true') or '$(Base_Android64)'!=''">
-        <Base_Android64>true</Base_Android64>
-        <CfgParent>Base</CfgParent>
-        <Base>true</Base>
-    </PropertyGroup>
     <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Base)'=='true') or '$(Base_Win32)'!=''">
         <Base_Win32>true</Base_Win32>
         <CfgParent>Base</CfgParent>
@@ -89,7 +79,7 @@
         <DCC_Define>DONT_LINK_FILE_FORMATS;$(DCC_Define)</DCC_Define>
         <DCC_DcuOutput>..\Dcu\tests\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>..\Bin</DCC_ExeOutput>
-    </PropertyGroup>    
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
@@ -134,7 +124,6 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
-        <Debugger_RunParams>-text</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -144,6 +133,7 @@
         <DCCReference Include="..\Imaging\ImagingUtility.pas"/>
         <DCCReference Include="..\CmdLineOptions.pas"/>
         <DCCReference Include="..\RotationDetector.pas"/>
+        <DCCReference Include="..\MainUnit.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

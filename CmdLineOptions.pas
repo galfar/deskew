@@ -62,7 +62,7 @@ type
     FForcedOutputFormat: TImageFormat;
     FDpiOverride: Integer;
     FOperationalFlags: TOperationalFlags;
-    FShowStats: Boolean;
+    FShowDetectionStats: Boolean;
     FShowParams: Boolean;
     FShowTimings: Boolean;
     FJpegCompressionQuality: Integer;
@@ -124,7 +124,7 @@ type
     // On/Off flags that control parts of the whole operation
     property OperationalFlags: TOperationalFlags read FOperationalFlags;
     // Show skew detection stats
-    property ShowStats: Boolean read FShowStats;
+    property ShowDetectionStats: Boolean read FShowDetectionStats;
     // Show current params to user (for testing etc.)
     property ShowParams: Boolean read FShowParams;
     // Show timing of processing steps to user
@@ -182,7 +182,8 @@ end;
 function TCmdLineOptions.GetIsValid: Boolean;
 begin
   Result := (InputFileName <> '') and (MaxAngle > 0) and (SkipAngle >= 0) and
-    ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0));
+    ((ThresholdingMethod in [tmOtsu]) or (ThresholdingMethod = tmExplicit) and (ThresholdLevel > 0))
+    and (FErrorMessage = '');
 end;
 
 procedure TCmdLineOptions.Reset;
@@ -202,13 +203,14 @@ begin
   FForcedOutputFormat := ifUnknown;
   FDpiOverride := 0;
   FOperationalFlags := [];
-  FShowStats := False;
+  FShowDetectionStats := False;
   FShowParams := False;
   FShowTimings:= False;
   FJpegCompressionQuality := -1; // use imaginglib default
   FTiffCompressionScheme := -1;  // use imaginglib default
 
   FErrorMessage := '';
+  Assert(not IsValid);
 end;
 
 function TCmdLineOptions.CheckParam(const Param, Value: string): Boolean;
@@ -343,7 +345,7 @@ begin
   end
   else if Param = '-s' then
   begin
-    if ContainsText(Value, 's') then FShowStats := True;
+    if ContainsText(Value, 's') then FShowDetectionStats := True;
     if ContainsText(Value, 'p') then FShowParams := True;
     if ContainsText(Value, 't') then FShowTimings := True;
   end
@@ -383,7 +385,7 @@ begin
 
     if not ArgsOk then
     begin
-      FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
+      FErrorMessage := 'Invalid definition of content margins: ' + Value;
       Exit(False);
     end;
 
@@ -412,7 +414,7 @@ begin
     end;
 
     if not ArgsOk then
-      FErrorMessage := 'Invalid definition of content rectangle: ' + Value;
+      FErrorMessage := 'Invalid definition of content margins: ' + Value;
   end
   else if Param = '-p' then
   begin
@@ -511,7 +513,10 @@ begin
   end;
 
   if FInputFileName = '' then
+  begin
     FErrorMessage := 'No input file given';
+    Exit(False);
+  end;
 
   if FOutputFileName = '' then
   begin
@@ -649,7 +654,7 @@ begin
     '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +
     '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
                                + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
-    '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowStats, 'stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +
+    '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowDetectionStats, 'detection-stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +
     '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;
 end;
 

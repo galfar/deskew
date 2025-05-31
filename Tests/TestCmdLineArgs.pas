@@ -52,6 +52,9 @@ type
     procedure TestSkipAngle;
     procedure TestDpiOverride;
 
+    // Test Flags
+    procedure TestFlags;
+
     // Test methods for content rect
     procedure TestContentRect;
     procedure TestContentMargins;
@@ -133,6 +136,7 @@ var
   Prefix: string;
 begin
   Prefix := Iff(AMessage = '', '', AMessage + ': ');
+  AssertFalse(Prefix + 'Parse, ErrorMsg: ' + FCmdOptions.ErrorMessage, ParseResult, CallerAddr);
   AssertFalse(Prefix + 'IsValid', FCmdOptions.IsValid, CallerAddr);
   AssertTrue(Prefix + 'Error Message Contains "' + ErrorMsgPart + '" in "' + FCmdOptions.ErrorMessage + '"',
              ContainsText(FCmdOptions.ErrorMessage, ErrorMsgPart),
@@ -162,14 +166,16 @@ begin
   AssertEquals('Default DPI Override', 0, FCmdOptions.DpiOverride);
   AssertEquals('Default JPEG Quality', -1, FCmdOptions.JpegCompressionQuality);
   AssertEquals('Default TIFF Compression', -1, FCmdOptions.TiffCompressionScheme);
-  AssertFalse('Default ShowStats', FCmdOptions.ShowStats);
-  AssertFalse('Default ShowParams', FCmdOptions.ShowParams);
-  AssertFalse('Default ShowTimings', FCmdOptions.ShowTimings);
   AssertTrue('Default OperationalFlags empty', FCmdOptions.OperationalFlags = []);
   AssertEquals('Default Input File Empty', '', FCmdOptions.InputFileName);
   AssertEquals('Default Output File Empty', '', FCmdOptions.OutputFileName);
   AssertEquals('Default Error Message Empty', '', FCmdOptions.ErrorMessage);
-  AssertFalse('Default IsValid (no input)', FCmdOptions.IsValid);
+
+  AssertFalse('Default ShowStats', FCmdOptions.ShowDetectionStats);
+  AssertFalse('Default ShowParams', FCmdOptions.ShowParams);
+  AssertFalse('Default ShowTimings', FCmdOptions.ShowTimings);
+
+  AssertFalse('Default IsValid (not parsed)', FCmdOptions.IsValid);
 end;
 
 procedure TTestCmdLineOptions.TestInputOnly;
@@ -187,6 +193,14 @@ begin
 
   AssertEquals('Input File Name Set', Input, FCmdOptions.InputFileName);
   AssertEquals('Output File Name Derived', ExpectedOutput, FCmdOptions.OutputFileName);
+
+  // Check bad inputs
+
+  ParseResult := FCmdOptions.Parse(['-o', 'out.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'No input file given');
+
+  ParseResult := FCmdOptions.Parse(['in1.png', 'in2.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Multiple input files specified (in2.png, in1.png)');
 end;
 
 procedure TTestCmdLineOptions.TestInputOutput;
@@ -256,41 +270,104 @@ begin
   AssertEquals('DPI Override Set', 300, FCmdOptions.DpiOverride);
 end;
 
+procedure TTestCmdLineOptions.TestFlags;
+var
+  ParseResult: Boolean;
+begin
+  ParseResult := FCmdOptions.Parse(['-s', 'spt', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '3 stats flags');
+  AssertTrue('Info: detection', FCmdOptions.ShowDetectionStats);
+  AssertTrue('Info: params', FCmdOptions.ShowParams);
+  AssertTrue('Info: timings', FCmdOptions.ShowTimings);
+
+  ParseResult := FCmdOptions.Parse(['-s', 't', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '1 stats flag');
+  AssertFalse('Info: !detection', FCmdOptions.ShowDetectionStats);
+  AssertFalse('Info: !params', FCmdOptions.ShowParams);
+  AssertTrue('Info: timings only', FCmdOptions.ShowTimings);
+end;
+
 procedure TTestCmdLineOptions.TestContentRect;
 var
   ParseResult: Boolean;
 begin
   ParseResult := FCmdOptions.Parse(['-r', '10,20,190,80', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, '4 values');
-
   AssertEquals('ContentRect', FloatRect(10, 20, 190, 80), FCmdOptions.ContentRect);
-  AssertTrue('Unit Pixels (Default)', suPixels = FCmdOptions.ContentSizeUnit);
+  AssertTrue('Unit: pixels (Default)', suPixels = FCmdOptions.ContentSizeUnit);
 
   ParseResult := FCmdOptions.Parse(['-r', '10', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '1 value');
   ParseResult := FCmdOptions.Parse(['-r', '1,1,1,1,1', 'in.png']);
-  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '5 values, not unit');
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '5 values, no unit');
   ParseResult := FCmdOptions.Parse(['-r', '1,1,1,1,nm', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '5 values, bad unit');
   ParseResult := FCmdOptions.Parse(['-r', '1,1,%', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', '3 values, unit');
 
-  ParseResult := FCmdOptions.Parse(['-r', '0,0,190,80,%', 'in.png']);
-  AssertParseSuccesAndEmptyError(ParseResult, '4 values + unit');
-  AssertEquals('ContentRect', FloatRect(0, 0, 190, 80), FCmdOptions.ContentRect);
+  ParseResult := FCmdOptions.Parse(['-r', '0.1,0.2,19.0,8.5,%', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '4 float values + unit');
+  AssertEquals('ContentRect float + unit', FloatRect(0.1, 0.2, 19.0, 8.5), FCmdOptions.ContentRect);
   AssertTrue('Unit: Pct', suPercent = FCmdOptions.ContentSizeUnit);
 
-  AssertTrue('Parse: cm', FCmdOptions.Parse(['-r', '0,0,190,80,cm', 'in.png']));
+  AssertTrue('Parse: cm', FCmdOptions.Parse(['-r', '0.13,0,190,80,cm', 'in.png']));
   AssertTrue('Unit: cm', suCm = FCmdOptions.ContentSizeUnit);
   AssertTrue('Parse: mm', FCmdOptions.Parse(['-r', '0,0,190,80,mm', 'in.png']));
   AssertTrue('Unit: mm', suMm = FCmdOptions.ContentSizeUnit);
-  AssertTrue('Parse: inch', FCmdOptions.Parse(['-r', '0,0,190,80,in', 'in.png']));
+  AssertTrue('Parse: inch', FCmdOptions.Parse(['-r', '0,0,190,80.731,in', 'in.png']));
   AssertTrue('Unit: inch', suInch = FCmdOptions.ContentSizeUnit);
+  AssertTrue('Parse: pixels', FCmdOptions.Parse(['-r', '0,0,190,80,px', 'in.png']));
+  AssertTrue('Unit: pixels', suPixels = FCmdOptions.ContentSizeUnit);
+
+  ParseResult := FCmdOptions.Parse(['-m', '10', '-r', '10,10,100,100', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Cannot accept content rectangle when content margins are already defined', 'margins given');
 end;
 
 procedure TTestCmdLineOptions.TestContentMargins;
+var
+  ParseResult: Boolean;
 begin
+  ParseResult := FCmdOptions.Parse(['-m', '100,120,140,80', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '4 values');
+  AssertEquals('ContentMargins', FloatRect(100, 120, 140, 80), FCmdOptions.ContentMargins);
+  AssertTrue('Unit: pixels (Default)', suPixels = FCmdOptions.ContentSizeUnit);
 
+  ParseResult := FCmdOptions.Parse(['-m', '10,12,14,8,mm', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '4 values + unit');
+  AssertEquals('ContentMargins + unit', FloatRect(10, 12, 14, 8), FCmdOptions.ContentMargins);
+  AssertTrue('Unit: mm', suMm = FCmdOptions.ContentSizeUnit);
+
+  ParseResult := FCmdOptions.Parse(['-m', '100', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '1 value');
+  AssertEquals('ContentMargins 1 value', FloatRect(100, 100, 100, 100), FCmdOptions.ContentMargins);
+
+  ParseResult := FCmdOptions.Parse(['-m', '15.5,%', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '1 value + unit');
+  AssertEquals('ContentMargins 1 value', FloatRect(15.5, 15.5, 15.5, 15.5), FCmdOptions.ContentMargins);
+  AssertTrue('Unit: pct', suPercent = FCmdOptions.ContentSizeUnit);
+
+  ParseResult := FCmdOptions.Parse(['-m', '100, 200', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '2 values');
+  AssertEquals('ContentMargins 2 values', FloatRect(100, 200, 100, 200), FCmdOptions.ContentMargins);
+
+  ParseResult := FCmdOptions.Parse(['-m', '1,2,cm', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '2 values + unit');
+  AssertEquals('ContentMargins 2 values + unit', FloatRect(1, 2, 1, 2), FCmdOptions.ContentMargins);
+  AssertTrue('Unit: cm', suCm = FCmdOptions.ContentSizeUnit);
+
+  ParseResult := FCmdOptions.Parse(['-m', '1,1,1,1,1', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content margins', '5 values, no unit');
+  ParseResult := FCmdOptions.Parse(['-m', '1,1,1', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content margins', '3 values, no unit');
+  ParseResult := FCmdOptions.Parse(['-m', '1,1,xibalba', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content margins', '3 values, bad unit');
+  ParseResult := FCmdOptions.Parse(['-m', 'mm,1,1', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content margins', 'unit first');
+  ParseResult := FCmdOptions.Parse(['-m', '1,1,1,1,1,in', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content margins', '6 values');
+
+  ParseResult := FCmdOptions.Parse(['-r', '10,10,100,100', '-m', '10', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Cannot accept content margins when content rectangle is already defined', 'content rect given');
 end;
 
 initialization

@@ -9,7 +9,8 @@ uses
   Utils in '..\Utils.pas',
   ImagingUtility in '..\Imaging\ImagingUtility.pas',
   CmdLineOptions in '..\CmdLineOptions.pas',
-  RotationDetector in '..\RotationDetector.pas';
+  RotationDetector in '..\RotationDetector.pas',
+  MainUnit in '..\MainUnit.pas';
 
 begin
   try

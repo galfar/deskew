@@ -150,7 +150,7 @@ var
   ContentRect: TRect;
   Stats: TCalcSkewAngleStats;
 
-  procedure WriteStats;
+  procedure WriteDetectionStats;
   begin
     WriteLn('Skew detection stats:');
     WriteLn('  pixel count:        ', FormatNiceNumber(Stats.PixelCount));
@@ -284,8 +284,8 @@ begin
   WriteTiming('Skew detection');
   WriteLn('Skew angle found [deg]: ', SkewAngle:4:3);
 
-  if Options.ShowStats then
-    WriteStats;
+  if Options.ShowDetectionStats then
+    WriteDetectionStats;
 
   if ofDetectOnly in Options.OperationalFlags then
     Exit;
