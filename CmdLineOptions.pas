@@ -577,14 +577,16 @@ begin
     MarginsInPx := CalcRectInPixels(ContentMargins, ContentSizeUnit,
                                     ImageBounds, Metadata);
 
+    if IsRectNull(MarginsInPx) then
+      Exit(False);
+
     // Remove margins from page
     FinalRect := Rect(MarginsInPx.Left,
                       MarginsInPx.Top,
                       ImageBounds.Right - MarginsInPx.Right,
                       ImageBounds.Bottom - MarginsInPx.Bottom);
-  end;
-
-  if not IsFloatRectNull(ContentRect) then
+  end
+  else if not IsFloatRectNull(ContentRect) then
   begin
     FinalRect := CalcRectInPixels(ContentRect, ContentSizeUnit,
                                   ImageBounds, Metadata);

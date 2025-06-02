@@ -3,14 +3,14 @@ unit TestCmdLineArgs;
 interface
 
 uses
-  Classes, SysUtils,
+  Types, Classes, SysUtils,
 {$IFDEF FPC}
   fpcunit, testregistry,
 {$ELSE}
   TestFramework,
 {$ENDIF}
-  ImagingUtility,
   Utils,
+  ImagingUtility,
   CmdLineOptions;
 
 type
@@ -21,15 +21,18 @@ type
 {$IFNDEF FPC}
     procedure AssertTrue(const Msg: string; const ACondition: Boolean;
       AddrOfError: Pointer = nil); overload;
-    procedure AssertTrue(const ACondition: Boolean; AddrOfError: Pointer = nil); overload;
+    procedure AssertTrue(const ACondition: Boolean); overload;
     procedure AssertFalse(const Msg: string; const ACondition: Boolean;
       AddrOfError: Pointer = nil); overload;
 
     procedure AssertEquals(const AMessage: string; Expected, Actual: string); overload;
+    procedure AssertEquals(Expected, Actual: string); overload;
 {$ENDIF}
 
     procedure AssertEquals(const AMessage: string; Expected, Actual: Double); overload;
     procedure AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect); overload;
+    procedure AssertEquals(const AMessage: string; const Expected, Actual: TRect); overload;
+
     procedure AssertParseSuccesAndEmptyError(const ParseResult: Boolean; const AMessage: string = '');
     procedure AssertParseFailAndErrorContains(const ParseResult: Boolean; const ErrorMsgPart: string;
       const AMessage: string = '');
@@ -38,32 +41,40 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   published
-    // Test Default Values
+    // Test basics
+    procedure TestParsing;
     procedure TestDefaults;
 
-    // Test Basic Argument Parsing
+    // Test input and output
     procedure TestInputOnly;
     procedure TestInputOutput;
 
-    // Test Numerical Options
+    // Test numerical options
     procedure TestMaxAngle;
-    procedure TestThresholdExplicit;
-    procedure TestThresholdAuto;
+    procedure TestAngleStep;
     procedure TestSkipAngle;
     procedure TestDpiOverride;
 
-    // Test Flags
+    // Test more complex params
+    procedure TestThreshold;
+    procedure TestResamplingFilter;
+    procedure TestOutputFormat;
+
+    // Test flags
+    procedure TestOperationalFlags;
     procedure TestInfoFlags;
 
-    // Test methods for content rect
+    // Test content area
     procedure TestContentRect;
     procedure TestContentMargins;
+    procedure TestCalcDetectionRect;
   end;
 
 implementation
 
 uses
-  Math, StrUtils, ImageUtils, ImagingTypes;
+  Math, StrUtils,
+  ImageUtils, ImagingTypes, Imaging;
 
 const
   Epsilon = 0.001;
@@ -75,10 +86,9 @@ begin
   CheckTrue(ACondition, Msg);
 end;
 
-procedure TTestCmdLineOptions.AssertTrue(const ACondition: Boolean;
-  AddrOfError: Pointer);
+procedure TTestCmdLineOptions.AssertTrue(const ACondition: Boolean);
 begin
-  AssertTrue('', ACondition, AddrOfError);
+  CheckTrue(ACondition);
 end;
 
 procedure TTestCmdLineOptions.AssertFalse(const Msg: string; const ACondition: Boolean;
@@ -91,18 +101,27 @@ procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; Expected, Act
 begin
   CheckEquals(Expected, Actual, AMessage);
 end;
+
+procedure TTestCmdLineOptions.AssertEquals(Expected, Actual: string);
+begin
+  CheckEquals(Expected, Actual);
+end;
+
 {$ENDIF}
 
 procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; Expected, Actual: Double);
 begin
+{$IFDEF FPC}
+  AssertTrue(ComparisonMsg(AMessage, FloatToStr(Expected), FloatToStr(Actual)),
+    SameValue(Expected, Actual, Epsilon), CallerAddr);
+{$ELSE}
   CheckEquals(Expected, Actual, Epsilon, AMessage);
+{$ENDIF}
 end;
 
 procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect);
 const
   SCompare = '"%s" expected: <%g,%g,%g,%g> but was: <%g,%g,%g,%g>';
-var
-  Msg: string;
 
   function AreFloatRectsEqual(const R1, R2: TFloatRect): Boolean;
   begin
@@ -118,6 +137,17 @@ begin
       Expected.Left, Expected.Top, Expected.Right, Expected.Bottom,
       Actual.Left, Actual.Top, Actual.Right, Actual.Bottom]),
     AreFloatRectsEqual(Expected, Actual), CallerAddr);
+end;
+
+procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; const Expected, Actual: TRect);
+const
+  SCompare = '"%s" expected: <%d,%d,%d,%d> but was: <%d,%d,%d,%d>';
+begin
+  AssertTrue(
+    Format(SCompare, [AMessage,
+      Expected.Left, Expected.Top, Expected.Right, Expected.Bottom,
+      Actual.Left, Actual.Top, Actual.Right, Actual.Bottom]),
+    EqualRect(Expected, Actual), CallerAddr);
 end;
 
 procedure TTestCmdLineOptions.AssertParseSuccesAndEmptyError(const ParseResult: Boolean; const AMessage: string);
@@ -153,6 +183,20 @@ begin
   FCmdOptions.Free;
 end;
 
+procedure TTestCmdLineOptions.TestParsing;
+var
+  ParseResult: Boolean;
+begin
+  ParseResult := FCmdOptions.Parse(['-z', '123', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter: -z', 'Unknown parameter');
+
+  ParseResult := FCmdOptions.Parse(['in.jpg', '-a']);
+  AssertParseFailAndErrorContains(ParseResult, 'Missing value for parameter: -a', 'Missing value');
+
+  ParseResult := FCmdOptions.Parse(['in.jpg', '-a', '1']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Param after input');
+end;
+
 procedure TTestCmdLineOptions.TestDefaults;
 begin
   // Check default values set in the constructor - No parsing needed
@@ -174,6 +218,7 @@ begin
   AssertFalse('Default ShowStats', FCmdOptions.ShowDetectionStats);
   AssertFalse('Default ShowParams', FCmdOptions.ShowParams);
   AssertFalse('Default ShowTimings', FCmdOptions.ShowTimings);
+  AssertFalse('Default SaveWorkImage', FCmdOptions.SaveWorkImage);
 
   AssertFalse('Default IsValid (not parsed)', FCmdOptions.IsValid);
 end;
@@ -189,13 +234,16 @@ begin
                    'deskewed-' + ChangeFileExt(ExtractFileName(Input), '.png');
 
   ParseResult := FCmdOptions.Parse([Input]);
-  AssertParseSuccesAndEmptyError(ParseResult);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Just input');
 
   AssertEquals('Input File Name Set', Input, FCmdOptions.InputFileName);
   AssertEquals('Output File Name Derived', ExpectedOutput, FCmdOptions.OutputFileName);
 
-  // Check bad inputs
+  ParseResult := FCmdOptions.Parse(['"input with space.png"']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Input with space');
+  AssertEquals('"input with space.png"', FCmdOptions.InputFileName);
 
+  // Check bad inputs
   ParseResult := FCmdOptions.Parse(['-o', 'out.png']);
   AssertParseFailAndErrorContains(ParseResult, 'No input file given');
 
@@ -215,12 +263,12 @@ begin
 
   ParseResult := FCmdOptions.Parse(['-o', '../dir/output.tif', '../other-dir/input.jpg']);
   AssertParseSuccesAndEmptyError(ParseResult, 'Folders');
-  CheckEquals('../other-dir/input.jpg', FCmdOptions.InputFileName);
-  CheckEquals('../dir/output.tif', FCmdOptions.OutputFileName);
+  AssertEquals('../other-dir/input.jpg', FCmdOptions.InputFileName);
+  AssertEquals('../dir/output.tif', FCmdOptions.OutputFileName);
 
   ParseResult := FCmdOptions.Parse(['-o', '"output with space.png"', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, 'Output with space');
-  CheckEquals('"output with space.png"', FCmdOptions.OutputFileName);
+  AssertEquals('"output with space.png"', FCmdOptions.OutputFileName);
 end;
 
 procedure TTestCmdLineOptions.TestMaxAngle;
@@ -230,26 +278,18 @@ begin
   ParseResult := FCmdOptions.Parse(['-a', '5.7', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult);
   AssertEquals('MaxAngle Set', 5.7, FCmdOptions.MaxAngle);
+
+  ParseResult := FCmdOptions.Parse(['-a', 'not_a_number', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for max angle parameter: not_a_number', 'Invalid value');
 end;
 
-procedure TTestCmdLineOptions.TestThresholdExplicit;
+procedure TTestCmdLineOptions.TestAngleStep;
 var
   ParseResult: Boolean;
 begin
-  ParseResult := FCmdOptions.Parse(['-t', '99', 'in.png']);
+  ParseResult := FCmdOptions.Parse(['-d', '0.01', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult);
-  AssertTrue('Threshold Method Explicit', tmExplicit = FCmdOptions.ThresholdingMethod);
-  AssertEquals('Threshold Level Set', 99, FCmdOptions.ThresholdLevel);
-end;
-
-procedure TTestCmdLineOptions.TestThresholdAuto;
-var
-  ParseResult: Boolean;
-begin
-  ParseResult := FCmdOptions.Parse(['-t', 'a', 'in.png']);
-  AssertParseSuccesAndEmptyError(ParseResult);
-  AssertTrue('Threshold Method Auto', tmOtsu = FCmdOptions.ThresholdingMethod);
-  AssertEquals('Threshold Level Default with Otsu', DefaultThreshold, FCmdOptions.ThresholdLevel);
+  AssertEquals('AngleStep Set', 0.01, FCmdOptions.AngleStep);
 end;
 
 procedure TTestCmdLineOptions.TestSkipAngle;
@@ -268,6 +308,78 @@ begin
   ParseResult := FCmdOptions.Parse(['-p', '300', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult);
   AssertEquals('DPI Override Set', 300, FCmdOptions.DpiOverride);
+end;
+
+procedure TTestCmdLineOptions.TestThreshold;
+var
+  ParseResult: Boolean;
+begin
+  ParseResult := FCmdOptions.Parse(['-t', '99', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Threshold explicit');
+  AssertTrue('Threshold Method Explicit', tmExplicit = FCmdOptions.ThresholdingMethod);
+  AssertEquals('Threshold Level Set', 99, FCmdOptions.ThresholdLevel);
+
+  ParseResult := FCmdOptions.Parse(['-t', 'a', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Threshold auto');
+  AssertTrue('Threshold Method Auto', tmOtsu = FCmdOptions.ThresholdingMethod);
+
+  ParseResult := FCmdOptions.Parse(['-t', 'x', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for treshold parameter: x', 'Invalid value - char');
+
+  ParseResult := FCmdOptions.Parse(['-t', '55.55', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for treshold parameter: 55.55', 'Invalid value - float');
+end;
+
+procedure TTestCmdLineOptions.TestResamplingFilter;
+const
+  Names: array[TResamplingFilter] of string = ('nearest', 'linear', 'cubic', 'lanczos');
+var
+  ParseResult: Boolean;
+  Filter: TResamplingFilter;
+begin
+  for Filter := Low(TResamplingFilter) to High(TResamplingFilter) do
+  begin
+    ParseResult := FCmdOptions.Parse(['-q', Names[Filter], 'in.png']);
+    AssertParseSuccesAndEmptyError(ParseResult, 'Filter parse: ' + Names[Filter]);
+    AssertTrue('Filter value: ' + Names[Filter], Filter = FCmdOptions.ResamplingFilter);
+  end;
+
+  ParseResult := FCmdOptions.Parse(['-q', 'ujo', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for resampling filter parameter: ujo', 'Invalid filter');
+end;
+
+procedure TTestCmdLineOptions.TestOutputFormat;
+const
+  Names: array[1..4] of string = ('b1', 'g8', 'rgb24', 'rgba32');
+  Formats: array[1..4] of TImageFormat = (ifBinary, ifGray8, ifR8G8B8, ifA8R8G8B8);
+var
+  ParseResult: Boolean;
+  I: Integer;
+begin
+  for I := Low(Formats) to High(Formats) do
+  begin
+    ParseResult := FCmdOptions.Parse(['-f', Names[I], 'in.png']);
+    AssertParseSuccesAndEmptyError(ParseResult, 'Format parse: ' + Names[I]);
+    AssertTrue('Format value: ' + Names[I], Formats[I] = FCmdOptions.ForcedOutputFormat);
+  end;
+
+  ParseResult := FCmdOptions.Parse(['-f', 'g64', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for format parameter: g64', 'Invalid format');
+end;
+
+procedure TTestCmdLineOptions.TestOperationalFlags;
+var
+  ParseResult: Boolean;
+begin
+  ParseResult := FCmdOptions.Parse(['-g', 'cd', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '2 oper flags');
+  AssertTrue('CropToInput set', ofCropToInput in FCmdOptions.OperationalFlags);
+  AssertTrue('DetectOnly set', ofDetectOnly in FCmdOptions.OperationalFlags);
+
+  ParseResult := FCmdOptions.Parse(['-g', 'd', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '1 oper flag');
+  AssertTrue('CropToInput !set', not (ofCropToInput in FCmdOptions.OperationalFlags));
+  AssertTrue('DetectOnly set', ofDetectOnly in FCmdOptions.OperationalFlags);
 end;
 
 procedure TTestCmdLineOptions.TestInfoFlags;
@@ -370,6 +482,77 @@ begin
 
   ParseResult := FCmdOptions.Parse(['-r', '10,10,100,100', '-m', '10', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Cannot accept content margins when content rectangle is already defined', 'content rect given');
+end;
+
+procedure TTestCmdLineOptions.TestCalcDetectionRect;
+var
+  FinalRect, ImageBounds: TRect;
+  Metadata: TMetadata;
+begin
+  Metadata := TMetadata.Create;
+  ImageBounds := Rect(0, 0, 500, 1000);
+
+  AssertTrue(FCmdOptions.Parse(['in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('No content reduction', ImageBounds, FinalRect);
+
+  // Page Margins
+  AssertTrue(FCmdOptions.Parse(['-m', '100,120,140,80', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 4x px', Rect(100, 120, 360, 920), FinalRect);
+
+  AssertTrue(FCmdOptions.Parse(['-m', '100', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 1x px', Rect(100, 100, 400, 900), FinalRect);
+
+  AssertTrue(FCmdOptions.Parse(['-m', '10,%', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 1x %', Rect(50, 100, 450, 900), FinalRect);
+
+  AssertTrue(FCmdOptions.Parse(['-m', '1,20,%', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 2x %', Rect(5, 200, 495, 800), FinalRect);
+
+  // Page Rect
+  AssertTrue(FCmdOptions.Parse(['-r', '100,120,440,800', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('R 4x px', Rect(100, 120, 440, 800), FinalRect);
+
+  AssertTrue(FCmdOptions.Parse(['-r', '10,20,90,80,%', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('R 4x %', Rect(50, 200, 450, 800), FinalRect);
+
+  // Failures
+  AssertTrue(FCmdOptions.Parse(['-m', '1,in', 'in.png']));
+  AssertFalse('Missing DPI', FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+
+  AssertTrue(FCmdOptions.Parse(['-r', '-10,-20,-90,-80', 'in.png']));
+  AssertFalse('Rect off the image', FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+
+  AssertTrue(FCmdOptions.Parse(['-m', '50.1,%', 'in.png']));
+  AssertFalse('Margins too big', FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+
+  // With physical sizes
+  Metadata.SetPhysicalPixelSize(TResolutionUnit.ruDpi, 50, 100);  // Img is 10x10 inches
+  AssertTrue(FCmdOptions.Parse(['-m', '1,in', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 1x in', Rect(50, 100, 450, 900), FinalRect);
+
+  Metadata.SetPhysicalPixelSize(TResolutionUnit.ruDpcm, 50, 100);  // Img is 10x10 cm
+  AssertTrue(FCmdOptions.Parse(['-m', '1,cm', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 1x cm', Rect(50, 100, 450, 900), FinalRect);
+
+  AssertTrue(FCmdOptions.Parse(['-m', '1,mm', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 1x mm', Rect(5, 10, 495, 990), FinalRect);
+
+  Metadata.SetPhysicalPixelSize(TResolutionUnit.ruSizeInMicroMeters, 200, 100); // Img is 10x10 cm
+  AssertTrue(FCmdOptions.Parse(['-m', '10,mm', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('M 1x mm', Rect(50, 100, 450, 900), FinalRect);
+
+  Metadata.Free;
 end;
 
 initialization

@@ -21,7 +21,9 @@ const
   NullRect: TRect = (Left: 0; Top: 0; Right: 0; Bottom: 0);
   NullFloatRect: TFloatRect = (Left: 0; Top: 0; Right: 0; Bottom: 0);
 
-// Checks is all rect values are zero. Exact bitwise zero - do not use
+// Checks if all rect values are zero
+function IsRectNull(const R: TRect): Boolean;
+// Checks if all rect values are zero. Exact bitwise zero - do not use
 // for rects where values were calculated.
 function IsFloatRectNull(const R: TFloatRect): Boolean;
 
@@ -38,6 +40,11 @@ begin
                  Round(R.Top * HeightFactor),
                  Round(R.Right * WidthFactor),
                  Round(R.Bottom * HeightFactor));
+end;
+
+function IsRectNull(const R: TRect): Boolean;
+begin
+  Result := (R.Left = 0) and (R.Top = 0) and (R.Right = 0) and (R.Bottom = 0);
 end;
 
 function IsFloatRectNull(const R: TFloatRect): Boolean;
