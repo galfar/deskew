@@ -53,20 +53,22 @@ type
     FAngleStep: Double;
     FSkipAngle: Double;
     FResamplingFilter: TResamplingFilter;
+    FBackgroundColor: TColor32;
     FThresholdingMethod: TThresholdingMethod;
     FThresholdLevel: Integer;
     FContentRect: TFloatRect;
     FContentMargins: TFloatRect;
     FContentSizeUnit: TSizeUnit;
-    FBackgroundColor: TColor32;
     FForcedOutputFormat: TImageFormat;
     FDpiOverride: Integer;
+    FJpegCompressionQuality: Integer;
+    FTiffCompressionScheme: Integer;
     FOperationalFlags: TOperationalFlags;
     FShowDetectionStats: Boolean;
     FShowParams: Boolean;
     FShowTimings: Boolean;
-    FJpegCompressionQuality: Integer;
-    FTiffCompressionScheme: Integer;
+    FSaveWorkImage: Boolean;
+
     // Others
     FFormatSettings: TFormatSettings;
     FErrorMessage: string;
@@ -94,18 +96,23 @@ type
 
     property InputFileName: string read FInputFileName;
     property OutputFileName: string read FOutputFileName;
+
     // Max expected rotation angle - detection algorithm then works in range [-MaxAngle, MaxAngle]
     property MaxAngle: Double read FMaxAngle;
     // Size of a single angle step during detection (in range [-MaxAngle, MaxAngle])
     property AngleStep: Double read FAngleStep;
     // Skew threshold angle - skip deskewing if detected skew angle is in range (-MinAngle, MinAngle)
     property SkipAngle: Double read FSkipAngle;
+
     // Resampling filter used for rotations
     property ResamplingFilter: TResamplingFilter read FResamplingFilter;
+    // Background color for the rotated image
+    property BackgroundColor: TColor32 read FBackgroundColor;
     // Thresholding method used when converting images to binary black/white format
     property ThresholdingMethod: TThresholdingMethod read FThresholdingMethod;
     // Threshold for black/white pixel classification for explicit thresholding method
     property ThresholdLevel: Integer read FThresholdLevel;
+
     // Rect where to do the skew detection on the page image.
     // Alternatively, you can use ContentMargins to define the content rectangle.
     property ContentRect: TFloatRect read FContentRect;
@@ -114,25 +121,30 @@ type
     property ContentMargins: TFloatRect read FContentMargins;
     // Unit of size of content or margin regions (ContentRect and ContentMargins)
     property ContentSizeUnit: TSizeUnit read FContentSizeUnit;
-    // Background color for the rotated image
-    property BackgroundColor: TColor32 read FBackgroundColor;
+
     // Forced output format (applied just before saving the output)
     property ForcedOutputFormat: TImageFormat read FForcedOutputFormat;
     // DPI to use when input image has no print resolution info or
     // override it when it's present
     property DpiOverride: Integer read FDpiOverride;
+
+    // Compression quality of JPEG outputs (also embedded) in range [1, 100(best)]
+    property JpegCompressionQuality: Integer read FJpegCompressionQuality;
+    // Compression scheme of TIFF outputs. Values and default in imaginglib.
+    property TiffCompressionScheme: Integer read FTiffCompressionScheme;
+
     // On/Off flags that control parts of the whole operation
     property OperationalFlags: TOperationalFlags read FOperationalFlags;
+
     // Show skew detection stats
     property ShowDetectionStats: Boolean read FShowDetectionStats;
     // Show current params to user (for testing etc.)
     property ShowParams: Boolean read FShowParams;
     // Show timing of processing steps to user
     property ShowTimings: Boolean read FShowTimings;
-    // Compression quality of JPEG outputs (also embedded) in range [1, 100(best)]
-    property JpegCompressionQuality: Integer read FJpegCompressionQuality;
-    // Compression scheme of TIFF outputs. Values and default in imaginglib.
-    property TiffCompressionScheme: Integer read FTiffCompressionScheme;
+    // Save "working" thresholded image (for testing and tweaking thresholding), effectively an input
+    // for skew detection.
+    property SaveWorkImage: Boolean read FSaveWorkImage;
 
     property IsValid: Boolean read GetIsValid;
     property ErrorMessage: string read FErrorMessage;
@@ -194,20 +206,21 @@ begin
   FAngleStep := DefaultAngleStep;
   FSkipAngle := DefaultSkipAngle;
   FResamplingFilter := rfLinear;
+  FBackgroundColor := $FF000000;
   FThresholdingMethod := tmOtsu;
   FThresholdLevel := DefaultThreshold;
   FContentRect := NullFloatRect;    // whole page
   FContentMargins := NullFloatRect; // whole page
   FContentSizeUnit := suPixels;
-  FBackgroundColor := $FF000000;
   FForcedOutputFormat := ifUnknown;
   FDpiOverride := 0;
+  FJpegCompressionQuality := -1; // use imaginglib default
+  FTiffCompressionScheme := -1;  // use imaginglib default
   FOperationalFlags := [];
   FShowDetectionStats := False;
   FShowParams := False;
   FShowTimings:= False;
-  FJpegCompressionQuality := -1; // use imaginglib default
-  FTiffCompressionScheme := -1;  // use imaginglib default
+  FSaveWorkImage := False;
 
   FErrorMessage := '';
   Assert(not IsValid);
@@ -348,6 +361,7 @@ begin
     if ContainsText(Value, 's') then FShowDetectionStats := True;
     if ContainsText(Value, 'p') then FShowParams := True;
     if ContainsText(Value, 't') then FShowTimings := True;
+    if ContainsText(Value, 'w') then FSaveWorkImage := True;
   end
   else if Param = '-r' then
   begin
@@ -654,7 +668,8 @@ begin
     '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +
     '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
                                + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
-    '  show info           = ' + Iff(ShowParams, 'params ', '') + Iff(ShowDetectionStats, 'detection-stats ', '') + Iff(ShowTimings, 'timings ', '') + sLineBreak +
+    '  info flags          = ' + Iff(ShowParams, 'params ', '') + Iff(ShowDetectionStats, 'detection-stats ', '') +
+      Iff(ShowTimings, 'timings ', '') + Iff(SaveWorkImage, 'save-work-image ', '') + sLineBreak +
     '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;
 end;
 

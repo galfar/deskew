@@ -6,8 +6,9 @@ uses
   TextTestRunner,
   GUITestRunner,
   TestCmdLineArgs,
-  Utils in '..\Utils.pas',
   ImagingUtility in '..\Imaging\ImagingUtility.pas',
+  Utils in '..\Utils.pas',
+  ImageUtils in '..\ImageUtils.pas',
   CmdLineOptions in '..\CmdLineOptions.pas',
   RotationDetector in '..\RotationDetector.pas',
   MainUnit in '..\MainUnit.pas';

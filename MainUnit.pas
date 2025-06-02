@@ -36,7 +36,7 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.33 (2025-05-29)'
+  SAppTitle = 'Deskew 1.33 (2025-06-02)'
     {$IF Defined(CPUX64)} + ' x64'
     {$ELSEIF Defined(CPUX86)} + ' x86'
     {$ELSEIF Defined(CPUARM)} + ' ARM'
@@ -87,7 +87,8 @@ begin
   WriteLn('    -g flags:      Operational flags (any combination of):');
   WriteLn('                   c - crop to input size, d - detect only (no output to file)');
   WriteLn('    -s info:       Info dump (any combination of):');
-  WriteLn('                   s - skew detection stats, p - program parameters, t - timings');
+  WriteLn('                   s - skew detection stats, p - program parameters, t - timings, ');
+  WriteLn('                   w - save work/thresholded image');
   WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
   WriteLn('                   can be defined - delimited by commas. Supported specs:');
   WriteLn('                   jXX - JPEG compression quality, XX in range [1,100(best)]');
@@ -240,22 +241,6 @@ begin
   OutputImage.Assign(InputImage);
   InputImage.Format := ifGray8;
 
-  // Determine threshold level for black/white pixel classification during skew detection
-  case Options.ThresholdingMethod of
-    tmExplicit:
-      begin
-        // Use explicit threshold
-        Threshold := Options.ThresholdLevel;
-      end;
-    tmOtsu:
-      begin
-        // Determine the threshold automatically
-        Time := GetTimeMicroseconds;
-        Threshold := OtsuThresholding(InputImage.ImageDataPointer^);
-        WriteTiming('Auto thresholding');
-      end;
-  end;
-
   if Options.DpiOverride > 0 then
   begin
     // If user DPI override is set we use it for both input and output.
@@ -273,10 +258,26 @@ begin
       'Image does not contain DPI information or Deskew failed to read it.');
   end;
 
+  // Determine threshold level for black/white pixel classification during skew detection
+  case Options.ThresholdingMethod of
+    tmExplicit:
+      begin
+        // Use explicit threshold
+        Threshold := Options.ThresholdLevel;
+      end;
+    tmOtsu:
+      begin
+        // Determine the threshold automatically
+        Time := GetTimeMicroseconds;
+        Threshold := OtsuThresholding(InputImage.ImageDataPointer^, @ContentRect);
+        WriteTiming('Auto thresholding');
+      end;
+  end;
+
   // Main step - calculate image rotation SkewAngle
   WriteLn('Calculating skew angle',
     Iff(EqualRect(InputImage.BoundsRect, ContentRect), '', ' (in ' + RectToStr(ContentRect) +')'),
-    '...');
+    ' using threshold ', Threshold, '...');
   Time := GetTimeMicroseconds;
   SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.AngleStep, Threshold,
     InputImage.Width, InputImage.Height, InputImage.Bits,
@@ -286,6 +287,13 @@ begin
 
   if Options.ShowDetectionStats then
     WriteDetectionStats;
+
+  if Options.SaveWorkImage then
+  begin
+    // We can reuse InputImage here, no longer needed
+    BinarizeImage(InputImage.ImageDataPointer^, Threshold, @ContentRect);
+    InputImage.SaveToFile(ExtractFilePath(Options.OutputFileName) + 'work-image.png');
+  end;
 
   if ofDetectOnly in Options.OperationalFlags then
     Exit;

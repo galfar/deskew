@@ -39,10 +39,15 @@ type
 
 { Thresholding using Otsu's method (which chooses the threshold
   to minimize the intraclass variance of the black and white pixels!).
-  Functions returns calculated threshold level value [0..255].
-  If BinarizeImage is True then the Image is automatically converted to binary using
-  computed threshold level.}
-function OtsuThresholding(var Image: TImageData; BinarizeImage: Boolean = False): Integer;
+  Function returns calculated threshold level value [0..255].
+  If AContentRect is specified, the threshold calculation is performed only
+  within this rectangle. Otherwise, the whole image is processed.}
+function OtsuThresholding(var Image: TImageData; AContentRect: PRect = nil): Integer;
+
+{ Image is converted to binary using given threshold level value [0..255].
+  If AContentRect is specified, the threshold calculation is performed only
+  within this rectangle. Otherwise, the whole image is processed.}
+procedure BinarizeImage(var Image: TImageData; Threshold: Integer; AContentRect: PRect = nil);
 
 const
   SupportedRotationFormats: set of TImageFormat = [ifGray8, ifR8G8B8, ifA8R8G8B8];
@@ -54,55 +59,70 @@ procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TCo
 
 implementation
 
-function OtsuThresholding(var Image: TImageData; BinarizeImage: Boolean): Integer;
+function OtsuThresholding(var Image: TImageData; AContentRect: PRect): Integer;
 var
   Histogram: array[Byte] of Single;
-  Level, Max, Min, I, J, NumPixels: Integer;
-  Pix: PByte;
+  Level, Max, Min, I, J, X, Y, NumPixelsInRect: Integer;
+  PixPtr: PByte;
   Mean, Variance: Single;
   Mu, Omega, LevelMean, LargestMu: Single;
+  EffectiveRect, ImageBounds: TRect;
 begin
-  Assert(Image.Format = ifGray8);
+  Assert(Image.Format = ifGray8, 'OtsuThresholding requires an 8-bit grayscale image.');
+  ImageBounds := Rect(0, 0, Image.Width, Image.Height);
+
+  // Determine the effective rectangle for processing
+  if Assigned(AContentRect) and (RectWidth(AContentRect^) > 0) and (RectHeight(AContentRect^) > 0) then
+    IntersectRect(EffectiveRect, AContentRect^, ImageBounds)
+  else
+    EffectiveRect := ImageBounds;
+
+  NumPixelsInRect := RectWidth(EffectiveRect) * RectHeight(EffectiveRect);
+  if NumPixelsInRect <= 0 then
+    Exit(128); // Default threshold if rect is empty
 
   FillChar(Histogram, SizeOf(Histogram), 0);
   Min := 255;
   Max := 0;
   Level := 0;
-  NumPixels := Image.Width * Image.Height;
-  Pix := Image.Bits;
 
-  // Compute histogram and determine min and max pixel values
-  for I := 0 to NumPixels - 1 do
+  // Compute histogram and determine min and max pixel values within the EffectiveRect
+  for Y := EffectiveRect.Top to EffectiveRect.Bottom - 1 do
   begin
-    Histogram[Pix^] := Histogram[Pix^] + 1.0;
-    if Pix^ < Min then
-      Min := Pix^;
-    if Pix^ > Max then
-      Max := Pix^;
-    Inc(Pix);
+    PixPtr := @PByteArray(Image.Bits)[Y * Image.Width + EffectiveRect.Left];
+    for X := EffectiveRect.Left to EffectiveRect.Right - 1 do
+    begin
+      Histogram[PixPtr^] := Histogram[PixPtr^] + 1.0;
+      if PixPtr^ < Min then
+        Min := PixPtr^;
+      if PixPtr^ > Max then
+        Max := PixPtr^;
+      Inc(PixPtr);
+    end;
   end;
 
-  // Normalize histogram
-  for I := 0 to 255 do
-    Histogram[I] := Histogram[I] / NumPixels;
+  // Normalize histogram based on pixels in the effective rectangle
+  for I := Min to Max do // Iterate only over the range of pixel values found
+    Histogram[I] := Histogram[I] / NumPixelsInRect;
 
-  // Compute image mean and variance
+  // Compute image mean and variance using the histogram of the EffectiveRect
   Mean := 0.0;
   Variance := 0.0;
-  for I := 0 to 255 do
+  for I := Min to Max do
     Mean := Mean + (I + 1) * Histogram[I];
-  for I := 0 to 255 do
+  for I := Min to Max do
     Variance := Variance + Sqr(I + 1 - Mean) * Histogram[I];
 
-  // Now finally compute threshold level
-  LargestMu := 0;
+  // Now finally compute threshold level based on the histogram of EffectiveRect
+  LargestMu := 0.0;
 
-  for I := 0 to 255 do
+  // Iterate from Min to Max pixel values found in the rect
+  for I := Min to Max do
   begin
     Omega := 0.0;
     LevelMean := 0.0;
 
-    for J := 0 to I - 1 do
+    for J := Min to I - 1 do
     begin
       Omega := Omega + Histogram[J];
       LevelMean := LevelMean + (J + 1) * Histogram[J];
@@ -111,10 +131,10 @@ begin
     Mu := Sqr(Mean * Omega - LevelMean);
     Omega := Omega * (1.0 - Omega);
 
-    if Omega > 0.0 then
+    if (Omega > 1E-6) and (Omega < (1.0 - 1E-6)) then // Check if Omega is not too close to 0 or 1
       Mu := Mu / Omega
     else
-      Mu := 0;
+      Mu := 0.0;
 
     if Mu > LargestMu then
     begin
@@ -123,21 +143,43 @@ begin
     end;
   end;
 
-  if BinarizeImage then
-  begin
-    // Do thresholding using computed level
-    Pix := Image.Bits;
-    for I := 0 to Image.Width * Image.Height - 1 do
-    begin
-      if Pix^ >= Level then
-        Pix^ := 255
-      else
-        Pix^ := 0;
-      Inc(Pix);
-    end;
-  end;
+  // If Max = Min (solid color rectangle), Level might remain 0 or Min.
+  // If no clear separation, Level might be at one of the extremes.
+  // Add a check: if level is 0 and Max > 0, or level is 255 and Min < 255,
+  // it might indicate a poor threshold. For now, use as calculated.
+  // If Min = Max, Level will likely be Min.
+  if Min = Max then Level := Min;
 
   Result := Level;
+end;
+
+procedure BinarizeImage(var Image: TImageData; Threshold: Integer; AContentRect: PRect);
+var
+  X, Y: Integer;
+  EffectiveRect, ImageBounds: TRect;
+  PixPtr: PByte;
+begin
+  Assert(Image.Format = ifGray8);
+  ImageBounds := Rect(0, 0, Image.Width, Image.Height);
+
+  if Assigned(AContentRect) and (RectWidth(AContentRect^) > 0) and (RectHeight(AContentRect^) > 0) then
+    IntersectRect(EffectiveRect, AContentRect^, ImageBounds)
+  else
+    EffectiveRect := ImageBounds;
+
+  // Do thresholding using given level, only within EffectiveRect
+  for Y := EffectiveRect.Top to EffectiveRect.Bottom - 1 do
+  begin
+    PixPtr := @PByteArray(Image.Bits)[Y * Image.Width + EffectiveRect.Left];
+    for X := EffectiveRect.Left to EffectiveRect.Right - 1 do
+    begin
+      if PixPtr^ >= Threshold then
+        PixPtr^ := 255
+      else
+        PixPtr^ := 0;
+      Inc(PixPtr);
+    end;
+  end;
 end;
 
 procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;

@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{F6CBC471-C194-48B6-AA95-DD1EE0F5143B}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Tests\tests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="deskew.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="tests">
+        <MSBuild Projects="Tests\tests.dproj"/>
+    </Target>
+    <Target Name="tests:Clean">
+        <MSBuild Projects="Tests\tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="tests:Make">
+        <MSBuild Projects="Tests\tests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="deskew">
+        <MSBuild Projects="deskew.dproj"/>
+    </Target>
+    <Target Name="deskew:Clean">
+        <MSBuild Projects="deskew.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="deskew:Make">
+        <MSBuild Projects="deskew.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="tests;deskew"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="tests:Clean;deskew:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="tests:Make;deskew:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

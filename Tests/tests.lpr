@@ -4,10 +4,9 @@ program tests;
 
 uses
   Classes, consoletestrunner,
-  TestCmdLineArgs, CmdLineOptions, ImageUtils, RotationDetector;
+  TestCmdLineArgs;
 
 type
-
   TDeskewTestRunner = class(TTestRunner)
   protected
     // override the protected methods of TTestRunner to customize its behavior

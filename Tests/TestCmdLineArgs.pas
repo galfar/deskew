@@ -53,7 +53,7 @@ type
     procedure TestDpiOverride;
 
     // Test Flags
-    procedure TestFlags;
+    procedure TestInfoFlags;
 
     // Test methods for content rect
     procedure TestContentRect;
@@ -270,21 +270,23 @@ begin
   AssertEquals('DPI Override Set', 300, FCmdOptions.DpiOverride);
 end;
 
-procedure TTestCmdLineOptions.TestFlags;
+procedure TTestCmdLineOptions.TestInfoFlags;
 var
   ParseResult: Boolean;
 begin
-  ParseResult := FCmdOptions.Parse(['-s', 'spt', 'in.png']);
-  AssertParseSuccesAndEmptyError(ParseResult, '3 stats flags');
+  ParseResult := FCmdOptions.Parse(['-s', 'sptw', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, '4 stats flags');
   AssertTrue('Info: detection', FCmdOptions.ShowDetectionStats);
   AssertTrue('Info: params', FCmdOptions.ShowParams);
   AssertTrue('Info: timings', FCmdOptions.ShowTimings);
+  AssertTrue('Info: work-image', FCmdOptions.SaveWorkImage);
 
   ParseResult := FCmdOptions.Parse(['-s', 't', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, '1 stats flag');
   AssertFalse('Info: !detection', FCmdOptions.ShowDetectionStats);
   AssertFalse('Info: !params', FCmdOptions.ShowParams);
   AssertTrue('Info: timings only', FCmdOptions.ShowTimings);
+  AssertFalse('Info: !work-image', FCmdOptions.SaveWorkImage);
 end;
 
 procedure TTestCmdLineOptions.TestContentRect;
