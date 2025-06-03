@@ -59,6 +59,8 @@ type
     procedure TestThreshold;
     procedure TestResamplingFilter;
     procedure TestOutputFormat;
+    procedure TestBackgroundColor;
+    procedure TestCompression;
 
     // Test flags
     procedure TestOperationalFlags;
@@ -74,7 +76,7 @@ implementation
 
 uses
   Math, StrUtils,
-  ImageUtils, ImagingTypes, Imaging;
+  ImageUtils, ImagingTypes, Imaging, ImagingTiff;
 
 const
   Epsilon = 0.001;
@@ -189,6 +191,9 @@ var
 begin
   ParseResult := FCmdOptions.Parse(['-z', '123', 'in.jpg']);
   AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter: -z', 'Unknown parameter');
+
+  ParseResult := FCmdOptions.Parse(['-A', '123', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter: -A', 'Unknown parameter - uppercase of known');
 
   ParseResult := FCmdOptions.Parse(['in.jpg', '-a']);
   AssertParseFailAndErrorContains(ParseResult, 'Missing value for parameter: -a', 'Missing value');
@@ -350,8 +355,9 @@ end;
 
 procedure TTestCmdLineOptions.TestOutputFormat;
 const
-  Names: array[1..4] of string = ('b1', 'g8', 'rgb24', 'rgba32');
-  Formats: array[1..4] of TImageFormat = (ifBinary, ifGray8, ifR8G8B8, ifA8R8G8B8);
+  Count = 4;
+  Names: array[1..Count] of string = ('b1', 'g8', 'rgb24', 'rgba32');
+  Formats: array[1..Count] of TImageFormat = (ifBinary, ifGray8, ifR8G8B8, ifA8R8G8B8);
 var
   ParseResult: Boolean;
   I: Integer;
@@ -365,6 +371,90 @@ begin
 
   ParseResult := FCmdOptions.Parse(['-f', 'g64', 'in.jpg']);
   AssertParseFailAndErrorContains(ParseResult, 'Invalid value for format parameter: g64', 'Invalid format');
+end;
+
+procedure TTestCmdLineOptions.TestBackgroundColor;
+const
+  Count = 8;
+  Strings: array[1..Count] of string = (
+     'FF8000',      'C0', '8000FF80',      '1',    'FF80', 'AFF0080',       '0', '00000000');
+  Colors: array[1..Count] of TColor32 = (
+    $FFFF8000, $FFC0C0C0, $8000FF80, $FF010101, $FF00FF80, $0AFF0080, $FF000000, $00000000);
+  Invalids: array[1..8] of string = (
+    'GGG', 'white', '123456789', '-FF', '35.2',
+    // No C, Pascal, or HTML prefixes
+    '0xff', '$ff', '#ff');
+var
+  ParseResult: Boolean;
+  I: Integer;
+begin
+  for I := Low(Colors) to High(Colors) do
+  begin
+    ParseResult := FCmdOptions.Parse(['-b', Strings[I], 'in.png']);
+    AssertParseSuccesAndEmptyError(ParseResult, 'Color parse: ' + Strings[I]);
+    AssertEquals('Color value: ' + Strings[I], Colors[I], FCmdOptions.BackgroundColor);
+  end;
+
+  for I := Low(Invalids) to High(Invalids) do
+  begin
+    ParseResult := FCmdOptions.Parse(['-b', Invalids[I], 'in.jpg']);
+    AssertParseFailAndErrorContains(ParseResult,
+      'Invalid value for background color parameter: ' + Invalids[I],
+      'Invalid color: ' + Invalids[I]);
+  end;
+end;
+
+procedure TTestCmdLineOptions.TestCompression;
+const
+  Count = 4;
+  TiffNames: array[1..Count] of string = ('g4', 'rle', 'input', 'none');
+  TiffValues: array[1..Count] of Integer = (TiffCompressionOptionGroup4, TiffCompressionOptionPackbitsRle,
+    TiffCompressionOptionAsInput, TiffCompressionOptionNone);
+var
+  ParseResult: Boolean;
+  I: Integer;
+begin
+  ParseResult := FCmdOptions.Parse(['-c', 'j85', 'in.jpg']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'JPEG only: parse');
+  AssertEquals('JPEG only: value', 85, FCmdOptions.JpegCompressionQuality);
+  AssertEquals('JPEG only: TIFF stays default', -1, FCmdOptions.TiffCompressionScheme);
+
+  for I := Low(TiffNames) to High(TiffNames) do
+  begin
+    ParseResult := FCmdOptions.Parse(['-c', 't' + TiffNames[I], 'in.png']);
+    AssertParseSuccesAndEmptyError(ParseResult, 'TIFF only: parse ' + TiffNames[I]);
+    AssertEquals('TIFF only: value ' + TiffNames[I], TiffValues[I], FCmdOptions.TiffCompressionScheme);
+    AssertEquals('TIFF only: JPEG stays default', -1, FCmdOptions.JpegCompressionQuality);
+  end;
+
+  ParseResult := FCmdOptions.Parse(['-c', 'j90,tDEFLATE', 'in.jpg']);  // Uppercase ok
+  AssertParseSuccesAndEmptyError(ParseResult, 'Combined J+T: parse');
+  AssertEquals('Combined J+T: JPEG Quality', 90, FCmdOptions.JpegCompressionQuality);
+  AssertEquals('Combined J+T: TIFF Scheme', TiffCompressionOptionDeflate, FCmdOptions.TiffCompressionScheme);
+
+  ParseResult := FCmdOptions.Parse(['-c', 'tjpeg,j75', 'in.jpg']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Combined T+J: parse');
+  AssertEquals('Combined T+J: JPEG Quality', 75, FCmdOptions.JpegCompressionQuality);
+  AssertEquals('Combined T+J: TIFF Scheme', TiffCompressionOptionJpeg, FCmdOptions.TiffCompressionScheme);
+
+  // Invalids
+  ParseResult := FCmdOptions.Parse(['-c', 'jABC', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid JPEG output compression spec: abc', 'Invalid JPEG spec');
+  ParseResult := FCmdOptions.Parse(['-c', 'j101', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid JPEG output compression spec: 101', 'Invalid JPEG spec');
+
+  ParseResult := FCmdOptions.Parse(['-c', 'tXYZ', 'in.tif']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid TIFF output compression spec: XYZ', 'Invalid TIFF spec');
+
+  ParseResult := FCmdOptions.Parse(['-c', 'x99', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid output compression parameter: x99', 'Invalid param');
+
+  ParseResult := FCmdOptions.Parse(['-c', 'j80,tBAD', 'in.png']); // valid JPEG, invalid TIFF
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid TIFF output compression spec: bad', 'Invalid partial');
+  ParseResult := FCmdOptions.Parse(['-c', 'j80,trle,tlzw', 'in.png']); // 2x TIFF
+  AssertParseFailAndErrorContains(ParseResult, 'TIFF output compression already set but received: lzw', 'Invalid 2x TIFF');
+  ParseResult := FCmdOptions.Parse(['-c', 'j80,trle,j99', 'in.png']); // 2x JPEG
+  AssertParseFailAndErrorContains(ParseResult, 'JPEG output compression already set but received: 99', 'Invalid 2x JPEG');
 end;
 
 procedure TTestCmdLineOptions.TestOperationalFlags;

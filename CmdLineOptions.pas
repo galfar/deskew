@@ -444,7 +444,12 @@ begin
       if Pos('t', S) = 1 then
       begin
         S := Copy(S, 2);
-        FTiffCompressionScheme := -1;
+
+        if FTiffCompressionScheme <> -1 then
+        begin
+          FErrorMessage := 'TIFF output compression already set but received: ' + S;
+          Exit(False);
+        end;
 
         for J := Low(TiffCompressionNames) to High(TiffCompressionNames) do
         begin
@@ -464,7 +469,14 @@ begin
       else if Pos('j', S) = 1 then
       begin
         S := Copy(S, 2);
-        if not TryStrToInt(S, FJpegCompressionQuality) then
+
+        if FJpegCompressionQuality <> -1 then
+        begin
+          FErrorMessage := 'JPEG output compression already set but received: ' + S;
+          Exit(False);
+        end;
+
+        if not TryStrToInt(S, FJpegCompressionQuality) or not (FJpegCompressionQuality in [1..100]) then
         begin
           FErrorMessage := 'Invalid JPEG output compression spec: ' + S;
           Exit(False);
