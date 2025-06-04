@@ -59,6 +59,9 @@ procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TCo
 
 implementation
 
+uses
+  Utils;
+
 function OtsuThresholding(var Image: TImageData; AContentRect: PRect): Integer;
 var
   Histogram: array[Byte] of Single;
@@ -70,10 +73,14 @@ var
 begin
   Assert(Image.Format = ifGray8, 'OtsuThresholding requires an 8-bit grayscale image.');
   ImageBounds := Rect(0, 0, Image.Width, Image.Height);
+  EffectiveRect := NullRect;
 
   // Determine the effective rectangle for processing
-  if Assigned(AContentRect) and (RectWidth(AContentRect^) > 0) and (RectHeight(AContentRect^) > 0) then
-    IntersectRect(EffectiveRect, AContentRect^, ImageBounds)
+  if Assigned(AContentRect) then
+  begin
+    if not IsRectEmpty(AContentRect^) then
+      IntersectRect(EffectiveRect, AContentRect^, ImageBounds)
+  end
   else
     EffectiveRect := ImageBounds;
 

@@ -85,6 +85,11 @@ type
     procedure Resize(NewWidth, NewHeight: Integer; Filter: TResizeFilter);
 
     procedure ResizeToFit(FitWidth, FitHeight: Integer; Filter: TResizeFilter; DstImage: TBaseImage);
+
+    procedure FillRect(X, Y, Width, Height: Integer; Color: Pointer); overload;
+    procedure FillRect(const ARect: TRect; Color: Pointer); overload;
+
+
     { Flips current image. Reverses the image along its horizontal axis the top
       becomes the bottom and vice versa.}
     procedure Flip;
@@ -502,6 +507,17 @@ begin
       DstImage.FPData^);
     DstImage.DoDataSizeChanged;
   end;
+end;
+
+procedure TBaseImage.FillRect(X, Y, Width, Height: Integer; Color: Pointer);
+begin
+  if Valid and Imaging.FillRect(FPData^, X, Y, Width, Height, Color) then
+    DoPixelsChanged;
+end;
+
+procedure TBaseImage.FillRect(const ARect: TRect; Color: Pointer);
+begin
+  FillRect(ARect.Left, ARect.Top, RectWidth(ARect), RectHeight(ARect), Color);
 end;
 
 procedure TBaseImage.Flip;

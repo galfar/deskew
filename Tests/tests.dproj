@@ -129,11 +129,17 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\Utils.pas"/>
         <DCCReference Include="..\Imaging\ImagingUtility.pas"/>
+        <DCCReference Include="..\Imaging\ImagingNetworkGraphics.pas"/>
+        <DCCReference Include="..\Utils.pas"/>
+        <DCCReference Include="..\ImageUtils.pas"/>
         <DCCReference Include="..\CmdLineOptions.pas"/>
         <DCCReference Include="..\RotationDetector.pas"/>
         <DCCReference Include="..\MainUnit.pas"/>
+        <DCCReference Include="DeskewTestUtils.pas"/>
+        <DCCReference Include="TestCmdLineArgs.pas"/>
+        <DCCReference Include="TestImageUtils.pas"/>
+        <DCCReference Include="TestSkewDetection.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

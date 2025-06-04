@@ -4,12 +4,13 @@ program tests;
 
 uses
   Classes, consoletestrunner,
-  TestCmdLineArgs;
+  DeskewTestUtils,
+  TestCmdLineArgs,
+  TestImageUtils,
+  TestSkewDetection;
 
 type
   TDeskewTestRunner = class(TTestRunner)
-  protected
-    // override the protected methods of TTestRunner to customize its behavior
   end;
 
 var
@@ -18,7 +19,6 @@ var
 begin
   Application := TDeskewTestRunner.Create(nil);
   Application.Initialize;
-  Application.Title := 'FPCUnit Console test runner';
   Application.Run;
   Application.Free;
 end.

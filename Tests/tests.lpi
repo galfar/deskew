@@ -33,11 +33,7 @@
       <Unit>
         <Filename Value="tests.lpr"/>
         <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="TestCmdLineArgs.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
+      </Unit>      
       <Unit>
         <Filename Value="..\CmdLineOptions.pas"/>
         <IsPartOfProject Value="True"/>
@@ -58,6 +54,22 @@
         <Filename Value="..\Utils.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
+      <Unit>
+        <Filename Value="DeskewTestUtils.pas"/>
+        <IsPartOfProject Value="True"/>        
+      </Unit>
+      <Unit>
+        <Filename Value="TestCmdLineArgs.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="TestImageUtils.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="TestSkewDetection.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>      
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -70,7 +82,7 @@
       <IncludeFiles Value="$(ProjOutDir);..\Imaging"/>
       <Libraries Value="..\Imaging\LibTiff\Compiled"/>
       <OtherUnitFiles Value="..;..\Imaging;..\Imaging\ZLib;..\Imaging\LibTiff"/>
-      <UnitOutputDirectory Value="..\dcu\tests\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="..\Dcu\tests\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
@@ -96,7 +108,8 @@
         <ShowNotes Value="False"/>
         <ShowHints Value="False"/>
       </Verbosity>
-      <CustomOptions Value="-dPASJPEG"/>
+      <CustomOptions Value="-dPASJPEG
+-dDONT_LINK_FILE_FORMATS"/>
       <OtherDefines Count="1">
         <Define0 Value="PASJPEG"/>
       </OtherDefines>

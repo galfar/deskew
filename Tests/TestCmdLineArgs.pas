@@ -4,34 +4,15 @@ interface
 
 uses
   Types, Classes, SysUtils,
-{$IFDEF FPC}
-  fpcunit, testregistry,
-{$ELSE}
-  TestFramework,
-{$ENDIF}
+  DeskewTestUtils,
   Utils,
   ImagingUtility,
   CmdLineOptions;
 
 type
-  TTestCmdLineOptions= class(TTestCase)
+  TTestCmdLineOptions = class(TDeskewTestCase)
   private
     FCmdOptions: TCmdLineOptions;
-
-{$IFNDEF FPC}
-    procedure AssertTrue(const Msg: string; const ACondition: Boolean;
-      AddrOfError: Pointer = nil); overload;
-    procedure AssertTrue(const ACondition: Boolean); overload;
-    procedure AssertFalse(const Msg: string; const ACondition: Boolean;
-      AddrOfError: Pointer = nil); overload;
-
-    procedure AssertEquals(const AMessage: string; Expected, Actual: string); overload;
-    procedure AssertEquals(Expected, Actual: string); overload;
-{$ENDIF}
-
-    procedure AssertEquals(const AMessage: string; Expected, Actual: Double); overload;
-    procedure AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect); overload;
-    procedure AssertEquals(const AMessage: string; const Expected, Actual: TRect); overload;
 
     procedure AssertParseSuccesAndEmptyError(const ParseResult: Boolean; const AMessage: string = '');
     procedure AssertParseFailAndErrorContains(const ParseResult: Boolean; const ErrorMsgPart: string;
@@ -76,90 +57,19 @@ implementation
 
 uses
   Math, StrUtils,
-  ImageUtils, ImagingTypes, Imaging, ImagingTiff;
-
-const
-  Epsilon = 0.001;
-
-{$IFNDEF FPC}
-procedure TTestCmdLineOptions.AssertTrue(const Msg: string; const ACondition: Boolean;
-  AddrOfError: Pointer);
-begin
-  CheckTrue(ACondition, Msg);
-end;
-
-procedure TTestCmdLineOptions.AssertTrue(const ACondition: Boolean);
-begin
-  CheckTrue(ACondition);
-end;
-
-procedure TTestCmdLineOptions.AssertFalse(const Msg: string; const ACondition: Boolean;
-  AddrOfError: Pointer);
-begin
-  CheckFalse(ACondition, Msg);
-end;
-
-procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; Expected, Actual: string);
-begin
-  CheckEquals(Expected, Actual, AMessage);
-end;
-
-procedure TTestCmdLineOptions.AssertEquals(Expected, Actual: string);
-begin
-  CheckEquals(Expected, Actual);
-end;
-
-{$ENDIF}
-
-procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; Expected, Actual: Double);
-begin
 {$IFDEF FPC}
-  AssertTrue(ComparisonMsg(AMessage, FloatToStr(Expected), FloatToStr(Actual)),
-    SameValue(Expected, Actual, Epsilon), CallerAddr);
-{$ELSE}
-  CheckEquals(Expected, Actual, Epsilon, AMessage);
+  fpcunit,
 {$ENDIF}
-end;
-
-procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect);
-const
-  SCompare = '"%s" expected: <%g,%g,%g,%g> but was: <%g,%g,%g,%g>';
-
-  function AreFloatRectsEqual(const R1, R2: TFloatRect): Boolean;
-  begin
-    Result := SameValue(R1.Left, R2.Left, Epsilon) and
-              SameValue(R1.Top, R2.Top, Epsilon) and
-              SameValue(R1.Right, R2.Right, Epsilon) and
-              SameValue(R1.Bottom, R2.Bottom, Epsilon);
-  end;
-
-begin
-  AssertTrue(
-    Format(SCompare, [AMessage,
-      Expected.Left, Expected.Top, Expected.Right, Expected.Bottom,
-      Actual.Left, Actual.Top, Actual.Right, Actual.Bottom]),
-    AreFloatRectsEqual(Expected, Actual), CallerAddr);
-end;
-
-procedure TTestCmdLineOptions.AssertEquals(const AMessage: string; const Expected, Actual: TRect);
-const
-  SCompare = '"%s" expected: <%d,%d,%d,%d> but was: <%d,%d,%d,%d>';
-begin
-  AssertTrue(
-    Format(SCompare, [AMessage,
-      Expected.Left, Expected.Top, Expected.Right, Expected.Bottom,
-      Actual.Left, Actual.Top, Actual.Right, Actual.Bottom]),
-    EqualRect(Expected, Actual), CallerAddr);
-end;
+  ImageUtils, ImagingTypes, Imaging, ImagingTiff;
 
 procedure TTestCmdLineOptions.AssertParseSuccesAndEmptyError(const ParseResult: Boolean; const AMessage: string);
 var
   Prefix: string;
 begin
   Prefix := Iff(AMessage = '', '', AMessage + ': ');
-  AssertTrue(Prefix + 'Parse, ErrorMsg: ' + FCmdOptions.ErrorMessage, ParseResult, CallerAddr);
-  AssertTrue(Prefix + 'IsValid', FCmdOptions.IsValid, CallerAddr);
-  AssertTrue(Prefix + 'Error Message Empty', '' = FCmdOptions.ErrorMessage, CallerAddr);
+  AssertTrue(Prefix + 'Parse, ErrorMsg: ' + FCmdOptions.ErrorMessage, ParseResult {$IFDEF FPC}, CallerAddr{$ENDIF});
+  AssertTrue(Prefix + 'IsValid', FCmdOptions.IsValid {$IFDEF FPC}, CallerAddr{$ENDIF});
+  AssertTrue(Prefix + 'Error Message Empty', '' = FCmdOptions.ErrorMessage {$IFDEF FPC}, CallerAddr{$ENDIF});
 end;
 
 procedure TTestCmdLineOptions.AssertParseFailAndErrorContains(const ParseResult: Boolean; const ErrorMsgPart: string;
@@ -168,11 +78,10 @@ var
   Prefix: string;
 begin
   Prefix := Iff(AMessage = '', '', AMessage + ': ');
-  AssertFalse(Prefix + 'Parse, ErrorMsg: ' + FCmdOptions.ErrorMessage, ParseResult, CallerAddr);
-  AssertFalse(Prefix + 'IsValid', FCmdOptions.IsValid, CallerAddr);
+  AssertFalse(Prefix + 'Parse, ErrorMsg: ' + FCmdOptions.ErrorMessage, ParseResult {$IFDEF FPC}, CallerAddr{$ENDIF});
+  AssertFalse(Prefix + 'IsValid', FCmdOptions.IsValid {$IFDEF FPC}, CallerAddr{$ENDIF});
   AssertTrue(Prefix + 'Error Message Contains "' + ErrorMsgPart + '" in "' + FCmdOptions.ErrorMessage + '"',
-             ContainsText(FCmdOptions.ErrorMessage, ErrorMsgPart),
-             CallerAddr);
+             ContainsText(FCmdOptions.ErrorMessage, ErrorMsgPart) {$IFDEF FPC}, CallerAddr{$ENDIF});
 end;
 
 procedure TTestCmdLineOptions.SetUp;
@@ -204,7 +113,7 @@ end;
 
 procedure TTestCmdLineOptions.TestDefaults;
 begin
-  // Check default values set in the constructor - No parsing needed
+  // Check default values set in the constructor - no parsing needed
   AssertEquals('Default MaxAngle', DefaultMaxAngle, FCmdOptions.MaxAngle);
   AssertEquals('Default SkipAngle', DefaultSkipAngle, FCmdOptions.SkipAngle);
   AssertEquals('Default Threshold Level', DefaultThreshold, FCmdOptions.ThresholdLevel);
@@ -646,7 +555,6 @@ begin
 end;
 
 initialization
-
-  RegisterTest(TTestCmdLineOptions{$IFNDEF FPC}.Suite{$ENDIF});
+  RegisterTest(TTestCmdLineOptions);
 end.
 
