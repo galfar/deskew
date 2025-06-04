@@ -5,7 +5,7 @@ unit ImagingTiff;
 interface
 
 uses
-  SysUtils, Imaging, ImagingTypes, ImagingUtility, ImagingIO, ImagingExtras;
+  SysUtils, Imaging, ImagingTypes, ImagingUtility, ImagingIO, ImagingExtFileFormats;
 
 type
   { TIFF (Tag Image File Format) loader/saver base class.}

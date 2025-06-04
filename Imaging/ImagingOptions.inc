@@ -7,49 +7,43 @@
 
 {$DEFINE USE_INLINE}          // Use function inlining for some functions
                               // works in Free Pascal and Delphi 9+.
-{$DEFINE USE_ASM}             // Ff defined, assembler versions of some
+{$DEFINE USE_ASM}             // If defined, assembler versions of some
                               // functions will be used (only for x86).
 
                               // Debug options: If none of these two are defined
                               // your project settings are used.
-{ $DEFINE IMAGING_DEBUG}      // If defined, debug info, range/IO/overflow
+{.$DEFINE IMAGING_DEBUG}      // If defined, debug info, range/IO/overflow
                               // checking, stack frames, assertions, and
                               // other debugging options will be turned on.
-{ $DEFINE IMAGING_RELEASE}    // If defined, all debug info is off.
+{.$DEFINE IMAGING_RELEASE}    // If defined, all debug info is off.
 
 
 
 (* File format support linking options.
-  Define formats which you don't want to be registred automatically (by adding
+  Define formats which you don't want to be registered automatically (by adding
   Imaging.pas unit to your uses clause).
-  Default: all formats are registered = no symbols defined.
+  Default: most formats are registered = no symbols defined.
   Example: If you want to disable JPEG support just uncomment //{$DEFINE DONT_LINK_JPEG} line
 *)
 
-//{$DEFINE DONT_LINK_JPEG}        // link support for Jpeg images
-//{$DEFINE DONT_LINK_PNG}         // link support for PNG images
-//{$DEFINE DONT_LINK_TARGA}       // link support for Targa images
-//{$DEFINE DONT_LINK_BITMAP}      // link support for Windows Bitmap images
-//{$DEFINE DONT_LINK_DDS}         // link support for DDS images
-//{$DEFINE DONT_LINK_GIF}         // link support for GIF images
-{$DEFINE DONT_LINK_MNG}         // link support for MNG images
-//{$DEFINE DONT_LINK_JNG}         // link support for JNG images
-//{$DEFINE DONT_LINK_PNM}         // link support for PortableMap images (PBM, PGM, PPM, PAM, PFM)
-{$DEFINE DONT_LINK_RADHDR}      // link support for Radiance HDR/RGBE file format
+{.$DEFINE DONT_LINK_JPEG}        // link support for Jpeg images
+{.$DEFINE DONT_LINK_PNG}         // link support for PNG images
+{.$DEFINE DONT_LINK_TARGA}       // link support for Targa images
+{.$DEFINE DONT_LINK_BITMAP}      // link support for Windows Bitmap images
+{.$DEFINE DONT_LINK_DDS}         // link support for DDS images
+{.$DEFINE DONT_LINK_GIF}         // link support for GIF images
+{.$DEFINE DONT_LINK_MNG}         // link support for MNG images
+{.$DEFINE DONT_LINK_JNG}         // link support for JNG images
+{.$DEFINE DONT_LINK_PNM}         // link support for PortableMap images (PBM, PGM, PPM, PAM, PFM)
+{.$DEFINE DONT_LINK_RADHDR}      // link support for Radiance HDR/RGBE file format
+{.$DEFINE DONT_LINK_QOI}         // link support for Quite OK Image Format
 
-{$DEFINE DONT_LINK_EXTRAS}  // link support for file formats defined in
-                             // Extras package. Exactly which formats will be
+{.$DEFINE DONT_LINK_EXTRAS}  // link support for file formats defined in
+                             // Extensions package. Exactly which formats will be
                              // registered depends on settings in
-                             // ImagingExtras.pas unit.
+                             // ImagingExtFileFormats.pas unit.
 
 {.$DEFINE DONT_LINK_FILE_FORMATS} // no auto link support of any file format
-
-{ Component set used in ImagignComponents.pas unit. You usually don't need
-  to be concerned with this - proper component library is selected automatically
-  according to your compiler. }
-
-{$DEFINE COMPONENT_SET_VCL}   // use Delphi VCL
-{ $DEFINE COMPONENT_SET_LCL}  // use Lazarus LCL (set automatically when compiling with FPC)
 
 {
   Auto Options
@@ -64,7 +58,7 @@
 {$BOOLEVAL OFF}           // Boolean eval: off
 {$EXTENDEDSYNTAX ON}      // Extended syntax: on
 {$LONGSTRINGS ON}         // string = AnsiString: on
-{$MINENUMSIZE 4}          // Min enum size: 4 B
+{$MINENUMSIZE 1}          // Min enum size: 1 B
 {$TYPEDADDRESS OFF}       // Typed pointers: off
 {$WRITEABLECONST OFF}     // Writeable constants: off
 
@@ -75,6 +69,9 @@
 
 {$IFDEF DCC}
   {$DEFINE DELPHI}
+  {$IF (Defined(DCC) and (CompilerVersion >= 25.0))}
+    {$LEGACYIFEND ON}
+  {$IFEND}
 {$ENDIF}
 
 {$IF (Defined(DCC) and (CompilerVersion >= 18.5))}
@@ -84,6 +81,10 @@
                    // is currently set we undef DEBUG mode
   {$ENDIF}
 {$IFEND}
+
+{$IFDEF DEBUG}
+  {$DEFINE IMAGING_DEBUG}
+{$ENDIF}
 
 {$IF Defined(IMAGING_DEBUG)}
   {$ASSERTIONS ON}
@@ -99,7 +100,6 @@
   {$ENDIF}
   {$IFDEF FPC}
     {$S+}
-    {$CHECKPOINTER ON}
   {$ENDIF}
 {$ELSEIF Defined(IMAGING_RELEASE)}
   {$ASSERTIONS OFF}
@@ -117,22 +117,22 @@
   {$ENDIF}
 {$IFEND}
 
-{$IF Defined (CPU86) and not Defined(CPUX86)}
+{$IF Defined(CPU86) and not Defined(CPUX86)}
   {$DEFINE CPUX86} // Compatibility with Delphi
 {$IFEND}
 
-{$IF Defined (CPUX86_64) and not Defined(CPUX64)}
+{$IF Defined(CPUX86_64) and not Defined(CPUX64)}
   {$DEFINE CPUX64} // Compatibility with Delphi
 {$IFEND}
 
-{$IF Defined (DARWIN) and not Defined(MACOS)}
+{$IF Defined(DARWIN) and not Defined(MACOS)}
   {$DEFINE MACOS} // Compatibility with Delphi
 {$IFEND}
 {$IF Defined(MACOS)}
   {$DEFINE MACOSX}
 {$IFEND}
 
-{$IF Defined(DCC) and (CompilerVersion < 23)}
+{$IF Defined(DCC) and (CompilerVersion < 23)}   // < XE2
   {$DEFINE CPUX86} // Compatibility with older Delphi
 {$IFEND}
 
@@ -177,6 +177,18 @@
   {$DEFINE HAS_GENERICS}
 {$IFEND}
 
+{ Compiler pecularities }
+
+// Delphi 64bit POSIX targets
+{$IF Defined(DCC) and (SizeOf(Integer) <> SizeOf(LongInt))}
+  {$DEFINE LONGINT_IS_NOT_INTEGER}
+{$IFEND}
+
+// They used to force IFEND, now they warn about it
+{$IF Defined(DCC) and (CompilerVersion >= 33)}
+  {$LEGACYIFEND ON}
+{$IFEND}
+
 { Imaging options check}
 
 {$IFNDEF HAS_INLINE}
@@ -201,19 +213,29 @@
 
 {$IFDEF FPC}               // Free Pascal options - some options set above (like min enum size)
                            // are reset to defaults by setting {$MODE} so they are
-                           // redeclared here 
+                           // redeclared here
   {$MODE DELPHI}           // compatible with delphi
   {$GOTO ON}               // alow goto
   {$PACKRECORDS 8}         // same as ALING 8 for Delphi
   {$PACKENUM 4}            // Min enum size: 4 B
-  {$CALLING REGISTER}      // default calling convention is register
   {$IFDEF CPU86}
     {$ASMMODE INTEL}       // intel assembler mode
   {$ENDIF}
 {$ENDIF}
 
-{$IFDEF HAS_INLINE}        
+{$IFDEF HAS_INLINE}
   {$INLINE ON}             // turns inlining on for compilers that support it
 {$ENDIF}
 
+// -------------------------------------------------------
+// DESKEW Options
+// -------------------------------------------------------
+
+// core formats
+{$DEFINE DONT_LINK_RADHDR}
+
+// from ImagingExtFileFormats.pas
+{$DEFINE DONT_LINK_JPEG2000}
+{$DEFINE DONT_LINK_PCX}
+{$DEFINE DONT_LINK_XPM}
 

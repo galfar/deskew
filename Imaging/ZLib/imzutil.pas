@@ -32,10 +32,14 @@ type
   puIntf = ^uIntf;
   puLong = ^uLongf;
 
-  ptr2int = uInt;
-{ a pointer to integer casting is used to do pointer arithmetic.
-  ptr2int must be an integer type and sizeof(ptr2int) must be less
-  than sizeof(pointer) - Nomssi }
+{$IF Defined(FPC)}
+  ptr2int = PtrUInt;
+{$ELSEIF CompilerVersion >= 20}
+  ptr2int = NativeUInt;
+{$ELSE}
+  ptr2int = Cardinal;
+{$IFEND}
+{ a pointer to integer casting is used to do pointer arithmetic. }
 
 type
   zByteArray = array[0..(MaxInt div SizeOf(Bytef))-1] of Bytef;

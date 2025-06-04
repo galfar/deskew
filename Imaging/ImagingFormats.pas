@@ -1,29 +1,13 @@
 {
   Vampyre Imaging Library
-  by Marek Mauder 
-  http://imaginglib.sourceforge.net
-
-  The contents of this file are used with permission, subject to the Mozilla
-  Public License Version 1.1 (the "License"); you may not use this file except
-  in compliance with the License. You may obtain a copy of the License at
-  http://www.mozilla.org/MPL/MPL-1.1.html
-
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
-  the specific language governing rights and limitations under the License.
-
-  Alternatively, the contents of this file may be used under the terms of the
-  GNU Lesser General Public License (the  "LGPL License"), in which case the
-  provisions of the LGPL License are applicable instead of those above.
-  If you wish to allow use of your version of this file only under the terms
-  of the LGPL License and not to allow others to use your version of this file
-  under the MPL, indicate your decision by deleting  the provisions above and
-  replace  them with the notice and other provisions required by the LGPL
-  License.  If you do not delete the provisions above, a recipient may use
-  your version of this file under either the MPL or the LGPL License.
-
-  For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
-}
+  by Marek Mauder
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+  - - - - -
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0.
+} 
 
 { This unit manages information about all image data formats and contains
   low level format conversion, manipulation, and other related functions.}
@@ -160,7 +144,7 @@ procedure Convert4To8(DataIn, DataOut: PByte; Width, Height,
 function Has16BitImageAlpha(NumPixels: LongInt; Data: PWord): Boolean;
 { Helper function for image file loaders. This function checks is similar
   to Has16BitImageAlpha but works with A8R8G8B8/X8R8G8B8 format.}
-function Has32BitImageAlpha(NumPixels: LongInt; Data: PLongWord): Boolean;
+function Has32BitImageAlpha(NumPixels: LongInt; Data: PUInt32): Boolean;
 { Checks if there is any relevant alpha data (any entry has alpha <> 255)
   in the given palette.}
 function PaletteHasAlpha(Palette: PPalette32; PaletteEntries: Integer): Boolean;
@@ -192,7 +176,7 @@ procedure VisualizePalette(Pal: PPalette32; Entries: Integer; out PalImage: TIma
 
 type
   TPointRec = record
-    Pos: LongInt;
+    Pos: Integer;
     Weight: Single;
   end;
   TCluster = array of TPointRec;
@@ -235,10 +219,10 @@ procedure FloatSetDstPixel(Dst: PByte; DstInfo: PImageFormatInfo;
 { Returns pixel of image in any indexed format. Returned value is index to
   the palette.}
 procedure IndexGetSrcPixel(Src: PByte; SrcInfo: PImageFormatInfo;
-  var Index: LongWord);
+  var Index: UInt32);
 { Sets pixel of image in any indexed format. Index is index to the palette.}
 procedure IndexSetDstPixel(Dst: PByte; DstInfo: PImageFormatInfo;
-  Index: LongWord);
+  Index: UInt32);
 
 
 { Pixel readers/writers for 32bit and FP colors}
@@ -329,7 +313,7 @@ const
   // Grayscale conversion channel weights
   GrayConv: TColorFPRec = (B: 0.114; G: 0.587; R: 0.299; A: 0.0);
 
-  // Contants for converting integer colors to floating point
+  // Constants for converting integer colors to floating point
   OneDiv8Bit: Single = 1.0 / 255.0;
   OneDiv16Bit: Single = 1.0 / 65535.0;
 
@@ -339,21 +323,21 @@ implementation
 
 { Returns size in bytes of image in given standard format where
   Size = Width * Height * Bpp.}
-function GetStdPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt; forward;
+function GetStdPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64; forward;
 { Checks if Width and Height are valid for given standard format.}
-procedure CheckStdDimensions(Format: TImageFormat; var Width, Height: LongInt); forward;
+procedure CheckStdDimensions(Format: TImageFormat; var Width, Height: Integer); forward;
 { Returns size in bytes of image in given DXT format.}
-function GetDXTPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt; forward;
+function GetDXTPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64; forward;
 { Checks if Width and Height are valid for given DXT format. If they are
   not valid, they are changed to pass the check.}
-procedure CheckDXTDimensions(Format: TImageFormat; var Width, Height: LongInt); forward;
+procedure CheckDXTDimensions(Format: TImageFormat; var Width, Height: Integer); forward;
 { Returns size in bytes of image in BTC format.}
-function GetBTCPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt; forward;
+function GetBTCPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64; forward;
 { Returns size in bytes of image in binary format (1bit image).}
-function GetBinaryPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt; forward;
+function GetBinaryPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64; forward;
 
-function GetBCPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt; forward;
-procedure CheckBCDimensions(Format: TImageFormat; var Width, Height: LongInt); forward;
+function GetBCPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64; forward;
+procedure CheckBCDimensions(Format: TImageFormat; var Width, Height: Integer); forward;
 
 
 { Optimized pixel readers/writers for 32bit and FP colors to be stored in TImageFormatInfo }
@@ -873,7 +857,7 @@ var
     ChannelCount: 3;
     HasAlphaChannel: False;
     IsSpecial: True;
-    IsPasstrough: True;
+    IsPassthrough: True;
     GetPixelsSize: GetBCPixelsSize;
     CheckDimensions: CheckBCDimensions;
     SpecialNearestFormat: ifR8G8B8);
@@ -884,7 +868,7 @@ var
     ChannelCount: 3;
     HasAlphaChannel: False;
     IsSpecial: True;
-    IsPasstrough: True;
+    IsPassthrough: True;
     GetPixelsSize: GetBCPixelsSize;
     CheckDimensions: CheckBCDimensions;
     SpecialNearestFormat: ifR8G8B8);
@@ -895,7 +879,7 @@ var
     ChannelCount: 4;
     HasAlphaChannel: True;
     IsSpecial: True;
-    IsPasstrough: True;
+    IsPassthrough: True;
     GetPixelsSize: GetBCPixelsSize;
     CheckDimensions: CheckBCDimensions;
     SpecialNearestFormat: ifA8R8G8B8);
@@ -906,7 +890,7 @@ var
     ChannelCount: 4;
     HasAlphaChannel: True;
     IsSpecial: True;
-    IsPasstrough: True;
+    IsPassthrough: True;
     GetPixelsSize: GetBCPixelsSize;
     CheckDimensions: CheckBCDimensions;
     SpecialNearestFormat: ifA8R8G8B8);
@@ -917,7 +901,7 @@ var
     ChannelCount: 4;
     HasAlphaChannel: True;
     IsSpecial: True;
-    IsPasstrough: True;
+    IsPassthrough: True;
     GetPixelsSize: GetBCPixelsSize;
     CheckDimensions: CheckBCDimensions;
     SpecialNearestFormat: ifA8R8G8B8);
@@ -928,7 +912,7 @@ var
     ChannelCount: 4;
     HasAlphaChannel: True;
     IsSpecial: True;
-    IsPasstrough: True;
+    IsPassthrough: True;
     GetPixelsSize: GetBCPixelsSize;
     CheckDimensions: CheckBCDimensions;
     SpecialNearestFormat: ifA8R8G8B8);
@@ -939,7 +923,7 @@ var
     ChannelCount: 4;
     HasAlphaChannel: True;
     IsSpecial: True;
-    IsPasstrough: True;
+    IsPassthrough: True;
     GetPixelsSize: GetBCPixelsSize;
     CheckDimensions: CheckBCDimensions;
     SpecialNearestFormat: ifA8R8G8B8);}
@@ -1028,11 +1012,11 @@ begin
   Result.BRecDiv := Max(1, Pow2Int(Result.BBitCount) - 1);
 end;
 
-function PixelFormatMask(ABitMask, RBitMask, GBitMask, BBitMask: LongWord): TPixelFormatInfo;
+function PixelFormatMask(ABitMask, RBitMask, GBitMask, BBitMask: UInt32): TPixelFormatInfo;
 
-  function GetBitCount(B: LongWord): LongWord;
+  function GetBitCount(B: UInt32): UInt32;
   var
-    I: LongWord;
+    I: UInt32;
   begin
     I := 0;
     while (I < 31) and (((1 shl I) and B) = 0) do
@@ -1061,7 +1045,7 @@ begin
       (B shl BBitCount shr 8 shl BShift);
 end;
 
-procedure PFGetARGB(const PF: TPixelFormatInfo; Color: LongWord;
+procedure PFGetARGB(const PF: TPixelFormatInfo; Color: UInt32;
   var A, R, G, B: Byte); {$IFDEF USE_INLINE}inline;{$ENDIF}
 begin
   with PF do
@@ -1073,7 +1057,7 @@ begin
   end;
 end;
 
-function PFSetColor(const PF: TPixelFormatInfo; ARGB: TColor32): LongWord;
+function PFSetColor(const PF: TPixelFormatInfo; ARGB: TColor32): UInt32;
 {$IFDEF USE_INLINE}inline;{$ENDIF}
 begin
   with PF do
@@ -1084,7 +1068,7 @@ begin
       (Byte(ARGB) shl BBitCount shr 8 shl BShift);
 end;
 
-function PFGetColor(const PF: TPixelFormatInfo; Color: LongWord): TColor32;
+function PFGetColor(const PF: TPixelFormatInfo; Color: UInt32): TColor32;
 {$IFDEF USE_INLINE}inline;{$ENDIF}
 begin
   with PF, TColor32Rec(Result) do
@@ -1110,7 +1094,7 @@ type
   PColorBin = ^TColorBin;
   TColorBin = record
     Color: TColor32Rec;
-    Number: LongInt;
+    Number: Integer;
     Next: PColorBin;
   end;
 
@@ -1120,8 +1104,8 @@ type
     AMin, AMax,
     RMin, RMax,
     GMin, GMax,
-    BMin, BMax: LongInt;
-    Total: LongInt;
+    BMin, BMax: Integer;
+    Total: Integer;
     Represented: TColor32Rec;
     List: PColorBin;
   end;
@@ -1129,7 +1113,7 @@ type
 var
   Table: THashTable;
   Box: array[0..MaxPossibleColors - 1] of TColorBox;
-  Boxes: LongInt;
+  Boxes: Integer;
 
 procedure ReduceColorsMedianCut(NumPixels: LongInt; Src, Dst: PByte; SrcInfo,
   DstInfo: PImageFormatInfo; MaxColors: LongInt; ChannelMask: Byte;
@@ -1205,7 +1189,7 @@ procedure ReduceColorsMedianCut(NumPixels: LongInt; Src, Dst: PByte; SrcInfo,
     Inc(Box.Total, C.Number);
   end;
 
-  procedure MakeColormap;
+  procedure MakeColorMap;
   var
     I, J: LongInt;
     CP, Pom: PColorBin;
@@ -1469,7 +1453,7 @@ begin
         1: PByte(DstPixel)^ := PByteArray(SrcLine)[Xp shr 16];
         2: PWord(DstPixel)^ := PWordArray(SrcLine)[Xp shr 16];
         3: PColor24Rec(DstPixel)^ := PPalette24(SrcLine)[Xp shr 16];
-        4: PColor32(DstPixel)^ := PLongWordArray(SrcLine)[Xp shr 16];
+        4: PColor32(DstPixel)^ := PUInt32Array(SrcLine)[Xp shr 16];
         6: PColor48Rec(DstPixel)^ := PColor48RecArray(SrcLine)[Xp shr 16];
         8: PColor64(DstPixel)^ := PInt64Array(SrcLine)[Xp shr 16];
         16: PColorFPRec(DstPixel)^ := PColorFPRecArray(SrcLine)[Xp shr 16];
@@ -1588,7 +1572,7 @@ begin
     Result := 0.0;
 end;
 
-{ Micthell cubic filter.}
+{ Mitchell cubic filter.}
 function FilterMitchell(Value: Single): Single;
 const
   B = 1.0 / 3.0;
@@ -1653,10 +1637,9 @@ function BuildMappingTable(DstLow, DstHigh, SrcLow, SrcHigh, SrcImageWidth: Long
 var
   I, J, K, N: LongInt;
   Left, Right, SrcWidth, DstWidth: LongInt;
-  Weight, Scale, Center, Count: Single;
+  Weight, Scale, Center: Single;
 begin
   Result := nil;
-  K := 0;
   SrcWidth := SrcHigh - SrcLow;
   DstWidth := DstHigh - DstLow;
 
@@ -1703,13 +1686,11 @@ begin
         Center := SrcLow + I / Scale;
       Left := Floor(Center - Radius);
       Right := Ceil(Center + Radius);
-      Count := -1.0;
       for J := Left to Right do
       begin
         Weight := Filter((Center - J) * Scale) * Scale;
         if Weight <> 0.0 then
         begin
-          Count := Count + Weight;
           K := Length(Result[I]);
           SetLength(Result[I], K + 1);
           Result[I][K].Pos := ClampInt(J, SrcLow, SrcHigh - 1);
@@ -1721,9 +1702,7 @@ begin
         SetLength(Result[I], 1);
         Result[I][0].Pos := Floor(Center);
         Result[I][0].Weight := 1.0;
-      end
-      else if Count <> 0.0 then
-        Result[I][K div 2].Weight := Result[I][K div 2].Weight - Count;
+      end;
     end;
   end
   else // if Scale > 1.0 then
@@ -1738,13 +1717,11 @@ begin
         Center := SrcLow + I * Scale;
       Left := Floor(Center - Radius);
       Right := Ceil(Center + Radius);
-      Count := -1.0;
       for J := Left to Right do
       begin
         Weight := Filter(Center - J);
         if Weight <> 0.0 then
         begin
-          Count := Count + Weight;
           K := Length(Result[I]);
           SetLength(Result[I], K + 1);
 
@@ -1764,8 +1741,6 @@ begin
           Result[I][K].Weight := Weight;
         end;
       end;
-      if Count <> 0.0 then
-        Result[I][K div 2].Weight := Result[I][K div 2].Weight - Count;
     end;
   end;
 end;
@@ -1818,15 +1793,11 @@ begin
   if (MapX = nil) or (MapY = nil) then
     Exit;
 
-  ClusterX := nil;
-  ClusterY := nil;
-
   try
     // Find min and max X coords of pixels that will contribute to target image
     FindExtremes(MapX, XMinimum, XMaximum);
-
     SetLength(LineBufferFP, XMaximum - XMinimum + 1);
-    // Following code works for the rest of data formats
+
     for J := 0 to DstHeight - 1 do
     begin
       // First for each pixel in the current line sample vertically
@@ -1847,10 +1818,10 @@ begin
           // Accumulate this pixel's weighted value
           Weight := ClusterY[Y].Weight;
           SrcFloat := Info.GetPixelFP(@PByteArray(SrcImage.Bits)[(ClusterY[Y].Pos * SrcImage.Width + X) * Info.BytesPerPixel], @Info, nil);
-          AccumB := AccumB + SrcFloat.B * Weight;
-          AccumG := AccumG + SrcFloat.G * Weight;
-          AccumR := AccumR + SrcFloat.R * Weight;
           AccumA := AccumA + SrcFloat.A * Weight;
+          AccumR := AccumR + SrcFloat.R * Weight;
+          AccumG := AccumG + SrcFloat.G * Weight;
+          AccumB := AccumB + SrcFloat.B * Weight;
         end;
         // Store accumulated value for this pixel in buffer
         with LineBufferFP[X - XMinimum] do
@@ -1863,7 +1834,7 @@ begin
       end;
 
       DstLine := @PByteArray(DstImage.Bits)[((J + DstY) * DstImage.Width + DstX) * Info.BytesPerPixel];
-      // Now compute final colors for targte pixels in the current row
+      // Now compute final colors for target pixels in the current row
       // by sampling horizontally
       for I := 0 to DstWidth - 1 do
       begin
@@ -1881,10 +1852,10 @@ begin
           Weight := ClusterX[X].Weight;
           with LineBufferFP[ClusterX[X].Pos - XMinimum] do
           begin
-            AccumB := AccumB + B * Weight;
-            AccumG := AccumG + G * Weight;
-            AccumR := AccumR + R * Weight;
             AccumA := AccumA + A * Weight;
+            AccumR := AccumR + R * Weight;
+            AccumG := AccumG + G * Weight;
+            AccumB := AccumB + B * Weight;
           end;
         end;
 
@@ -1961,7 +1932,7 @@ begin
     1: PByte(Dest)^ := PByte(Src)^;
     2: PWord(Dest)^ := PWord(Src)^;
     3: PColor24Rec(Dest)^ := PColor24Rec(Src)^;
-    4: PLongWord(Dest)^ := PLongWord(Src)^;
+    4: PUInt32(Dest)^ := PUInt32(Src)^;
     6: PColor48Rec(Dest)^ := PColor48Rec(Src)^;
     8: PInt64(Dest)^ := PInt64(Src)^;
     12: PColor96FPRec(Dest)^ := PColor96FPRec(Src)^;
@@ -1975,8 +1946,8 @@ begin
     1: Result := PByte(PixelA)^ = PByte(PixelB)^;
     2: Result := PWord(PixelA)^ = PWord(PixelB)^;
     3: Result := (PWord(PixelA)^ = PWord(PixelB)^) and (PColor24Rec(PixelA).R = PColor24Rec(PixelB).R);
-    4: Result := PLongWord(PixelA)^ = PLongWord(PixelB)^;
-    6: Result := (PLongWord(PixelA)^ = PLongWord(PixelB)^) and (PColor48Rec(PixelA).R = PColor48Rec(PixelB).R);
+    4: Result := PUInt32(PixelA)^ = PUInt32(PixelB)^;
+    6: Result := (PUInt32(PixelA)^ = PUInt32(PixelB)^) and (PColor48Rec(PixelA).R = PColor48Rec(PixelB).R);
     8: Result := PInt64(PixelA)^ = PInt64(PixelB)^;
     12: Result := (PFloatHelper(PixelA).Data = PFloatHelper(PixelB).Data) and
           (PFloatHelper(PixelA).Data32 = PFloatHelper(PixelB).Data32);
@@ -2174,7 +2145,7 @@ begin
   end;
 end;
 
-function Has32BitImageAlpha(NumPixels: LongInt; Data: PLongWord): Boolean;
+function Has32BitImageAlpha(NumPixels: LongInt; Data: PUInt32): Boolean;
 var
   I: LongInt;
 begin
@@ -2278,8 +2249,8 @@ const
 
 function HalfToFloat(Half: THalfFloat): Single;
 var
-  Dst, Sign, Mantissa: LongWord;
-  Exp: LongInt;
+  Dst, Sign, Mantissa: UInt32;
+  Exp: Int32;
 begin
   // Extract sign, exponent, and mantissa from half number
   Sign := Half shr 15;
@@ -2291,7 +2262,7 @@ begin
     // Common normalized number
     Exp := Exp + (127 - 15);
     Mantissa := Mantissa shl 13;
-    Dst := (Sign shl 31) or (LongWord(Exp) shl 23) or Mantissa;
+    Dst := (Sign shl 31) or (UInt32(Exp) shl 23) or Mantissa;
     // Result := Power(-1, Sign) * Power(2, Exp - 15) * (1 + Mantissa / 1024);
   end
   else if (Exp = 0) and (Mantissa = 0) then
@@ -2312,7 +2283,7 @@ begin
     // Now assemble normalized number
     Exp := Exp + (127 - 15);
     Mantissa := Mantissa shl 13;
-    Dst := (Sign shl 31) or (LongWord(Exp) shl 23) or Mantissa;
+    Dst := (Sign shl 31) or (UInt32(Exp) shl 23) or Mantissa;
     // Result := Power(-1, Sign) * Power(2, -14) * (Mantissa / 1024);
   end
   else if (Exp = 31) and (Mantissa = 0) then
@@ -2332,13 +2303,13 @@ end;
 
 function FloatToHalf(Float: Single): THalfFloat;
 var
-  Src: LongWord;
-  Sign, Exp, Mantissa: LongInt;
+  Src: UInt32;
+  Sign, Exp, Mantissa: Int32;
 begin
-  Src := PLongWord(@Float)^;
+  Src := PUInt32(@Float)^;
   // Extract sign, exponent, and mantissa from Single number
   Sign := Src shr 31;
-  Exp := LongInt((Src and $7F800000) shr 23) - 127 + 15;
+  Exp := Int32((Src and $7F800000) shr 23) - 127 + 15;
   Mantissa := Src and $007FFFFF;
 
   if (Exp > 0) and (Exp < 30) then
@@ -2570,13 +2541,13 @@ begin
         Gray.A := PWord(Src)^;
     4:
       if SrcInfo.HasAlphaChannel then
-        with PLongWordRec(Src)^ do
+        with PUInt32Rec(Src)^ do
         begin
           Alpha := High;
           Gray.A := Low;
         end
       else
-        with PLongWordRec(Src)^ do
+        with PUInt32Rec(Src)^ do
         begin
           Gray.A := High;
           Gray.R := Low;
@@ -2607,13 +2578,13 @@ begin
         PWord(Dst)^ := Gray.A;
     4:
       if DstInfo.HasAlphaChannel then
-        with PLongWordRec(Dst)^ do
+        with PUInt32Rec(Dst)^ do
         begin
           High := Alpha;
           Low := Gray.A;
         end
       else
-        with PLongWordRec(Dst)^ do
+        with PUInt32Rec(Dst)^ do
         begin
           High := Gray.A;
           Low := Gray.R;
@@ -2689,7 +2660,7 @@ begin
 end;
 
 procedure IndexGetSrcPixel(Src: PByte; SrcInfo: PImageFormatInfo;
-  var Index: LongWord);
+  var Index: UInt32);
 begin
   case SrcInfo.BytesPerPixel of
     1: Index := Src^;
@@ -2697,12 +2668,12 @@ begin
 end;
 
 procedure IndexSetDstPixel(Dst: PByte; DstInfo: PImageFormatInfo;
-  Index: LongWord);
+  Index: UInt32);
 begin
   case DstInfo.BytesPerPixel of
     1: Dst^ := Byte(Index);
     2: PWord(Dst)^ := Word(Index);
-    4: PLongWord(Dst)^ := Index;
+    4: PUInt32(Dst)^ := Index;
   end;
 end;
 
@@ -2714,7 +2685,7 @@ var
   Pix64: TColor64Rec;
   PixF: TColorFPRec;
   Alpha: Word;
-  Index: LongWord;
+  Index: UInt32;
 begin
   if Info.Format = ifA8R8G8B8 then
   begin
@@ -2761,7 +2732,7 @@ var
   Pix64: TColor64Rec;
   PixF: TColorFPRec;
   Alpha: Word;
-  Index: LongWord;
+  Index: UInt32;
 begin
   if Info.Format = ifA8R8G8B8 then
   begin
@@ -2807,7 +2778,7 @@ var
   Pix32: TColor32Rec;
   Pix64: TColor64Rec;
   Alpha: Word;
-  Index: LongWord;
+  Index: UInt32;
 begin
   if Info.IsFloatingPoint then
   begin
@@ -2845,7 +2816,7 @@ var
   Pix32: TColor32Rec;
   Pix64: TColor64Rec;
   Alpha: Word;
-  Index: LongWord;
+  Index: UInt32;
 begin
   if Info.IsFloatingPoint then
   begin
@@ -3083,7 +3054,7 @@ procedure GrayToIndex(NumPixels: LongInt; Src, Dst: PByte; SrcInfo,
   DstInfo: PImageFormatInfo; DstPal: PPalette32);
 var
   I: LongInt;
-  Idx: LongWord;
+  Idx: UInt32;
   Gray: TColor64Rec;
   Alpha, Shift: Word;
 begin
@@ -3208,7 +3179,7 @@ procedure IndexToChannel(NumPixels: LongInt; Src, Dst: PByte; SrcInfo,
 var
   I: LongInt;
   Pix64: TColor64Rec;
-  Idx: LongWord;
+  Idx: UInt32;
 begin
   // two most common conversions (Index8->R8G8B8 nad Index8->A8R8G8B8)
   // are made separately from general conversions to make them faster
@@ -3252,7 +3223,7 @@ var
   I: LongInt;
   Gray: TColor64Rec;
   Alpha: Word;
-  Idx: LongWord;
+  Idx: UInt32;
 begin
   // most common conversion (Index8->Gray8)
   // is made separately from general conversions to make it faster
@@ -3287,7 +3258,7 @@ procedure IndexToFloat(NumPixels: LongInt; Src, Dst: PByte; SrcInfo,
   DstInfo: PImageFormatInfo; SrcPal: PPalette32);
 var
   I: LongInt;
-  Idx: LongWord;
+  Idx: UInt32;
   PixF: TColorFPRec;
 begin
   for I := 0 to NumPixels - 1 do
@@ -3316,7 +3287,7 @@ type
   // DXT RGB color block
   TDXTColorBlock = packed record
     Color0, Color1: Word;
-    Mask: LongWord;
+    Mask: UInt32;
   end;
   PDXTColorBlock = ^TDXTColorBlock;
 
@@ -3394,7 +3365,7 @@ begin
       end;
 
       // we distribute the dxt block colors across the 4x4 block of the
-      // destination image accroding to the dxt block mask
+      // destination image according to the dxt block mask
       K := 0;
       for J := 0 to 3 do
         for I := 0 to 3 do
@@ -3436,7 +3407,7 @@ begin
 
       // we distribute the dxt block colors and alphas
       // across the 4x4 block of the destination image
-      // accroding to the dxt block mask and alpha block
+      // according to the dxt block mask and alpha block
       K := 0;
       for J := 0 to 3 do
       begin
@@ -3489,7 +3460,7 @@ var
   Block: TDXTColorBlock;
   AlphaBlock: TDXTAlphaBlockInt;
   Colors: array[0..3] of TColor32Rec;
-  AMask: array[0..1] of LongWord;
+  AMask: array[0..1] of UInt32;
 begin
   for Y := 0 to Height div 4 - 1 do
     for X := 0 to Width div 4 - 1 do
@@ -3510,8 +3481,8 @@ begin
       Colors[3].B := (Colors[0].B + Colors[1].B shl 1 + 1) div 3;
       // 6 bit alpha mask is copied into two long words for
       // easier usage
-      AMask[0] := PLongWord(@AlphaBlock.Alphas[2])^ and $00FFFFFF;
-      AMask[1] := PLongWord(@AlphaBlock.Alphas[5])^ and $00FFFFFF;
+      AMask[0] := PUInt32(@AlphaBlock.Alphas[2])^ and $00FFFFFF;
+      AMask[1] := PUInt32(@AlphaBlock.Alphas[5])^ and $00FFFFFF;
       // alpha interpolation between two endpoint alphas
       GetInterpolatedAlphas(AlphaBlock);
 
@@ -3627,7 +3598,7 @@ begin
 end;
 
 function GetColorMask(Ep0, Ep1: Word; NumCols: LongInt;
-  const Block: TPixelBlock): LongWord;
+  const Block: TPixelBlock): UInt32;
 var
   I, J, Closest, Dist: LongInt;
   Colors: array[0..3] of TColor32Rec;
@@ -3935,21 +3906,21 @@ var
   Src: PByte absolute SrcBits;
   Bitmap: PByteArray absolute DestBits;
   X, Y, WidthBytes: Integer;
-  PixelTresholded, Treshold: Byte;
+  PixelThresholded, Threshold: Byte;
 begin
-  Treshold := ClampToByte(GetOption(ImagingBinaryTreshold));
+  Threshold := ClampToByte(GetOption(ImagingBinaryThreshold));
   WidthBytes := (Width + 7) div 8;
 
   for Y := 0 to Height - 1 do
     for X := 0 to Width - 1 do
     begin
-      if Src^ > Treshold then
-        PixelTresholded := 255
+      if Src^ > Threshold then
+        PixelThresholded := 255
       else
-        PixelTresholded := 0;
+        PixelThresholded := 0;
 
       Bitmap[Y * WidthBytes + X div 8] := Bitmap[Y * WidthBytes + X div 8] or // OR current value of byte with following:
-        (PixelTresholded and 1)  // To make 1 from 255, 0 remains 0
+        (PixelThresholded and 1)  // To make 1 from 255, 0 remains 0
         shl (7 - (X mod 8));  // Put current bit to proper place in byte
 
       Inc(Src);
@@ -3988,7 +3959,7 @@ procedure DecodeATI1N(SrcBits, DestBits: PByte; Width, Height: Integer);
 var
   X, Y, I, J: Integer;
   AlphaBlock: TDXTAlphaBlockInt;
-  AMask: array[0..1] of LongWord;
+  AMask: array[0..1] of UInt32;
 begin
   for Y := 0 to Height div 4 - 1 do
     for X := 0 to Width div 4 - 1 do
@@ -3997,8 +3968,8 @@ begin
       Inc(SrcBits, SizeOf(AlphaBlock));
       // 6 bit alpha mask is copied into two long words for
       // easier usage
-      AMask[0] := PLongWord(@AlphaBlock.Alphas[2])^ and $00FFFFFF;
-      AMask[1] := PLongWord(@AlphaBlock.Alphas[5])^ and $00FFFFFF;
+      AMask[0] := PUInt32(@AlphaBlock.Alphas[2])^ and $00FFFFFF;
+      AMask[1] := PUInt32(@AlphaBlock.Alphas[5])^ and $00FFFFFF;
       // alpha interpolation between two endpoint alphas
       GetInterpolatedAlphas(AlphaBlock);
 
@@ -4019,8 +3990,8 @@ var
   X, Y, I, J: Integer;
   Color: TColor32Rec;
   AlphaBlock1, AlphaBlock2: TDXTAlphaBlockInt;
-  AMask1: array[0..1] of LongWord;
-  AMask2: array[0..1] of LongWord;
+  AMask1: array[0..1] of UInt32;
+  AMask2: array[0..1] of UInt32;
 begin
   for Y := 0 to Height div 4 - 1 do
     for X := 0 to Width div 4 - 1 do
@@ -4028,13 +3999,13 @@ begin
       // Read the first alpha block and get masks
       AlphaBlock1 := PDXTAlphaBlockInt(SrcBits)^;
       Inc(SrcBits, SizeOf(AlphaBlock1));
-      AMask1[0] := PLongWord(@AlphaBlock1.Alphas[2])^ and $00FFFFFF;
-      AMask1[1] := PLongWord(@AlphaBlock1.Alphas[5])^ and $00FFFFFF;
+      AMask1[0] := PUInt32(@AlphaBlock1.Alphas[2])^ and $00FFFFFF;
+      AMask1[1] := PUInt32(@AlphaBlock1.Alphas[5])^ and $00FFFFFF;
       // Read the secind alpha block and get masks
       AlphaBlock2 := PDXTAlphaBlockInt(SrcBits)^;
       Inc(SrcBits, SizeOf(AlphaBlock2));
-      AMask2[0] := PLongWord(@AlphaBlock2.Alphas[2])^ and $00FFFFFF;
-      AMask2[1] := PLongWord(@AlphaBlock2.Alphas[5])^ and $00FFFFFF;
+      AMask2[0] := PUInt32(@AlphaBlock2.Alphas[2])^ and $00FFFFFF;
+      AMask2[1] := PUInt32(@AlphaBlock2.Alphas[5])^ and $00FFFFFF;
       // alpha interpolation between two endpoint alphas
       GetInterpolatedAlphas(AlphaBlock1);
       GetInterpolatedAlphas(AlphaBlock2);
@@ -4096,7 +4067,7 @@ var
 
   procedure CheckSize(var Img: TImageData; Info: PImageFormatInfo);
   var
-    Width, Height: Integer;
+    Width, Height: LongInt;
   begin
     Width := Img.Width;
     Height := Img.Height;
@@ -4147,69 +4118,69 @@ begin
   end;
 end;
 
-function GetStdPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt;
+function GetStdPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64;
 begin
   if FInfos[Format] <> nil then
-    Result := Width * Height * FInfos[Format].BytesPerPixel
+    Result := Int64(Width) * Height * FInfos[Format].BytesPerPixel
   else
     Result := 0;
 end;
 
-procedure CheckStdDimensions(Format: TImageFormat; var Width, Height: LongInt);
+procedure CheckStdDimensions(Format: TImageFormat; var Width, Height: Integer);
 begin
 end;
 
-function GetDXTPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt;
+function GetDXTPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64;
 begin
   // DXT can be used only for images with dimensions that are
   // multiples of four
   CheckDXTDimensions(Format, Width, Height);
-  Result := Width * Height;
+  Result := Int64(Width) * Height;
   if Format in [ifDXT1, ifATI1N] then
     Result := Result div 2;
 end;
 
-procedure CheckDXTDimensions(Format: TImageFormat; var Width, Height: LongInt);
+procedure CheckDXTDimensions(Format: TImageFormat; var Width, Height: Integer);
 begin
   // DXT image dimensions must be multiples of four
   Width := (Width + 3) and not 3; // div 4 * 4;
   Height := (Height + 3) and not 3; // div 4 * 4;
 end;
 
-function GetBTCPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt;
+function GetBTCPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64;
 begin
   // BTC can be used only for images with dimensions that are
   // multiples of four
   CheckDXTDimensions(Format, Width, Height);
-  Result := Width * Height div 4; // 2bits/pixel
+  Result := Int64(Width) * Height div 4; // 2bits/pixel
 end;
 
-function GetBCPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt;
+function GetBCPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64;
 begin
   raise ENotImplemented.Create();
 end;
 
-procedure CheckBCDimensions(Format: TImageFormat; var Width, Height: LongInt);
+procedure CheckBCDimensions(Format: TImageFormat; var Width, Height: Integer);
 begin
   raise ENotImplemented.Create();
 end;
 
-function GetBinaryPixelsSize(Format: TImageFormat; Width, Height: LongInt): LongInt;
+function GetBinaryPixelsSize(Format: TImageFormat; Width, Height: Integer): Int64;
 begin
   // Binary images are aligned on BYTE boundary
-  Result := ((Width + 7) div 8) * Height; // 1bit/pixel
+  Result := ((Width + 7) div 8) * Int64(Height); // 1bit/pixel
 end;
 
 { Optimized pixel readers/writers for 32bit and FP colors to be stored in TImageFormatInfo }
 
 function GetPixel32ifA8R8G8B8(Bits: Pointer; Info: PImageFormatInfo; Palette: PPalette32): TColor32Rec;
 begin
-  Result.Color := PLongWord(Bits)^;
+  Result.Color := PUInt32(Bits)^;
 end;
 
 procedure SetPixel32ifA8R8G8B8(Bits: Pointer; Info: PImageFormatInfo; Palette: PPalette32; const Color: TColor32Rec);
 begin
-  PLongWord(Bits)^ := Color.Color;
+  PUInt32(Bits)^ := Color.Color;
 end;
 
 function GetPixelFPifA8R8G8B8(Bits: Pointer; Info: PImageFormatInfo; Palette: PPalette32): TColorFPRec;
@@ -4379,17 +4350,17 @@ initialization
   File Notes:
 
   -- TODOS ----------------------------------------------------
-    - nothing now
+    - add lookup tables to pixel formats for fast conversions
 
   -- 0.80 -------------------------------------------------------
     - Added PaletteIsGrayScale and Color32ToGray functions.
 
   -- 0.77 Changes/Bug Fixes -------------------------------------
-    - NOT YET: Added support for Passtrough image data formats.
+    - NOT YET: Added support for Passthrough image data formats.
     - Added ConvertToPixel32 helper function.
 
   -- 0.26.5 Changes/Bug Fixes -----------------------------------
-    - Removed optimized codepatch for few data formats from StretchResample
+    - Removed optimized codepath for few data formats from StretchResample
       function. It was quite buggy and not so much faster anyway.
     - Added PaletteHasAlpha function.
     - Added support functions for ifBinary data format.
@@ -4428,7 +4399,7 @@ initialization
     - added pixel set/get functions optimized for various image formats
       (to be stored in TImageFormatInfo)
     - bug in ConvertSpecial caused problems when converting DXTC images
-      to bitmaps in ImagingCoponents
+      to bitmaps in ImagingComponents
     - bug in StretchRect caused that it didn't work with ifR32F and
       ifR16F formats
     - removed leftover code in FillMipMapLevel which disabled
@@ -4447,7 +4418,7 @@ initialization
     - added resolution validity check to GetDXTPixelsSize
 
   -- 0.15 Changes/Bug Fixes -----------------------------------
-    - added RBSwapFormat values to some TImageFromatInfo definitions
+    - added RBSwapFormat values to some TImageFormatInfo definitions
     - fixed bug in ConvertSpecial (causing DXT images to convert only to 32bit)
     - added CopyPixel, ComparePixels helper functions
 

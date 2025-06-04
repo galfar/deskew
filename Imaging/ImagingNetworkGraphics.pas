@@ -1,29 +1,13 @@
 {
   Vampyre Imaging Library
-  by Marek Mauder 
-  http://imaginglib.sourceforge.net
-
-  The contents of this file are used with permission, subject to the Mozilla
-  Public License Version 1.1 (the "License"); you may not use this file except
-  in compliance with the License. You may obtain a copy of the License at
-  http://www.mozilla.org/MPL/MPL-1.1.html
-
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
-  the specific language governing rights and limitations under the License.
-
-  Alternatively, the contents of this file may be used under the terms of the
-  GNU Lesser General Public License (the  "LGPL License"), in which case the
-  provisions of the LGPL License are applicable instead of those above.
-  If you wish to allow use of your version of this file only under the terms
-  of the LGPL License and not to allow others to use your version of this file
-  under the MPL, indicate your decision by deleting  the provisions above and
-  replace  them with the notice and other provisions required by the LGPL
-  License.  If you do not delete the provisions above, a recipient may use
-  your version of this file under either the MPL or the LGPL License.
-
-  For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
-}
+  by Marek Mauder
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+  - - - - -
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0.
+} 
 
 { This unit contains image format loaders/savers for Network Graphics image
   file formats PNG, MNG, and JNG.}
@@ -53,7 +37,7 @@ type
     FLossyAlpha: LongBool;
     FQuality: LongInt;
     FProgressive: LongBool;
-    FZLibStategy: Integer;
+    FZLibStrategy: Integer;
     function GetSupportedFormats: TImageFormats; override;
     procedure ConvertToSupported(var Image: TImageData;
       const Info: TImageFormatInfo); override;
@@ -70,7 +54,7 @@ type
       Default value is 5.}
     property PreFilter: LongInt read FPreFilter write FPreFilter;
     { Sets ZLib compression level used when saving images with lossless compression.
-      Allowed values are in range 0 (no compresstion) to 9 (best compression).
+      Allowed values are in range 0 (no compression) to 9 (best compression).
       Default value is 5.}
     property CompressLevel: LongInt read FCompressLevel write FCompressLevel;
     { Specifies whether MNG animation frames are saved with lossy or lossless
@@ -122,7 +106,7 @@ type
     JHDR-IEND streams (Note that there are MNG chunks
     like BASI which define images but does not contain image data itself,
     those are ignored).
-    Imaging saves MNG files as MNG-VLC (very low complexity) so it is basicaly
+    Imaging saves MNG files as MNG-VLC (very low complexity) so it is basically
     an array of image frames without MNG animation chunks. Frames can be saved
     as lossless PNG or lossy JNG images (look at TPNGFileFormat and
     TJNGFileFormat for info). Every frame can be in different data format.
@@ -169,6 +153,7 @@ uses
 {$IFNDEF DONT_LINK_JNG}
   ImagingJpeg, ImagingIO,
 {$ENDIF}
+  ImagingColors,
   ImagingCanvases;
 
 const
@@ -183,7 +168,7 @@ const
     ifA16B16G16R16, ifBinary];
   NGLossyFormats: TImageFormats = [ifGray8, ifA8Gray8, ifR8G8B8, ifA8R8G8B8];
   PNGDefaultLoadAnimated = True;
-  NGDefaultZLibStartegy = 1; // Z_FILTERED
+  NGDefaultZLibStrategy = 1; // Z_FILTERED
 
   SPNGFormatName = 'Portable Network Graphics';
   SPNGMasks      = '*.png';
@@ -198,14 +183,14 @@ resourcestring
 type
   { Chunk header.}
   TChunkHeader = packed record
-    DataSize: LongWord;
+    DataSize: UInt32;
     ChunkID: TChar4;
   end;
 
   { IHDR chunk format - PNG header.}
   TIHDR = packed record
-    Width: LongWord;              // Image width
-    Height: LongWord;             // Image height
+    Width: UInt32;                // Image width
+    Height: UInt32;               // Image height
     BitDepth: Byte;               // Bits per pixel or bits per sample (for truecolor)
     ColorType: Byte;              // 0 = grayscale, 2 = truecolor, 3 = palette,
                                   // 4 = gray + alpha, 6 = truecolor + alpha
@@ -217,20 +202,20 @@ type
 
   { MHDR chunk format - MNG header.}
   TMHDR = packed record
-    FrameWidth: LongWord;         // Frame width
-    FrameHeight: LongWord;        // Frame height
-    TicksPerSecond: LongWord;     // FPS of animation
-    NominalLayerCount: LongWord;  // Number of layers in file
-    NominalFrameCount: LongWord;  // Number of frames in file
-    NominalPlayTime: LongWord;    // Play time of animation in ticks
-    SimplicityProfile: LongWord;  // Defines which MNG features are used in this file
+    FrameWidth: UInt32;         // Frame width
+    FrameHeight: UInt32;        // Frame height
+    TicksPerSecond: UInt32;     // FPS of animation
+    NominalLayerCount: UInt32;  // Number of layers in file
+    NominalFrameCount: UInt32;  // Number of frames in file
+    NominalPlayTime: UInt32;    // Play time of animation in ticks
+    SimplicityProfile: UInt32;  // Defines which MNG features are used in this file
   end;
   PMHDR = ^TMHDR;
 
   { JHDR chunk format - JNG header.}
   TJHDR = packed record
-    Width: LongWord;              // Image width
-    Height: LongWord;             // Image height
+    Width: UInt32;                // Image width
+    Height: UInt32;               // Image height
     ColorType: Byte;              // 8 = grayscale (Y), 10 = color (YCbCr),
                                   // 12 = gray + alpha (Y-alpha), 14 = color + alpha (YCbCr-alpha)
     SampleDepth: Byte;            // 8, 12 or 20 (8 and 12 samples together) bit
@@ -238,7 +223,7 @@ type
     Interlacing: Byte;            // 0 = single scan, 8 = progressive
     AlphaSampleDepth: Byte;       // 0, 1, 2, 4, 8, 16 if alpha compression is 0 (PNG)
                                   // 8 if alpha compression is 8 (JNG)
-    AlphaCompression: Byte;       // 0 = PNG graysscale IDAT, 8 = grayscale 8-bit JPEG
+    AlphaCompression: Byte;       // 0 = PNG grayscale IDAT, 8 = grayscale 8-bit JPEG
     AlphaFilter: Byte;            // 0 = PNG filter or no filter (JPEG)
     AlphaInterlacing: Byte;       // 0 = non interlaced
   end;
@@ -246,18 +231,18 @@ type
 
   { acTL chunk format - APNG animation control.}
   TacTL = packed record
-    NumFrames: LongWord;          // Number of frames
-    NumPlay: LongWord;            // Number of times to loop the animation (0 = inf)
+    NumFrames: UInt32;          // Number of frames
+    NumPlay: UInt32;            // Number of times to loop the animation (0 = inf)
   end;
   PacTL =^TacTL;
 
   { fcTL chunk format - APNG frame control.}
   TfcTL = packed record
-    SeqNumber: LongWord;          // Sequence number of the animation chunk, starting from 0
-    Width: LongWord;              // Width of the following frame
-    Height: LongWord;             // Height of the following frame
-    XOffset: LongWord;            // X position at which to render the following frame
-    YOffset: LongWord;            // Y position at which to render the following frame
+    SeqNumber: UInt32;            // Sequence number of the animation chunk, starting from 0
+    Width: UInt32;                // Width of the following frame
+    Height: UInt32;               // Height of the following frame
+    XOffset: UInt32;              // X position at which to render the following frame
+    YOffset: UInt32;              // Y position at which to render the following frame
     DelayNumer: Word;             // Frame delay fraction numerator
     DelayDenom: Word;             // Frame delay fraction denominator
     DisposeOp: Byte;              // Type of frame area disposal to be done after rendering this frame
@@ -267,8 +252,8 @@ type
 
   { pHYs chunk format - encodes the absolute or relative dimensions of pixels.}
   TpHYs = packed record
-    PixelsPerUnitX: LongWord;
-    PixelsPerUnitY: LongWord;
+    PixelsPerUnitX: UInt32;
+    PixelsPerUnitY: UInt32;
     UnitSpecifier: Byte;
   end;
   PpHYs = ^TpHYs;
@@ -588,17 +573,17 @@ var
   Sig: TChar8;
   Chunk: TChunkHeader;
   ChunkData: Pointer;
-  ChunkCrc: LongWord;
+  ChunkCrc: UInt32;
 
   procedure ReadChunk;
   begin
     GetIO.Read(Handle, @Chunk, SizeOf(Chunk));
-    Chunk.DataSize := SwapEndianLongWord(Chunk.DataSize);
+    Chunk.DataSize := SwapEndianUInt32(Chunk.DataSize);
   end;
 
   procedure ReadChunkData;
   var
-    ReadBytes: LongWord;
+    ReadBytes: UInt32;
   begin
     FreeMemNil(ChunkData);
     GetMem(ChunkData, Chunk.DataSize);
@@ -634,7 +619,7 @@ var
         Frame.AssignSharedProps(Frames[0]);
       end;
       Frame.fcTL := PfcTL(ChunkData)^;
-      SwapEndianLongWord(@Frame.fcTL, 5);
+      SwapEndianUInt32(@Frame.fcTL, 5);
       Frame.fcTL.DelayNumer := SwapEndianWord(Frame.fcTL.DelayNumer);
       Frame.fcTL.DelayDenom := SwapEndianWord(Frame.fcTL.DelayDenom);
       Frame.FrameWidth := Frame.fcTL.Width;
@@ -645,7 +630,7 @@ var
       // This is frame defined by IHDR chunk
       Frame := AddFrameInfo;
       Frame.IHDR := PIHDR(ChunkData)^;
-      SwapEndianLongWord(@Frame.IHDR, 2);
+      SwapEndianUInt32(@Frame.IHDR, 2);
       Frame.FrameWidth := Frame.IHDR.Width;
       Frame.FrameHeight := Frame.IHDR.Height;
     end;
@@ -660,7 +645,7 @@ var
     Frame := AddFrameInfo;
     Frame.IsJpegFrame := True;
     Frame.JHDR := PJHDR(ChunkData)^;
-    SwapEndianLongWord(@Frame.JHDR, 2);
+    SwapEndianUInt32(@Frame.JHDR, 2);
     Frame.FrameWidth := Frame.JHDR.Width;
     Frame.FrameHeight := Frame.JHDR.Height;
   end;
@@ -672,7 +657,7 @@ var
     if Chunk.ChunkID = IDATChunk then
       GetLastFrame.IDATMemory.Write(ChunkData^, Chunk.DataSize)
     else if Chunk.ChunkID = fdATChunk then
-      GetLastFrame.IDATMemory.Write(PByteArray(ChunkData)[4], Chunk.DataSize - SizeOf(LongWord));
+      GetLastFrame.IDATMemory.Write(PByteArray(ChunkData)[4], Chunk.DataSize - SizeOf(UInt32));
   end;
 
   procedure AppendJDAT;
@@ -763,7 +748,7 @@ var
     FileType := ngAPNG;
     ReadChunkData;
     acTL := PacTL(ChunkData)^;
-    SwapEndianLongWord(@acTL, SizeOf(acTL) div SizeOf(LongWord));
+    SwapEndianUInt32(@acTL, SizeOf(acTL) div SizeOf(UInt32));
   end;
 
   procedure LoadpHYs;
@@ -772,7 +757,7 @@ var
     with GetLastFrame do
     begin
       pHYs := PpHYs(ChunkData)^;
-      SwapEndianLongWord(@pHYs, SizeOf(pHYs) div SizeOf(LongWord));
+      SwapEndianUInt32(@pHYs, SizeOf(pHYs) div SizeOf(UInt32));
     end;
   end;
 
@@ -795,7 +780,7 @@ begin
       ReadChunk;
       ReadChunkData;
       MHDR := PMHDR(ChunkData)^;
-      SwapEndianLongWord(@MHDR, SizeOf(MHDR) div SizeOf(LongWord));
+      SwapEndianUInt32(@MHDR, SizeOf(MHDR) div SizeOf(UInt32));
     end;
 
     // Read chunks until ending chunk or EOF is reached
@@ -829,8 +814,9 @@ var
   LineBuffer: array[Boolean] of PByteArray;
   ActLine: Boolean;
   Data, TotalBuffer, ZeroLine, PrevLine: Pointer;
-  BitCount, TotalSize, TotalPos, BytesPerPixel, I, Pass,
+  BitCount, TotalPos, BytesPerPixel, I, Pass,
   SrcDataSize, BytesPerLine, InterlaceLineBytes, InterlaceWidth: LongInt;
+  TotalSize: Integer;
   Info: TImageFormatInfo;
 
   procedure DecodeAdam7;
@@ -1400,7 +1386,7 @@ procedure TNGFileSaver.StoreImageToPNGFrame(const IHDR: TIHDR; Bits: Pointer;
 var
   TotalBuffer, CompBuffer, ZeroLine, PrevLine: Pointer;
   FilterLines: array[0..4] of PByteArray;
-  TotalSize, CompSize, I, BytesPerLine, BytesPerPixel: LongInt;
+  TotalSize, CompSize, I, BytesPerLine, BytesPerPixel: Integer;
   Filter: Byte;
   Adaptive: Boolean;
 
@@ -1718,7 +1704,7 @@ var
     end;
     fcTL.DisposeOp := DisposeOpNone;
     fcTL.BlendOp := BlendOpSource;
-    SwapEndianLongWord(@fcTL, 5);
+    SwapEndianUInt32(@fcTL, 5);
     fcTL.DelayNumer := SwapEndianWord(fcTL.DelayNumer);
     fcTL.DelayDenom := SwapEndianWord(fcTL.DelayDenom);
   end;
@@ -1756,7 +1742,7 @@ begin
       StoreImageToJNGFrame(JHDR, Image, IDATMemory, JDATMemory, JDAAMemory);
 
       // Finally swap endian
-      SwapEndianLongWord(@JHDR, 2);
+      SwapEndianUInt32(@JHDR, 2);
 {$ENDIF}
     end
     else
@@ -1810,7 +1796,7 @@ begin
         StorePalette;
 
       // Finally swap endian
-      SwapEndianLongWord(@IHDR, 2);
+      SwapEndianUInt32(@IHDR, 2);
     end;
   end;
 end;
@@ -1819,33 +1805,33 @@ function TNGFileSaver.SaveFile(Handle: TImagingHandle): Boolean;
 var
   I: LongInt;
   Chunk: TChunkHeader;
-  SeqNo: LongWord;
+  SeqNo: UInt32;
 
-  function GetNextSeqNo: LongWord;
+  function GetNextSeqNo: UInt32;
   begin
     // Seq numbers of fcTL and fdAT are "interleaved" as they share the counter.
     // Example: first fcTL for IDAT has seq=0, next is fcTL for seond frame with
     // seq=1, then first fdAT with seq=2, fcTL seq=3, fdAT=4, ...
-    Result := SwapEndianLongWord(SeqNo);
+    Result := SwapEndianUInt32(SeqNo);
     Inc(SeqNo);
   end;
 
   function CalcChunkCrc(const ChunkHdr: TChunkHeader; Data: Pointer;
-    Size: LongInt): LongWord;
+    Size: LongInt): UInt32;
   begin
     Result := $FFFFFFFF;
     CalcCrc32(Result, @ChunkHdr.ChunkID, SizeOf(ChunkHdr.ChunkID));
     CalcCrc32(Result, Data, Size);
-    Result := SwapEndianLongWord(Result xor $FFFFFFFF);
+    Result := SwapEndianUInt32(Result xor $FFFFFFFF);
   end;
 
   procedure WriteChunk(var Chunk: TChunkHeader; ChunkData: Pointer);
   var
-    ChunkCrc: LongWord;
+    ChunkCrc: UInt32;
     SizeToWrite: LongInt;
   begin
     SizeToWrite := Chunk.DataSize;
-    Chunk.DataSize := SwapEndianLongWord(Chunk.DataSize);
+    Chunk.DataSize := SwapEndianUInt32(Chunk.DataSize);
     ChunkCrc := CalcChunkCrc(Chunk, ChunkData, SizeToWrite);
     GetIO.Write(Handle, @Chunk, SizeOf(Chunk));
     if SizeToWrite <> 0 then
@@ -1855,20 +1841,20 @@ var
 
   procedure WritefdAT(Frame: TFrameInfo);
   var
-    ChunkCrc: LongWord;
-    ChunkSeqNo: LongWord;
+    ChunkCrc: UInt32;
+    ChunkSeqNo: UInt32;
   begin
     Chunk.ChunkID := fdATChunk;
     ChunkSeqNo := GetNextSeqNo;
-    // fdAT saves seq number LongWord before compressed pixels
-    Chunk.DataSize := Frame.IDATMemory.Size + SizeOf(LongWord);
-    Chunk.DataSize := SwapEndianLongWord(Chunk.DataSize);
+    // fdAT saves seq number UInt32 before compressed pixels
+    Chunk.DataSize := Frame.IDATMemory.Size + SizeOf(UInt32);
+    Chunk.DataSize := SwapEndianUInt32(Chunk.DataSize);
     // Calc CRC
     ChunkCrc := $FFFFFFFF;
     CalcCrc32(ChunkCrc, @Chunk.ChunkID, SizeOf(Chunk.ChunkID));
     CalcCrc32(ChunkCrc, @ChunkSeqNo, SizeOf(ChunkSeqNo));
     CalcCrc32(ChunkCrc, Frame.IDATMemory.Memory, Frame.IDATMemory.Size);
-    ChunkCrc := SwapEndianLongWord(ChunkCrc xor $FFFFFFFF);
+    ChunkCrc := SwapEndianUInt32(ChunkCrc xor $FFFFFFFF);
     // Write out all fdAT data
     GetIO.Write(Handle, @Chunk, SizeOf(Chunk));
     GetIO.Write(Handle, @ChunkSeqNo, SizeOf(ChunkSeqNo));
@@ -1890,7 +1876,7 @@ var
 
       Chunk.DataSize := SizeOf(Frame.pHYs);
       Chunk.ChunkID := pHYsChunk;
-      SwapEndianLongWord(@Frame.pHYs, SizeOf(Frame.pHYs) div SizeOf(LongWord));
+      SwapEndianUInt32(@Frame.pHYs, SizeOf(Frame.pHYs) div SizeOf(UInt32));
       WriteChunk(Chunk, @Frame.pHYs);
     end;
   end;
@@ -1935,7 +1921,7 @@ begin
   if FileType = ngMNG then
   begin
     // MNG - main header before frames
-    SwapEndianLongWord(@MHDR, SizeOf(MHDR) div SizeOf(LongWord));
+    SwapEndianUInt32(@MHDR, SizeOf(MHDR) div SizeOf(UInt32));
     Chunk.DataSize := SizeOf(MHDR);
     Chunk.ChunkID := MHDRChunk;
     WriteChunk(Chunk, @MHDR);
@@ -1955,7 +1941,7 @@ begin
     end
     else
       acTL.NumPlay := 0;
-    SwapEndianLongWord(@acTL, SizeOf(acTL) div SizeOf(LongWord));
+    SwapEndianUInt32(@acTL, SizeOf(acTL) div SizeOf(UInt32));
 
     Chunk.DataSize := SizeOf(acTL);
     Chunk.ChunkID := acTLChunk;
@@ -2054,7 +2040,7 @@ begin
   LossyAlpha := FileFormat.FLossyAlpha;
   Quality := FileFormat.FQuality;
   Progressive := FileFormat.FProgressive;
-  ZLibStrategy := FileFormat.FZLibStategy;
+  ZLibStrategy := FileFormat.FZLibStrategy;
 end;
 
 { TAPNGAnimator class implementation }
@@ -2206,7 +2192,7 @@ begin
   FLossyCompression := NGDefaultLossyCompression;
   FQuality := NGDefaultQuality;
   FProgressive := NGDefaultProgressive;
-  FZLibStategy := NGDefaultZLibStartegy;
+  FZLibStrategy := NGDefaultZLibStrategy;
 end;
 
 procedure TNetworkGraphicsFileFormat.CheckOptionsValidity;
@@ -2305,7 +2291,7 @@ begin
   RegisterOption(ImagingPNGPreFilter, @FPreFilter);
   RegisterOption(ImagingPNGCompressLevel, @FCompressLevel);
   RegisterOption(ImagingPNGLoadAnimated, @FLoadAnimated);
-  RegisterOption(ImagingPNGZLibStrategy, @FZLibStategy);
+  RegisterOption(ImagingPNGZLibStrategy, @FZLibStrategy);
 end;
 
 function TPNGFileFormat.LoadData(Handle: TImagingHandle;

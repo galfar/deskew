@@ -157,15 +157,14 @@ begin
 
   { For debugging purposes, we zero the whole master structure.
     But the application has already set the err pointer, and may have set
-    client_data, so we have to save and restore those fields.
-    Note: if application hasn't set client_data, tools like Purify may
-    complain here. }
+    client_data, so we have to save and restore those fields. }
 
   err := cinfo^.err;
-  client_data := cinfo^.client_data; { ignore Purify complaint here }
+  client_data := cinfo^.client_data;
   MEMZERO(cinfo, SIZEOF(jpeg_compress_struct));
   cinfo^.err := err;
   cinfo^.is_decompressor := FALSE;
+  cinfo^.client_data := client_data;
 
   { Initialize a memory manager instance for this object }
   jinit_memory_mgr(j_common_ptr(cinfo));

@@ -510,7 +510,7 @@ asm
   mov	edi, DWORD PTR [ebx+eax*4]           { 4 = SizeOf(pointer) }
 
     {Inc(JSAMPLE_PTR(outptr), output_col);}
-  add	edi, LongWord(output_col)
+  add	edi, uInt(output_col)
 
     { Rows of zeroes can be exploited in the same way as we did with columns.
       However, the column calculation has created many nonzero AC terms, so

@@ -1,29 +1,13 @@
 {
   Vampyre Imaging Library
-  by Marek Mauder 
-  http://imaginglib.sourceforge.net
-
-  The contents of this file are used with permission, subject to the Mozilla
-  Public License Version 1.1 (the "License"); you may not use this file except
-  in compliance with the License. You may obtain a copy of the License at
-  http://www.mozilla.org/MPL/MPL-1.1.html
-
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
-  the specific language governing rights and limitations under the License.
-
-  Alternatively, the contents of this file may be used under the terms of the
-  GNU Lesser General Public License (the  "LGPL License"), in which case the
-  provisions of the LGPL License are applicable instead of those above.
-  If you wish to allow use of your version of this file only under the terms
-  of the LGPL License and not to allow others to use your version of this file
-  under the MPL, indicate your decision by deleting  the provisions above and
-  replace  them with the notice and other provisions required by the LGPL
-  License.  If you do not delete the provisions above, a recipient may use
-  your version of this file under either the MPL or the LGPL License.
-
-  For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
-}
+  by Marek Mauder
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+  - - - - -
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0.
+} 
 
 { This unit contains image format loader/saver for GIF images.}
 unit ImagingGif;
@@ -263,7 +247,7 @@ begin
   end;
 end;
 
-{ GIF LZW decompresion code is from JVCL JvGIF.pas unit.}
+{ GIF LZW decompression code is from JVCL JvGIF.pas unit.}
 procedure TGIFFileFormat.LZWDecompress(Stream: TStream; Handle: TImagingHandle; Width, Height: Integer;
   Interlaced: Boolean; Data: Pointer);
 var
@@ -372,7 +356,7 @@ begin
     ReadCtxt.Size := 0;
     ReadCtxt.CodeSize := MinCodeSize + 1;
     ReadCtxt.ReadMask := (1 shl ReadCtxt.CodeSize) - 1;
-    // Initialise pixel-output context
+    // Initialize pixel-output context
     OutCtxt.X := 0;
     OutCtxt.Y := 0;
     OutCtxt.Pass := 0;
@@ -468,7 +452,7 @@ begin
   end;
 end;
 
-{ GIF LZW compresion code is from JVCL JvGIF.pas unit.}
+{ GIF LZW compression code is from JVCL JvGIF.pas unit.}
 procedure TGIFFileFormat.LZWCompress(const IO: TIOFunctions; Handle: TImagingHandle; Width, Height, BitCount: Integer;
     Interlaced: Boolean; Data: Pointer);
 var
@@ -539,7 +523,7 @@ begin
     for I := 0 to HashTableSize - 1 do
       HashTable.Add(nil);
 
-    // Initialise encoder variables
+    // Initialize encoder variables
     InitCodeSize := BitCount + 1;
     if InitCodeSize = 2 then
       Inc(InitCodeSize);
@@ -888,7 +872,7 @@ var
         Exit;
       end;
 
-      // If Grahic Control Extension is present make use of it
+      // If Graphic Control Extension is present make use of it
       if HasGraphicExt then
       begin
         FrameInfos[Idx].HasTransparency := (GraphicExt.PackedFields and GIFTransparent) = GIFTransparent;
@@ -975,7 +959,7 @@ var
       if FrameInfos[Index].HasTransparency then
         BGColor := Images[Index].Palette[FrameInfos[Index].TransIndex].Color;
       // Clear whole screen
-      FillMemoryLongWord(AnimFrame.Bits, AnimFrame.Size, BGColor);
+      FillMemoryUInt32(AnimFrame.Bits, AnimFrame.Size, BGColor);
 
       // Try to maximize First so we don't have to use all 0 to n raw frames
       while First > 0 do
@@ -1104,7 +1088,7 @@ begin
 end;
 
 function TGIFFileFormat.SaveData(Handle: TImagingHandle;
-  const Images: TDynImageDataArray; Index: Integer): Boolean;
+  const Images: TDynImageDataArray; Index: LongInt): Boolean;
 var
   Header: TGIFHeader;
   ImageDesc: TImageDescriptor;
@@ -1197,7 +1181,7 @@ begin
       FillChar(ImageDesc, Sizeof(ImageDesc), 0);
       ImageDesc.Width := Width;
       ImageDesc.Height := Height;
-      ImageDesc.PackedFields := GIFLocalColorTable or GIFColorTableSize; // Use lccal color table with 256 entries
+      ImageDesc.PackedFields := GIFLocalColorTable or GIFColorTableSize; // Use local color table with 256 entries
       Write(Handle, @ImageDesc, SizeOf(ImageDesc));
 
       // Write local color table for each frame
@@ -1277,12 +1261,12 @@ initialization
       transparent by default.
 
   -- 0.24.1 Changes/Bug Fixes ---------------------------------
-    - Made backround color transparent by default (alpha = 0).
+    - Made background color transparent by default (alpha = 0).
 
   -- 0.23 Changes/Bug Fixes -----------------------------------
     - Fixed other loading bugs (local pal size, transparency).
     - Added GIF saving.
-    - Fixed bug when loading multiframe GIFs and implemented few animation
+    - Fixed bug when loading multi-frame GIFs and implemented few animation
       features (disposal methods, ...). 
     - Loading of GIFs working.
     - Unit created with initial stuff!

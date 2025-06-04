@@ -1,29 +1,13 @@
 {
   Vampyre Imaging Library
-  by Marek Mauder 
-  http://imaginglib.sourceforge.net
-
-  The contents of this file are used with permission, subject to the Mozilla
-  Public License Version 1.1 (the "License"); you may not use this file except
-  in compliance with the License. You may obtain a copy of the License at
-  http://www.mozilla.org/MPL/MPL-1.1.html
-
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
-  the specific language governing rights and limitations under the License.
-
-  Alternatively, the contents of this file may be used under the terms of the
-  GNU Lesser General Public License (the  "LGPL License"), in which case the
-  provisions of the LGPL License are applicable instead of those above.
-  If you wish to allow use of your version of this file only under the terms
-  of the LGPL License and not to allow others to use your version of this file
-  under the MPL, indicate your decision by deleting  the provisions above and
-  replace  them with the notice and other provisions required by the LGPL
-  License.  If you do not delete the provisions above, a recipient may use
-  your version of this file under either the MPL or the LGPL License.
-
-  For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
-}
+  by Marek Mauder
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+  - - - - -
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0.
+}  
 
 {
   This unit contains image format loader/saver for Windows Bitmap images.
@@ -86,39 +70,39 @@ type
   { File Header for Windows/OS2 bitmap file.}
   TBitmapFileHeader = packed record
     ID: Word;           // Is always 19778 : 'BM'
-    Size: LongWord;     // Filesize
+    Size: UInt32;       // File size
     Reserved1: Word;
     Reserved2: Word;
-    Offset: LongWord;   // Offset from start pos to beginning of image bits
+    Offset: UInt32;     // Offset from start pos to beginning of image bits
   end;
 
   { Info Header for Windows bitmap file version 4.}
   TBitmapInfoHeader = packed record
-    Size: LongWord;
-    Width: LongInt;
-    Height: LongInt;
+    Size: UInt32;
+    Width: Int32;
+    Height: Int32;
     Planes: Word;
     BitCount: Word;
-    Compression: LongWord;
-    SizeImage: LongWord;
-    XPelsPerMeter: LongInt;
-    YPelsPerMeter: LongInt;
-    ClrUsed: LongInt;
-    ClrImportant: LongInt;
-    RedMask: LongWord;
-    GreenMask: LongWord;
-    BlueMask: LongWord;
-    AlphaMask: LongWord;
-    CSType: LongWord;
-    EndPoints: array[0..8] of LongWord;
-    GammaRed: LongWord;
-    GammaGreen: LongWord;
-    GammaBlue: LongWord;
+    Compression: UInt32;
+    SizeImage: UInt32;
+    XPelsPerMeter: Int32;
+    YPelsPerMeter: Int32;
+    ClrUsed: UInt32;
+    ClrImportant: UInt32;
+    RedMask: UInt32;
+    GreenMask: UInt32;
+    BlueMask: UInt32;
+    AlphaMask: UInt32;
+    CSType: UInt32;
+    EndPoints: array[0..8] of UInt32;
+    GammaRed: UInt32;
+    GammaGreen: UInt32;
+    GammaBlue: UInt32;
   end;
 
   { Info Header for OS2 bitmaps.}
   TBitmapCoreHeader = packed record
-    Size: LongWord;
+    Size: UInt32;
     Width: Word;
     Height: Word;
     Planes: Word;
@@ -210,8 +194,8 @@ var
   procedure LoadRLE4;
   var
     RLESrc: PByteArray;
-    Row, Col, WriteRow, I: LongInt;
-    SrcPos: LongWord;
+    Row, Col, WriteRow, I: Integer;
+    SrcPos: UInt32;
     DeltaX, DeltaY, Low, High: Byte;
     Pixels: PByteArray;
     OpCode: TRLEOpcode;
@@ -227,7 +211,7 @@ var
       NegHeightBitmap := BI.Height < 0;
       Row := 0; // Current row in dest image
       Col := 0; // Current column in dest image
-      // Row in dest image where actuall writting will be done
+      // Row in dest image where actual writing will be done
       WriteRow := Iff(NegHeightBitmap, Row, Height - 1 - Row);
       while (Row < Height) and (SrcPos < BI.SizeImage) do
       begin
@@ -307,8 +291,8 @@ var
   procedure LoadRLE8;
   var
     RLESrc: PByteArray;
-    SrcCount, Row, Col, WriteRow: LongInt;
-    SrcPos: LongWord;
+    SrcCount, Row, Col, WriteRow: Integer;
+    SrcPos: UInt32;
     DeltaX, DeltaY: Byte;
     Pixels: PByteArray;
     OpCode: TRLEOpcode;
@@ -323,7 +307,7 @@ var
       NegHeightBitmap := BI.Height < 0;
       Row := 0; // Current row in dest image
       Col := 0; // Current column in dest image
-      // Row in dest image where actuall writting will be done
+      // Row in dest image where actual writing will be done
       WriteRow := Iff(NegHeightBitmap, Row, Height - 1 - Row);
       while (Row < Height) and (SrcPos < BI.SizeImage) do
       begin
@@ -424,7 +408,7 @@ begin
         BI.SizeImage := BF.Size - BF.Offset;
     end;
     // Bit mask reading. Only read it if there is V3 header, V4 header has
-    // masks laoded already (only masks for RGB in V3).
+    // masks loaded already (only masks for RGB in V3).
     if (BI.Compression = BI_BITFIELDS) and (BI.Size = V3InfoHeaderSize) then
       Read(Handle, @BI.RedMask, SizeOf(BI.RedMask) * 3);
 
@@ -454,7 +438,7 @@ begin
     // Palette settings and reading
     if BI.BitCount <= 8 then
     begin
-      // Seek to the begining of palette
+      // Seek to the beginning of palette
       Seek(Handle, StartPos + SizeOf(TBitmapFileHeader) + LongInt(BI.Size),
         smFromBeginning);
       if IsOS2 then
@@ -828,7 +812,7 @@ initialization
       Should be less buggy an more readable (load inspired by Colosseum Builders' code).
     - Made public properties for options registered to SetOption/GetOption
       functions. 
-    - Addded alpha check to 32b bitmap loading too (teh same as in 16b
+    - Added alpha check to 32b bitmap loading too (teh same as in 16b
       bitmap loading).
     - Moved Convert1To8 and Convert4To8 to ImagingFormats
     - Changed extensions to filename masks.
@@ -848,7 +832,7 @@ initialization
 
   -- 0.13 Changes/Bug Fixes -----------------------------------
     - when loading 1/4 bit images with dword aligned dimensions
-      there was ugly memory rewritting bug causing image corruption
+      there was ugly memory rewriting bug causing image corruption
 
 }
 

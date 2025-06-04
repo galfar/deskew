@@ -1,29 +1,13 @@
 {
   Vampyre Imaging Library
-  by Marek Mauder 
-  http://imaginglib.sourceforge.net
-
-  The contents of this file are used with permission, subject to the Mozilla
-  Public License Version 1.1 (the "License"); you may not use this file except
-  in compliance with the License. You may obtain a copy of the License at
-  http://www.mozilla.org/MPL/MPL-1.1.html
-
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
-  the specific language governing rights and limitations under the License.
-
-  Alternatively, the contents of this file may be used under the terms of the
-  GNU Lesser General Public License (the  "LGPL License"), in which case the
-  provisions of the LGPL License are applicable instead of those above.
-  If you wish to allow use of your version of this file only under the terms
-  of the LGPL License and not to allow others to use your version of this file
-  under the MPL, indicate your decision by deleting  the provisions above and
-  replace  them with the notice and other provisions required by the LGPL
-  License.  If you do not delete the provisions above, a recipient may use
-  your version of this file under either the MPL or the LGPL License.
-
-  For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
-}
+  by Marek Mauder
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+  - - - - -
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0.
+} 
 
 { This unit contains image format loader/saver for Targa images.}
 unit ImagingTarga;
@@ -70,7 +54,7 @@ const
   STargaSignature = 'TRUEVISION-XFILE';
 
 type
-  { Targa file header.}
+  { Targa file header }
   TTargaHeader = packed record
     IDLength: Byte;
     ColorMapType: Byte;
@@ -86,10 +70,10 @@ type
     Desc: Byte;
   end;
 
-  { Footer at the end of TGA file.}
+  { Footer at the end of TGA file }
   TTargaFooter = packed record
-    ExtOff: LongWord;             // Extension Area Offset
-    DevDirOff: LongWord;          // Developer Directory Offset
+    ExtOff: UInt32;               // Extension Area Offset
+    DevDirOff: UInt32;            // Developer Directory Offset
     Signature: TChar16;           // TRUEVISION-XFILE
     Reserved: Byte;               // ASCII period '.'
     NullChar: Byte;               // 0
@@ -117,33 +101,39 @@ var
   Hdr: TTargaHeader;
   Foo: TTargaFooter;
   FooterFound, ExtFound: Boolean;
-  I, PSize, PalSize: LongWord;
+  I, PSize, PalSize: Integer;
   Pal: Pointer;
   FmtInfo: TImageFormatInfo;
   WordValue: Word;
 
   procedure LoadRLE;
   var
-    I, CPixel, Cnt: LongInt;
+    I: Integer;
+    CurrentPixel, CountPixels: NativeInt;
     Bpp, Rle: Byte;
-    Buffer, Dest, Src: PByte;
-    BufSize: LongInt;
+    Dest, Src: PByte;
+    Buffer: TDynByteArray;
+    BufSize: NativeInt;
+    BytesConsumedFromBuffer, SeekOffset: NativeInt;
   begin
     with GetIO, Images[0] do
     begin
-      // Alocates buffer large enough to hold the worst case
+      // Allocates buffer large enough to hold the worst case
       // RLE compressed data and reads then from input
       BufSize := Width * Height * FmtInfo.BytesPerPixel;
       BufSize := BufSize + BufSize div 2 + 1;
-      GetMem(Buffer, BufSize);
-      Src := Buffer;
-      Dest := Bits;
+
+      SetLength(Buffer, BufSize);
       BufSize := Read(Handle, Buffer, BufSize);
 
-      Cnt := Width * Height;
+      Src := @Buffer[0];
+      Dest := Bits;
+
+      CountPixels := Width * Height;
       Bpp := FmtInfo.BytesPerPixel;
-      CPixel := 0;
-      while CPixel < Cnt do
+      CurrentPixel := 0;
+
+      while CurrentPixel < CountPixels do
       begin
         Rle := Src^;
         Inc(Src);
@@ -151,7 +141,7 @@ var
         begin
           // Process uncompressed pixel
           Rle := Rle + 1;
-          CPixel := CPixel + Rle;
+          CurrentPixel := CurrentPixel + Rle;
           for I := 0 to Rle - 1 do
           begin
             // Copy pixel from src to dest
@@ -159,7 +149,7 @@ var
               1: Dest^ := Src^;
               2: PWord(Dest)^ := PWord(Src)^;
               3: PColor24Rec(Dest)^ := PColor24Rec(Src)^;
-              4: PLongWord(Dest)^ := PLongWord(Src)^;
+              4: PUInt32(Dest)^ := PUInt32(Src)^;
             end;
             Inc(Src, Bpp);
             Inc(Dest, Bpp);
@@ -169,7 +159,7 @@ var
         begin
           // Process compressed pixels
           Rle := Rle - 127;
-          CPixel := CPixel + Rle;
+          CurrentPixel := CurrentPixel + Rle;
           // Copy one pixel from src to dest (many times there)
           for I := 0 to Rle - 1 do
           begin
@@ -177,17 +167,20 @@ var
               1: Dest^ := Src^;
               2: PWord(Dest)^ := PWord(Src)^;
               3: PColor24Rec(Dest)^ := PColor24Rec(Src)^;
-              4: PLongWord(Dest)^ := PLongWord(Src)^;
+              4: PUInt32(Dest)^ := PUInt32(Src)^;
             end;
             Inc(Dest, Bpp);
           end;
           Inc(Src, Bpp);
         end;
       end;
-      // set position in source to real end of compressed data
-      Seek(Handle, -(BufSize - LongInt(LongWord(Src) - LongWord(Buffer))),
-        smFromCurrent);
-      FreeMem(Buffer);
+
+      // Set position in source to the real end of compressed data
+      BytesConsumedFromBuffer := PtrUInt(Src) - PtrUInt(Buffer);
+      SeekOffset := BytesConsumedFromBuffer - BufSize;
+      Assert(SeekOffset <= 0);
+
+      Seek(Handle, SeekOffset, smFromCurrent);
     end;
   end;
 
@@ -212,7 +205,7 @@ begin
       3, 11: Format := ifGray8;
     end;
     // Format was not assigned by previous testing (it should be in
-    // well formed targas), so formats which reflects bit dept are selected
+    // well formed Targas), so format which reflect the bit depth is selected
     if Format = ifUnknown then
       case Hdr.PixelSize of
         8: Format := ifGray8;
@@ -284,8 +277,8 @@ begin
         Format := ifX1R5G5B5;
     end;
 
-    // We must find true end of file and set input' position to it
-    // paint programs appends extra info at the end of Targas
+    // We must find true end of file and set input's position to it.
+    // Some paint programs appends extra info at the end of Targas,
     // some of them multiple times (PSP Pro 8)
     repeat
       ExtFound := False;
@@ -312,7 +305,7 @@ begin
       end;
     until (not ExtFound) and (not FooterFound);
 
-    // Some editors save targas flipped
+    // Some editors save Targas flipped
     if Hdr.Desc < 31 then
       FlipImage(Images[0]);
 
@@ -332,13 +325,13 @@ var
 
   procedure SaveRLE;
   var
-    Dest: PByte;
+    DestBuffer: TDynByteArray;
     WidthBytes, Written, I, Total, DestSize: LongInt;
 
     function CountDiff(Data: PByte; Bpp, PixelCount: Longint): LongInt;
     var
-      Pixel: LongWord;
-      NextPixel: LongWord;
+      Pixel: UInt32;
+      NextPixel: UInt32;
       N: LongInt;
     begin
       N := 0;
@@ -353,7 +346,7 @@ var
         1: Pixel := Data^;
         2: Pixel := PWord(Data)^;
         3: PColor24Rec(@Pixel)^ := PColor24Rec(Data)^;
-        4: Pixel := PLongWord(Data)^;
+        4: Pixel := PUInt32(Data)^;
       end;
       while PixelCount > 1 do
       begin
@@ -362,7 +355,7 @@ var
           1: NextPixel := Data^;
           2: NextPixel := PWord(Data)^;
           3: PColor24Rec(@NextPixel)^ := PColor24Rec(Data)^;
-          4: NextPixel := PLongWord(Data)^;
+          4: NextPixel := PUInt32(Data)^;
         end;
         if NextPixel = Pixel then
           Break;
@@ -378,8 +371,8 @@ var
 
     function CountSame(Data: PByte; Bpp, PixelCount: LongInt): LongInt;
     var
-      Pixel: LongWord;
-      NextPixel: LongWord;
+      Pixel: UInt32;
+      NextPixel: UInt32;
       N: LongInt;
     begin
       N := 1;
@@ -389,7 +382,7 @@ var
         1: Pixel := Data^;
         2: Pixel := PWord(Data)^;
         3: PColor24Rec(@Pixel)^ := PColor24Rec(Data)^;
-        4: Pixel := PLongWord(Data)^;
+        4: Pixel := PUInt32(Data)^;
       end;
       PixelCount := PixelCount - 1;
       while PixelCount > 0 do
@@ -399,7 +392,7 @@ var
           1: NextPixel := Data^;
           2: NextPixel := PWord(Data)^;
           3: PColor24Rec(@NextPixel)^ := PColor24Rec(Data)^;
-          4: NextPixel := PLongWord(Data)^;
+          4: NextPixel := PUInt32(Data)^;
         end;
         if NextPixel <> Pixel then
           Break;
@@ -410,7 +403,7 @@ var
     end;
 
     procedure RleCompressLine(Data: PByte; PixelCount, Bpp: LongInt; Dest:
-      PByte; var Written: LongInt);
+      PByte; out Written: LongInt);
     const
       MaxRun = 128;
     var
@@ -423,10 +416,12 @@ var
       begin
         DiffCount := CountDiff(Data, Bpp, PixelCount);
         SameCount := CountSame(Data, Bpp, PixelCount);
+
         if (DiffCount > MaxRun) then
           DiffCount := MaxRun;
         if (SameCount > MaxRun) then
           SameCount := MaxRun;
+
         if (DiffCount > 0) then
         begin
           Dest^ := Byte(DiffCount - 1);
@@ -448,7 +443,7 @@ var
             1: Dest^ := Data^;
             2: PWord(Dest)^ := PWord(Data)^;
             3: PColor24Rec(Dest)^ := PColor24Rec(Data)^;
-            4: PLongWord(Dest)^ := PLongWord(Data)^;
+            4: PUInt32(Dest)^ := PUInt32(Data)^;
           end;
           Inc(Data, Bpp);
           Inc(Dest, Bpp);
@@ -465,19 +460,16 @@ var
       WidthBytes := Width * FmtInfo.BytesPerPixel;
       DestSize := WidthBytes * Height;
       DestSize := DestSize + DestSize div 2 + 1;
-      GetMem(Dest, DestSize);
+      SetLength(DestBuffer, DestSize);
       Total := 0;
-      try
-        for I := 0 to Height - 1 do
-        begin
-          RleCompressLine(@PByteArray(Bits)[I * WidthBytes], Width,
-            FmtInfo.BytesPerPixel, @PByteArray(Dest)[Total], Written);
-          Total := Total + Written;
-        end;
-        GetIO.Write(Handle, Dest, Total);
-      finally
-        FreeMem(Dest);
+
+      for I := 0 to Height - 1 do
+      begin
+        RleCompressLine(@PByteArray(Bits)[I * WidthBytes], Width,
+          FmtInfo.BytesPerPixel, @DestBuffer[Total], Written);
+        Total := Total + Written;
       end;
+      GetIO.Write(Handle, DestBuffer, Total);
     end;
   end;
 
@@ -509,11 +501,10 @@ begin
     // Choose image type
     if FmtInfo.IsIndexed then
       Hdr.ImageType := Iff(FUseRLE, 9, 1)
+    else if FmtInfo.HasGrayChannel then
+      Hdr.ImageType := Iff(FUseRLE, 11, 3)
     else
-      if FmtInfo.HasGrayChannel then
-        Hdr.ImageType := Iff(FUseRLE, 11, 3)
-      else
-        Hdr.ImageType := Iff(FUseRLE, 10, 2);
+      Hdr.ImageType := Iff(FUseRLE, 10, 2);
 
     Write(Handle, @Hdr, SizeOf(Hdr));
 
@@ -536,7 +527,7 @@ begin
     end;
 
     if FUseRLE then
-      // Save rle compressed mode images
+      // Save RLE compressed mode images
       SaveRLE
     else
       // Save uncompressed mode images
@@ -596,8 +587,7 @@ initialization
 {
   File Notes:
 
- -- TODOS ----------------------------------------------------
-    - nothing now
+  * More recent changes are in VCS history *
 
   -- 0.21 Changes/Bug Fixes -----------------------------------
     - MakeCompatible method moved to base class, put ConvertToSupported here.

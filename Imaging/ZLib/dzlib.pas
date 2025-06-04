@@ -21,8 +21,6 @@
   *.so libraries (Linux).
     Default implementation is IMPASZLIB because it can be compiled
   by all supported compilers and works on all supported platforms.
-  I usually use implementation with the fastest decompression
-  when building release Win32 binaries.
     FPCPASZLIB is useful for Lazarus applications. FPC's zlib is linked
   to exe by default so there is no need to link additional (and almost identical)
   IMPASZLIB.
@@ -154,7 +152,6 @@ type
   indicator when you are writing a large chunk of data to the compression
   stream in a single call.}
 
-
   TCompressionLevel = (clNone, clFastest, clDefault, clMax);
 
   TCompressionStream = class(TCustomZlibStream)
@@ -198,8 +195,6 @@ type
     property OnProgress;
   end;
 
-
-
 { CompressBuf compresses data, buffer to buffer, in one call.
    In: InBuf = ptr to compressed data
        InBytes = number of bytes in InBuf
@@ -218,7 +213,6 @@ procedure CompressBuf(const InBuf: Pointer; InBytes: Integer;
        OutBytes = number of bytes in OutBuf   }
 procedure DecompressBuf(const InBuf: Pointer; InBytes: Integer;
  OutEstimate: Integer; var OutBuf: Pointer; var OutBytes: Integer);
-
 
 type
   EZlibError = class(Exception);
@@ -351,7 +345,6 @@ begin
   end;
 end;
 
-
 { TCustomZlibStream }
 
 constructor TCustomZLibStream.Create(Strm: TStream);
@@ -407,6 +400,7 @@ end;
 
 function TCompressionStream.Read(var Buffer; Count: Longint): Longint;
 begin
+  Result := 0;
   raise ECompressionError.Create('Invalid stream operation');
 end;
 
@@ -488,6 +482,7 @@ end;
 
 function TDecompressionStream.Write(const Buffer; Count: Longint): Longint;
 begin
+  Result := 0;
   raise EDecompressionError.Create('Invalid stream operation');
 end;
 

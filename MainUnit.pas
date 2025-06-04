@@ -27,7 +27,7 @@ uses
   ImagingClasses,
   ImagingFormats,
   ImagingUtility,
-  ImagingExtras,
+  ImagingExtFileFormats,
   ImagingTiff,
   // Project units
   CmdLineOptions,

@@ -1,29 +1,13 @@
 {
   Vampyre Imaging Library
-  by Marek Mauder 
-  http://imaginglib.sourceforge.net
-
-  The contents of this file are used with permission, subject to the Mozilla
-  Public License Version 1.1 (the "License"); you may not use this file except
-  in compliance with the License. You may obtain a copy of the License at
-  http://www.mozilla.org/MPL/MPL-1.1.html
-
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
-  the specific language governing rights and limitations under the License.
-
-  Alternatively, the contents of this file may be used under the terms of the
-  GNU Lesser General Public License (the  "LGPL License"), in which case the
-  provisions of the LGPL License are applicable instead of those above.
-  If you wish to allow use of your version of this file only under the terms
-  of the LGPL License and not to allow others to use your version of this file
-  under the MPL, indicate your decision by deleting  the provisions above and
-  replace  them with the notice and other provisions required by the LGPL
-  License.  If you do not delete the provisions above, a recipient may use
-  your version of this file under either the MPL or the LGPL License.
-
-  For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
-}
+  by Marek Mauder
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+  - - - - -
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0.
+} 
 
 { This unit contains basic types and constants used by Imaging library.}
 unit ImagingTypes;
@@ -36,7 +20,7 @@ const
   { Current Major version of Imaging.}
   ImagingVersionMajor = 0;
   { Current Minor version of Imaging.}
-  ImagingVersionMinor = 80;
+  ImagingVersionMinor = 90;
 
   { Imaging Option Ids whose values can be set/get by SetOption/
     GetOption functions.}
@@ -85,7 +69,7 @@ const
     Default value is 5.}
   ImagingPNGPreFilter          = 25;
   { Sets ZLib compression level used when saving PNG images.
-    Allowed values are in range 0 (no compresstion) to 9 (best compression).
+    Allowed values are in range 0 (no compression) to 9 (best compression).
     Default value is 5.}
   ImagingPNGCompressLevel      = 26;
   { Boolean option that specifies whether PNG images with more frames (APNG format)
@@ -159,22 +143,22 @@ const
     format). Mask is 'anded' (bitwise AND) with every pixel's
     channel value when creating color histogram. If $FF is used
     all 8bits of color channels are used which can result in very
-    slow proccessing of large images with many colors so you can
+    slow processing of large images with many colors so you can
     use lower masks to speed it up (FC, F8 and F0 are good
     choices). Allowed values are in range <0, $FF> and default is
     $FE.                                                          }
   ImagingColorReductionMask   = 128;
   { This option can be used to override image data format during image
     loading. If set to format different from ifUnknown all loaded images
-    are automaticaly converted to this format. Useful when you have
+    are automatically converted to this format. Useful when you have
     many files in various formats but you want them all in one format for
-    further proccessing. Allowed values are in
+    further processing. Allowed values are in
     range <Ord(Low(TImageFormat)), Ord(High(TImageFormat))> and
     default value is ifUnknown.}
   ImagingLoadOverrideFormat   = 129;
   { This option can be used to override image data format during image
     saving. If set to format different from ifUnknown all images
-    to be saved are automaticaly internaly converted to this format.
+    to be saved are automatically internally converted to this format.
     Note that image file formats support only a subset of Imaging data formats
     so final saved file may in different format than this override.
     Allowed values are in range <Ord(Low(TImageFormat)), Ord(High(TImageFormat))>
@@ -186,10 +170,10 @@ const
     <Ord(Low(ImagingFormats.TSamplingFilter)), Ord(High(ImagingFormats.TSamplingFilter))>
     and default value is 1 (linear filter).}
   ImagingMipMapFilter         = 131;
-  { Specifies treshold value used when automatically converting images to
-    ifBinary format. For adaptive tresholding see ImagingBinary.pas unit.
+  { Specifies threshold value used when automatically converting images to
+    ifBinary format. For adaptive thresholding see ImagingBinary.pas unit.
     Default value is 128 and allowed range is 0..255.}
-  ImagingBinaryTreshold       = 132;
+  ImagingBinaryThreshold       = 132;
 
   { Returned by GetOption if given Option Id is invalid.}
   InvalidOption = -$7FFFFFFF;
@@ -203,6 +187,31 @@ const
   ChannelAlpha = 3;
 
 type
+{$IFDEF DCC}
+  {$IF CompilerVersion <= 18.5}
+    PtrUInt = Cardinal;
+    PtrInt = Integer;
+    { Some new Delphi platforms (64bit POSIX) have 64bit LongInt/LongWord so rather use
+      Int32/UInt32 where you really want 32bits.
+      FPC has LongInt always 32 bit. }
+    Int32 = Integer;
+    UInt32 = Cardinal;
+    Int16 = SmallInt;
+    { In Delphi 7-2007 NativeInt is incorrectly defined to have size of 8 bytes,
+      redeclare it correctly. }
+    NativeInt = Integer;
+    NativeUInt = Cardinal;
+  {$ELSE}
+    PtrUInt = NativeUInt;
+    PtrInt = NativeInt;
+  {$IFEND}
+  { Not sure which Delphi version defined these (e.g. XE3 has UInt32 but not PUInt32). }
+  {$IF not Defined(PInt32) or not Defined(PUInt32)}
+    PInt32 = ^Int32;
+    PUInt32 = ^UInt32;
+  {$IFEND}
+{$ENDIF}
+
   { Enum defining image data format. In formats with more channels,
     first channel after "if" is stored in the most significant bits and channel
     before end is stored in the least significant.}
@@ -250,8 +259,8 @@ type
     ifATI1N          = 204,
     ifATI2N          = 205,
     ifBinary         = 206,
-    { Passtrough formats }
-    {ifETC1           = 220,
+    { Passthrough formats }
+    {ifETC1          = 220,
     ifETC2RGB        = 221,
     ifETC2RGBA       = 222,
     ifETC2PA         = 223,
@@ -261,7 +270,7 @@ type
   );
 
   { Color value for 32 bit images.}
-  TColor32 = LongWord;
+  TColor32 = UInt32;
   PColor32 = ^TColor32;
 
   { Color value for 64 bit images.}
@@ -271,7 +280,7 @@ type
   { Color record for 24 bit images, which allows access to individual color
     channels.}
   TColor24Rec = packed record
-    case LongInt of
+    case Byte of
       0: (B, G, R: Byte);
       1: (Channels: array[0..2] of Byte);
   end;
@@ -282,7 +291,7 @@ type
   { Color record for 32 bit images, which allows access to individual color
     channels.}
   TColor32Rec = packed record
-    case LongInt of
+    case Byte of
       0: (Color: TColor32);
       1: (B, G, R, A: Byte);
       2: (Channels: array[0..3] of Byte);
@@ -295,7 +304,7 @@ type
   { Color record for 48 bit images, which allows access to individual color
     channels.}
   TColor48Rec = packed record
-    case LongInt of
+    case Byte of
       0: (B, G, R: Word);
       1: (Channels: array[0..2] of Word);
   end;
@@ -306,7 +315,7 @@ type
   { Color record for 64 bit images, which allows access to individual color
     channels.}
   TColor64Rec = packed record
-    case LongInt of
+    case Byte of
       0: (Color: TColor64);
       1: (B, G, R, A: Word);
       2: (Channels: array[0..3] of Word);
@@ -319,7 +328,7 @@ type
   { Color record for 96 bit floating point images, which allows access to
     individual color channels.}
   TColor96FPRec = packed record
-    case Integer of
+    case Byte of
       0: (B, G, R: Single);
       1: (Channels: array[0..2] of Single);
   end;
@@ -330,7 +339,7 @@ type
   { Color record for 128 bit floating point images, which allows access to
     individual color channels.}
   TColorFPRec = packed record
-    case LongInt of
+    case Byte of
       0: (B, G, R, A: Single);
       1: (Channels: array[0..3] of Single);
       2: (Color96Rec: TColor96FPRec);
@@ -347,7 +356,7 @@ type
   { Color record for 64 bit floating point images, which allows access to
     individual color channels.}
   TColorHFRec = packed record
-    case LongInt of
+    case Byte of
       0: (B, G, R, A: THalfFloat);
       1: (Channels: array[0..3] of THalfFloat);
   end;
@@ -365,12 +374,25 @@ type
   TPalette24Size256 = array[0..255] of TColor24Rec;
   PPalette24 = ^TPalette24;
 
-  { Record that stores single image data and information describing it.}
+  { Record that stores single image data and information describing it.
+    Width and Height are 32 bit integers, the image size in bytes is Int64
+    (for older Delphi without UInt64) but total number of pixels
+    should still fit into 32 bits for safety - not all code (e.g. iterating over NumPixels)
+    has been updated yet.
+    The types used should be:
+      - width and height: Integer (32 bit always)
+      - size in bytes: Int64
+      - num pixels: NativeInt (so older Delphi can use it in for loops)
+
+    Remember, that in Pascal when multiplying integers you need to cast (one or all operands,
+    not the result!) to 64 bit even when the receiveng variable is 64 bit:
+      Size64 := Int64(Width) * Height * Bpp;
+    }
   TImageData = packed record
-    Width: LongInt;       // Width of image in pixels
-    Height: LongInt;      // Height of image in pixels
+    Width: Integer;       // Width of image in pixels
+    Height: Integer;      // Height of image in pixels
     Format: TImageFormat; // Data format of image
-    Size: LongInt;        // Size of image bits in Bytes
+    Size: Int64;          // Size of image bits in Bytes
     Bits: Pointer;        // Pointer to memory containing image bits
     Palette: PPalette32;  // Image palette for indexed images
     Tag: Pointer;         // User data
@@ -381,7 +403,7 @@ type
     image formats.}
   TPixelFormatInfo = packed record
     ABitCount, RBitCount, GBitCount, BBitCount: Byte;
-    ABitMask, RBitMask, GBitMask, BBitMask: LongWord;
+    ABitMask, RBitMask, GBitMask, BBitMask: UInt32;
     AShift, RShift, GShift, BShift: Byte;
     ARecDiv, RRecDiv, GRecDiv, BRecDiv: Byte;
   end;
@@ -391,10 +413,10 @@ type
 
   { Look at TImageFormatInfo.GetPixelsSize for details.}
   TFormatGetPixelsSizeFunc = function(Format: TImageFormat; Width,
-    Height: LongInt): LongInt;
+    Height: Integer): Int64;
   { Look at TImageFormatInfo.CheckDimensions for details.}
   TFormatCheckDimensionsProc = procedure(Format: TImageFormat; var Width,
-    Height: LongInt);
+    Height: Integer);
   { Function for getting pixel colors. Native pixel is read from Image and
     then translated to 32 bit ARGB.}
   TGetPixel32Func = function(Bits: Pointer; Info: PImageFormatInfo;
@@ -416,12 +438,12 @@ type
   TImageFormatInfo = packed record
     Format: TImageFormat;             // Format described by this record
     Name: array[0..15] of Char;       // Symbolic name of format
-    BytesPerPixel: LongInt;           // Number of bytes per pixel (note: it is
+    BytesPerPixel: Byte;              // Number of bytes per pixel (note: it is
                                       // 0 for formats where BitsPerPixel < 8 (e.g. DXT).
                                       // Use GetPixelsSize function to get size of
                                       // image data.
-    ChannelCount: LongInt;            // Number of image channels (R, G, B, A, Gray)
-    PaletteEntries: LongInt;          // Number of palette entries
+    ChannelCount: Byte;               // Number of image channels (R, G, B, A, Gray)
+    PaletteEntries: Word;             // Number of palette entries
     HasGrayChannel: Boolean;          // True if image has grayscale channel
     HasAlphaChannel: Boolean;         // True if image has alpha channel
     IsFloatingPoint: Boolean;         // True if image has floating point pixels
@@ -433,8 +455,8 @@ type
                                       // format does not exist
     IsIndexed: Boolean;               // True if image uses palette
     IsSpecial: Boolean;               // True if image is in special format
-    IsPasstrough: Boolean;            // True if image is in passtrough program (Imaging
-                                      // iself doesn't know how to decode and encode it -
+    IsPassthrough: Boolean;           // True if image is in passthrough program (Imaging
+                                      // itself doesn't know how to decode and encode it -
                                       // complex texture compressions etc.)
     PixelFormat: PPixelFormatInfo;    // Pixel format structure
     GetPixelsSize: TFormatGetPixelsSizeFunc; // Returns size in bytes of
@@ -451,10 +473,6 @@ type
                                       // compressing/decompressing special images
                                       // as source/target
   end;
-
-  { Handle to list of image data records.}
-  TImageDataList = Pointer;
-  PImageDataList = ^TImageDataList;
 
   { Handle to input/output.}
   TImagingHandle = Pointer;
@@ -479,30 +497,29 @@ type
   );
 
   { IO functions used for reading and writing images from/to input/output.}
+
+{$IFDEF DELPHI}
+  TIOReadWriteCount = NativeInt;
+{$ELSE}
+  // FPC 3.2.2 still has only TStream with Read/Write count as LongInt
+  TIOReadWriteCount = LongInt;
+{$ENDIF}
+
   TOpenProc = function(Source: PChar; Mode: TOpenMode): TImagingHandle; cdecl;
   TCloseProc = procedure(Handle: TImagingHandle); cdecl;
   TEofProc = function(Handle: TImagingHandle): Boolean; cdecl;
   TSeekProc = function(Handle: TImagingHandle; Offset: Int64; Mode: TSeekMode): Int64; cdecl;
   TTellProc = function(Handle: TImagingHandle): Int64; cdecl;
-  TReadProc = function(Handle: TImagingHandle; Buffer: Pointer; Count: LongInt): LongInt; cdecl;
-  TWriteProc = function(Handle: TImagingHandle; Buffer: Pointer; Count: LongInt): LongInt; cdecl;
+  TReadProc = function(Handle: TImagingHandle; Buffer: Pointer; Count: TIOReadWriteCount): TIOReadWriteCount; cdecl;
+  TWriteProc = function(Handle: TImagingHandle; Buffer: Pointer; Count: TIOReadWriteCount): TIOReadWriteCount; cdecl;
 
-{$IFNDEF FPC}
-type
-{$IF CompilerVersion <= 18.5}
-  PtrUInt = LongWord;
-{$ELSE}
-  PtrUInt = NativeUInt;
-{$IFEND}
-{$ENDIF}
 
 implementation
 
 {
   File Notes:
 
-  -- TODOS ----------------------------------------------------
-    - add lookup tables to pixel formats for fast conversions
+  * More recent changes are in VCS history *
 
   -- 0.80 -----------------------------------------------------
     - Dropped "patch version".
@@ -519,7 +536,7 @@ implementation
       ifR32G32B32F, ifB32G32G32F.
 
   -- 0.26.5 Changes/Bug Fixes ---------------------------------
-    - Added ifBinary image format and ImagingBinaryTreshold option.
+    - Added ifBinary image format and ImagingBinaryThreshold option.
     - Lanczos filter added to TResizeFilter enum.
 
   -- 0.24.3 Changes/Bug Fixes ---------------------------------

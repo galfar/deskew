@@ -1,29 +1,13 @@
 {
   Vampyre Imaging Library
   by Marek Mauder
-  http://imaginglib.sourceforge.net
-
-  The contents of this file are used with permission, subject to the Mozilla
-  Public License Version 1.1 (the "License"); you may not use this file except
-  in compliance with the License. You may obtain a copy of the License at
-  http://www.mozilla.org/MPL/MPL-1.1.html
-
-  Software distributed under the License is distributed on an "AS IS" basis,
-  WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
-  the specific language governing rights and limitations under the License.
-
-  Alternatively, the contents of this file may be used under the terms of the
-  GNU Lesser General Public License (the  "LGPL License"), in which case the
-  provisions of the LGPL License are applicable instead of those above.
-  If you wish to allow use of your version of this file only under the terms
-  of the LGPL License and not to allow others to use your version of this file
-  under the MPL, indicate your decision by deleting  the provisions above and
-  replace  them with the notice and other provisions required by the LGPL
-  License.  If you do not delete the provisions above, a recipient may use
-  your version of this file under either the MPL or the LGPL License.
-
-  For more information about the LGPL: http://www.gnu.org/copyleft/lesser.html
-}
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+  - - - - -
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at https://mozilla.org/MPL/2.0.
+} 
 
 { This unit contains image format loader/saver for DirectDraw Surface images.}
 unit ImagingDds;
@@ -37,7 +21,7 @@ uses
 
 type
   { Class for loading and saving Microsoft DirectDraw surfaces.
-    It can load/save all D3D formats which have coresponding
+    It can load/save all D3D formats which have corresponding
     TImageFormat. It supports plain textures, cube textures and
     volume textures, all of these can have mipmaps. It can also
     load some formats which have no exact TImageFormat, but can be easily
@@ -117,19 +101,19 @@ const
 
 const
   { Four character codes.}
-  DDSMagic    = LongWord(Byte('D') or (Byte('D') shl 8) or (Byte('S') shl 16) or
+  DDSMagic    = UInt32(Byte('D') or (Byte('D') shl 8) or (Byte('S') shl 16) or
     (Byte(' ') shl 24));
-  FOURCC_DXT1 = LongWord(Byte('D') or (Byte('X') shl 8) or (Byte('T') shl 16) or
+  FOURCC_DXT1 = UInt32(Byte('D') or (Byte('X') shl 8) or (Byte('T') shl 16) or
     (Byte('1') shl 24));
-  FOURCC_DXT3 = LongWord(Byte('D') or (Byte('X') shl 8) or (Byte('T') shl 16) or
+  FOURCC_DXT3 = UInt32(Byte('D') or (Byte('X') shl 8) or (Byte('T') shl 16) or
     (Byte('3') shl 24));
-  FOURCC_DXT5 = LongWord(Byte('D') or (Byte('X') shl 8) or (Byte('T') shl 16) or
+  FOURCC_DXT5 = UInt32(Byte('D') or (Byte('X') shl 8) or (Byte('T') shl 16) or
     (Byte('5') shl 24));
-  FOURCC_ATI1 = LongWord(Byte('A') or (Byte('T') shl 8) or (Byte('I') shl 16) or
+  FOURCC_ATI1 = UInt32(Byte('A') or (Byte('T') shl 8) or (Byte('I') shl 16) or
     (Byte('1') shl 24));
-  FOURCC_ATI2 = LongWord(Byte('A') or (Byte('T') shl 8) or (Byte('I') shl 16) or
+  FOURCC_ATI2 = UInt32(Byte('A') or (Byte('T') shl 8) or (Byte('I') shl 16) or
     (Byte('2') shl 24));
-  FOURCC_DX10 = LongWord(Byte('D') or (Byte('X') shl 8) or (Byte('1') shl 16) or
+  FOURCC_DX10 = UInt32(Byte('D') or (Byte('X') shl 8) or (Byte('1') shl 16) or
     (Byte('0') shl 24));
 
   { Some D3DFORMAT values used in DDS files as FourCC value.}
@@ -139,7 +123,7 @@ const
   D3DFMT_R16F          = 111;
   D3DFMT_A16B16G16R16F = 113;
 
-  { Constans used by TDDSurfaceDesc2.Flags.}
+  { Constants used by TDDSurfaceDesc2.Flags.}
   DDSD_CAPS            = $00000001;
   DDSD_HEIGHT          = $00000002;
   DDSD_WIDTH           = $00000004;
@@ -149,7 +133,7 @@ const
   DDSD_LINEARSIZE      = $00080000;
   DDSD_DEPTH           = $00800000;
 
-  { Constans used by TDDSPixelFormat.Flags.}
+  { Constants used by TDDSPixelFormat.Flags.}
   DDPF_ALPHAPIXELS     = $00000001;    // used by formats which contain alpha
   DDPF_FOURCC          = $00000004;    // used by DXT and large ARGB formats
   DDPF_RGB             = $00000040;    // used by RGB formats
@@ -157,12 +141,12 @@ const
   DDPF_BUMPLUMINANCE   = $00040000;    // used by mixed signed-unsigned formats
   DDPF_BUMPDUDV        = $00080000;    // used by signed formats
 
-  { Constans used by TDDSCaps.Caps1.}
+  { Constants used by TDDSCaps.Caps1.}
   DDSCAPS_COMPLEX      = $00000008;
   DDSCAPS_TEXTURE      = $00001000;
   DDSCAPS_MIPMAP       = $00400000;
 
-  { Constans used by TDDSCaps.Caps2.}
+  { Constants used by TDDSCaps.Caps2.}
   DDSCAPS2_CUBEMAP     = $00000200;
   DDSCAPS2_POSITIVEX   = $00000400;
   DDSCAPS2_NEGATIVEX   = $00000800;
@@ -179,47 +163,47 @@ const
 type
   { Stores the pixel format information.}
   TDDPixelFormat = packed record
-    Size: LongWord;       // Size of the structure = 32 bytes
-    Flags: LongWord;      // Flags to indicate valid fields
-    FourCC: LongWord;     // Four-char code for compressed textures (DXT)
-    BitCount: LongWord;   // Bits per pixel if uncomp. usually 16,24 or 32
-    RedMask: LongWord;    // Bit mask for the Red component
-    GreenMask: LongWord;  // Bit mask for the Green component
-    BlueMask: LongWord;   // Bit mask for the Blue component
-    AlphaMask: LongWord;  // Bit mask for the Alpha component
+    Size: UInt32;       // Size of the structure = 32 bytes
+    Flags: UInt32;      // Flags to indicate valid fields
+    FourCC: UInt32;     // Four-char code for compressed textures (DXT)
+    BitCount: UInt32;   // Bits per pixel if uncomp. usually 16,24 or 32
+    RedMask: UInt32;    // Bit mask for the Red component
+    GreenMask: UInt32;  // Bit mask for the Green component
+    BlueMask: UInt32;   // Bit mask for the Blue component
+    AlphaMask: UInt32;  // Bit mask for the Alpha component
   end;
 
   { Specifies capabilities of surface.}
   TDDSCaps = packed record
-    Caps1: LongWord;      // Should always include DDSCAPS_TEXTURE
-    Caps2: LongWord;      // For cubic environment maps
-    Reserved: array[0..1] of LongWord; // Reserved
+    Caps1: UInt32;      // Should always include DDSCAPS_TEXTURE
+    Caps2: UInt32;      // For cubic environment maps
+    Reserved: array[0..1] of UInt32; // Reserved
   end;
 
   { Record describing DDS file contents.}
   TDDSurfaceDesc2 = packed record
-    Size: LongWord;       // Size of the structure = 124 Bytes
-    Flags: LongWord;      // Flags to indicate valid fields
-    Height: LongWord;     // Height of the main image in pixels
-    Width: LongWord;      // Width of the main image in pixels
-    PitchOrLinearSize: LongWord; // For uncomp formats number of bytes per
-                          // scanline. For comp it is the size in
-                          // bytes of the main image
-    Depth: LongWord;      // Only for volume text depth of the volume
-    MipMaps: LongInt;     // Total number of levels in the mipmap chain
-    Reserved1: array[0..10] of LongWord; // Reserved
+    Size: UInt32;       // Size of the structure = 124 Bytes
+    Flags: UInt32;      // Flags to indicate valid fields
+    Height: UInt32;     // Height of the main image in pixels
+    Width: UInt32;      // Width of the main image in pixels
+    PitchOrLinearSize: UInt32; // For uncomp formats number of bytes per
+                               // scanline. For comp it is the size in
+                               // bytes of the main image
+    Depth: UInt32;      // Only for volume text depth of the volume
+    MipMaps: Int32;     // Total number of levels in the mipmap chain
+    Reserved1: array[0..10] of UInt32; // Reserved
     PixelFormat: TDDPixelFormat; // Format of the pixel data
     Caps: TDDSCaps;       // Capabilities
-    Reserved2: LongWord;  // Reserved
+    Reserved2: UInt32;  // Reserved
   end;
 
   { DDS file header.}
   TDDSFileHeader = packed record
-    Magic: LongWord;       // File format magic
+    Magic: UInt32;       // File format magic
     Desc: TDDSurfaceDesc2; // Surface description
   end;
 
-  { Resoirce types for D3D 10+ }
+  { Resource types for D3D 10+ }
   TD3D10ResourceDimension = (
     D3D10_RESOURCE_DIMENSION_UNKNOWN   = 0,
     D3D10_RESOURCE_DIMENSION_BUFFER    = 1,
@@ -352,9 +336,9 @@ type
   TDX10Header = packed record
     DXGIFormat: TDXGIFormat;
     ResourceDimension: TD3D10ResourceDimension;
-    MiscFlags: LongWord;
-    ArraySize: LongWord;
-    Reserved: LongWord;
+    MiscFlags: UInt32;
+    ArraySize: UInt32;
+    Reserved: UInt32;
   end;
 
 { TDDSFileFormat class implementation }
@@ -409,7 +393,7 @@ begin
       if IsCubeMap then
       begin
         // Cube maps are stored like this
-        // Face 0 mimap 0
+        // Face 0 mipmap 0
         // Face 0 mipmap 1
         // ...
         // Face 1 mipmap 0
@@ -460,7 +444,7 @@ var
   FmtInfo: TImageFormatInfo;
   NeedsSwapChannels: Boolean;
   CurrentWidth, CurrentHeight, ImageCount, LoadSize, I,
-    PitchOrLinear, MainImageLinearSize: Integer;
+    PitchOrLinear, MainImageLinearSize: LongInt;
   Data: PByte;
   UseAsPitch: Boolean;
   UseAsLinear: Boolean;
@@ -472,7 +456,7 @@ var
       (DDPF.BlueMask = PF.BBitMask);
   end;
 
-  function FindFourCCFormat(FourCC: LongWord): TImageFormat;
+  function FindFourCCFormat(FourCC: UInt32): TImageFormat;
   begin
     // Handle FourCC and large ARGB formats
     case FourCC of
@@ -837,7 +821,7 @@ var
   Hdr: TDDSFileHeader;
   MainImage, ImageToSave: TImageData;
   I, MainIdx, Len, ImageCount: LongInt;
-  J: LongWord;
+  J: UInt32;
   FmtInfo: TImageFormatInfo;
   MustBeFreed: Boolean;
   Is2DTexture, IsCubeMap, IsVolume: Boolean;

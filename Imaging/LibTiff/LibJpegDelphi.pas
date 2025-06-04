@@ -4,6 +4,10 @@ unit LibJpegDelphi;
   {$MODE OBJFPC}
 {$ELSE}
   {$DEFINE DCC}
+
+  {$IFDEF CPUX64}
+    {$MESSAGE FATAL 'Not supported' }
+  {$ENDIF}
 {$ENDIF}
 
 interface

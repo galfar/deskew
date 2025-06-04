@@ -601,7 +601,7 @@ begin
       cinfo^.min_DCT_scaled_size; { height of a row group of component }
     main^.buffer[ci] := cinfo^.mem^.alloc_sarray
 			(j_common_ptr(cinfo), JPOOL_IMAGE,
-			 compptr^.width_in_blocks * LongWord(compptr^.DCT_scaled_size),
+			 compptr^.width_in_blocks * uInt(compptr^.DCT_scaled_size),
 			 JDIMENSION (rgroup * ngroups));
     Inc(compptr);
   end;
