@@ -9,6 +9,7 @@ uses
 {$ELSE}
   TestFramework,
 {$ENDIF}
+  ImagingTypes,
   ImagingUtility,
   Utils;
 
@@ -26,9 +27,11 @@ type
     procedure AssertEquals(Expected, Actual: string); overload;
 {$ENDIF}
 
-    procedure AssertEquals(const AMessage: string; Expected, Actual: Double); overload;
+    procedure AssertEquals(const AMessage: string; const Expected, Actual: Double); overload;
     procedure AssertEquals(const AMessage: string; const Expected, Actual: TFloatRect); overload;
     procedure AssertEquals(const AMessage: string; const Expected, Actual: TRect); overload;
+    procedure AssertEquals(const AMessage: string; const Expected, Actual: TColor24Rec); overload;
+    procedure AssertEquals(const AMessage: string; const Expected, Actual: TColor32Rec); overload;
   end;
 
   TTestClass = class of TDeskewTestCase;
@@ -42,6 +45,10 @@ uses
 
 const
   Epsilon = 0.001;
+
+const
+  SCompare3Ints = '"%s" expected: <%d,%d,%d> but was: <%d,%d,%d>';
+  SCompare4Ints = '"%s" expected: <%d,%d,%d,%d> but was: <%d,%d,%d,%d>';
 
 procedure RegisterTest(TestClass: TTestClass);
 begin
@@ -77,7 +84,7 @@ begin
 end;
 {$ENDIF}
 
-procedure TDeskewTestCase.AssertEquals(const AMessage: string; Expected, Actual: Double);
+procedure TDeskewTestCase.AssertEquals(const AMessage: string; const Expected, Actual: Double);
 begin
 {$IFDEF FPC}
   AssertTrue(ComparisonMsg(AMessage, FloatToStr(Expected), FloatToStr(Actual)),
@@ -108,14 +115,30 @@ begin
 end;
 
 procedure TDeskewTestCase.AssertEquals(const AMessage: string; const Expected, Actual: TRect);
-const
-  SCompare = '"%s" expected: <%d,%d,%d,%d> but was: <%d,%d,%d,%d>';
 begin
   AssertTrue(
-    Format(SCompare, [AMessage,
+    Format(SCompare4Ints, [AMessage,
       Expected.Left, Expected.Top, Expected.Right, Expected.Bottom,
       Actual.Left, Actual.Top, Actual.Right, Actual.Bottom]),
     EqualRect(Expected, Actual) {$IFDEF FPC}, CallerAddr{$ENDIF});
+end;
+
+procedure TDeskewTestCase.AssertEquals(const AMessage: string; const Expected, Actual: TColor24Rec);
+begin
+  AssertTrue(
+    Format(SCompare3Ints, [AMessage,
+      Expected.R, Expected.G, Expected.B,
+      Actual.R, Actual.G, Actual.B]),
+    CompareMem(@Expected, @Actual, SizeOf(TColor24Rec)) {$IFDEF FPC}, CallerAddr{$ENDIF});
+end;
+
+procedure TDeskewTestCase.AssertEquals(const AMessage: string; const Expected, Actual: TColor32Rec);
+begin
+  AssertTrue(
+    Format(SCompare4Ints, [AMessage,
+      Expected.A, Expected.R, Expected.G, Expected.B,
+      Actual.A, Actual.R, Actual.G, Actual.B]),
+    Expected.Color = Actual.Color {$IFDEF FPC}, CallerAddr{$ENDIF});
 end;
 
 end.

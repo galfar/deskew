@@ -85,21 +85,8 @@ implementation
 
 { How to format a message string, in format_message() ? }
 
-{$IFDEF OS2}
-  {$DEFINE NO_FORMAT}
-{$ENDIF}
-{$IFDEF FPC}
-  {$DEFINE NO_FORMAT}
-{$ENDIF}
-
 uses
-{$IFNDEF NO_FORMAT}
-  {$IFDEF VER70}
-    drivers, { Turbo Vision unit with FormatStr }
-  {$ELSE}
-    sysutils,  { Delphi Unit with Format() }
-  {$ENDIF}
-{$ENDIF}
+  sysutils,  { Delphi Unit with Format() }
   imjcomapi;
 
 { Error exit handler: must not return to caller.
@@ -384,27 +371,19 @@ begin
   end;
 
   { Check for string parameter, as indicated by %s in the message text }
-  isstring := Pos('%s', msgtext) > 0;
+  isstring := Pos(AnsiString('%s'), msgtext) > 0;
 
   { Format the message into the passed buffer }
   if (isstring) then
     buffer := Concat(msgtext, err^.msg_parm.s)
   else
   begin
- {$IFDEF VER70}
-    FormatStr(buffer, msgtext, err^.msg_parm.i);
- {$ELSE}
-   {$IFDEF NO_FORMAT}
-   buffer := msgtext;
-   {$ELSE}
-   buffer := Format(msgtext, [
+    buffer := Format(msgtext, [
         err^.msg_parm.i[0], err^.msg_parm.i[1],
         err^.msg_parm.i[2], err^.msg_parm.i[3],
         err^.msg_parm.i[4], err^.msg_parm.i[5],
         err^.msg_parm.i[6], err^.msg_parm.i[7] ]);
-   {$ENDIF}
- {$ENDIF}
-  end; 
+  end;
 end;
 
 

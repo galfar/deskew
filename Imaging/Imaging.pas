@@ -186,7 +186,7 @@ function SplitImage(var Image: TImageData; var Chunks: TDynImageDataArray;
 { Creates palette with MaxColors based on the colors of images in Images array.
   Use it when you want to convert several images to indexed format using
   single palette for all of them. If ConvertImages is True images in array
-  are converted to indexed format using resulting palette. if it is False
+  are converted to indexed format using resulting palette. If it is False,
   images are left intact and only resulting palette is returned in Pal.
   Pal must be allocated to have at least MaxColors entries.}
 function MakePaletteForImages(var Images: TDynImageDataArray; Pal: PPalette32;

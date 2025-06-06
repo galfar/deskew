@@ -26,8 +26,8 @@ unit ImagingJpeg;
 {$DEFINE IMJPEGLIB}
 { $DEFINE PASJPEG}
 
-{ Automatically use FPC's PasJpeg when compiling with Lazarus. }
-{$IF Defined(LCL)}
+{ Automatically use FPC's PasJpeg }
+{$IF Defined(FPC)}
   {$UNDEF IMJPEGLIB}
   {$DEFINE PASJPEG}
 {$IFEND}

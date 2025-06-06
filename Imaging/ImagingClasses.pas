@@ -70,6 +70,7 @@ type
     { Resizes current image proportionally to fit the given width and height. }
     procedure ResizeToFit(FitWidth, FitHeight: Integer; Filter: TResizeFilter; DstImage: TBaseImage);
 
+    procedure Fill(Color: Pointer);
     procedure FillRect(X, Y, Width, Height: Integer; Color: Pointer); overload;
     procedure FillRect(const ARect: TRect; Color: Pointer); overload;
 
@@ -491,6 +492,11 @@ begin
       DstImage.FPData^);
     DstImage.DoDataSizeChanged;
   end;
+end;
+
+procedure TBaseImage.Fill(Color: Pointer);
+begin
+  FillRect(0, 0, Width, Height, Color);
 end;
 
 procedure TBaseImage.FillRect(X, Y, Width, Height: Integer; Color: Pointer);

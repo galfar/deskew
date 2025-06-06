@@ -29,13 +29,7 @@ uses
   ImagingFormats,
   ImagingUtility;
 
-type
-  TResamplingFilter = (
-    rfNearest,
-    rfLinear,
-    rfCubic,
-    rfLanczos
-  );
+function IsImageDataEqual(const Image1, Image2: TImageData): Boolean;
 
 { Thresholding using Otsu's method (which chooses the threshold
   to minimize the intraclass variance of the black and white pixels!).
@@ -49,11 +43,24 @@ function OtsuThresholding(var Image: TImageData; AContentRect: PRect = nil): Int
   within this rectangle. Otherwise, the whole image is processed.}
 procedure BinarizeImage(var Image: TImageData; Threshold: Integer; AContentRect: PRect = nil);
 
+type
+  TResamplingFilter = (
+    rfNearest,
+    rfLinear,
+    rfCubic,
+    rfLanczos
+  );
+
 const
   SupportedRotationFormats: set of TImageFormat = [ifGray8, ifR8G8B8, ifA8R8G8B8];
 
-{ Rotates image with a background (of outside "void" areas) of specified color. The image is resized to fit
-  the whole rotated image. }
+{ Rotates (CCW direction) image with a background (of outside "void" areas) of specified color.
+  The image is resized to fit the whole rotated image if FitRotated = True,
+  otherwise it's clipped to the original size (useful to avoid "voids" for small rotations
+  e.g. deskewing scanned documents).
+  With
+  With FitRotated = True, the corners of the rotated image will always have BackgroundColor
+  (except 90/180/270 angle). }
 procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;
   ResamplingFilter: TResamplingFilter; FitRotated: Boolean);
 
@@ -61,6 +68,52 @@ implementation
 
 uses
   Utils;
+
+function IsImageDataEqual(const Image1, Image2: TImageData): Boolean;
+var
+  FormatInfo: TImageFormatInfo;
+begin
+  // 1. No pixel data?
+  if not Assigned(Image1.Bits) and not Assigned(Image2.Bits) then
+    Exit(True); // Both are effectively empty and thus "equal" in that sense
+  if not Assigned(Image1.Bits) or not Assigned(Image2.Bits) then
+    Exit(False); // One is empty, the other is not
+
+  // 2. Check basic properties
+  if Image1.Width <> Image2.Width then
+    Exit(False);
+  if Image1.Height <> Image2.Height then
+    Exit(False);
+  if Image1.Format <> Image2.Format then
+    Exit(False);
+  if Image1.Size <> Image2.Size then
+    Exit(False);
+
+  // If dimensions are zero, they are equal at this point
+  if (Image1.Width = 0) or (Image1.Height = 0) then
+    Exit(True);
+
+  // 3. Compare Palettes (applicable for ifIndex8)
+  if Assigned(Image1.Palette) and Assigned(Image2.Palette) then
+  begin
+    GetImageFormatInfo(Image1.Format, FormatInfo);
+    // If both have palettes, compare their content
+    if not CompareMem(Image1.Palette, Image2.Palette, SizeOf(Image1.Palette[0]) * FormatInfo.PaletteEntries)  then
+      Exit(False);
+  end
+  else if Assigned(Image1.Palette) or Assigned(Image2.Palette) then
+  begin
+    // One has a palette, the other doesn't. They are not equal.
+    Exit(False);
+  end;
+
+  // 4. Compare pixel data
+  if not CompareMem(Image1.Bits, Image2.Bits, Image1.Size) then
+    Exit(False);
+
+  // All checks passed
+  Result := True;
+end;
 
 function OtsuThresholding(var Image: TImageData; AContentRect: PRect): Integer;
 var
@@ -204,6 +257,7 @@ const
   TableSize = 32;
   MaxTablePos = TableSize - 1;
   MaxKernelRadius = 3;
+  FloatEps = 1E-6;
 
 var
   SrcWidth, SrcHeight: Integer;
@@ -530,20 +584,20 @@ var
     end;
   end;
 
-  function RotatePoint(X, Y: Single): TFloatPoint;
+  function TryMultipleOf90Rotation: Boolean;
+  var
+    OrigBits: Pointer;
   begin
-    Result.X := ForwardCos * X - ForwardSin * Y;
-    Result.Y := ForwardSin * X + ForwardCos * Y;
-  end;
+    OrigBits := Image.Bits;
 
-  function Max4(X1, X2, X3, X4: Single): Single;
-  begin
-    Result := Math.Max(Math.Max(X1, X2), Math.Max(X3, X4));
-  end;
+    if SameValue(Angle, 90, FloatEps) then
+      Imaging.RotateImageMul90(Image, 90)
+    else if SameValue(Angle, 180, FloatEps) then
+      Imaging.RotateImageMul90(Image, 180)
+    else if SameValue(Angle, 270, FloatEps) then
+      Imaging.RotateImageMul90(Image, 270);
 
-  function Min4(X1, X2, X3, X4: Single): Single;
-  begin
-    Result := Math.Min(Math.Min(X1, X2), Math.Min(X3, X4));
+    Result := (Image.Bits <> OrigBits);
   end;
 
   procedure CalcSourceCoordinates(DstX, DstY: Integer; out SrcX, SrcY: Single); {$IFDEF FPC}inline;{$ENDIF}
@@ -570,7 +624,12 @@ begin
   while Angle < 0 do
     Angle := Angle + 360;
 
-  if (Angle = 0) or (Abs(Angle) = 360) then
+  if SameValue(Angle, 0, FloatEps) or SameValue(Angle, 360, FloatEps) then
+    Exit;
+
+  // For 90/180/270 degrees rotation we just call Imaging.RotateImageMul90.
+  // Note that "FitRotated" parameter has no effect in this case.
+  if TryMultipleOf90Rotation then
     Exit;
 
   AngleRad := Angle * PI / 180;
@@ -583,19 +642,11 @@ begin
   SrcWidthHalf := (SrcWidth - 1) / 2;
   SrcHeightHalf := (SrcHeight - 1) / 2;
 
-  // Calculate width and height of the rotated image
-  TopLeft := RotatePoint(-SrcWidthHalf, SrcHeightHalf);
-  TopRight := RotatePoint(SrcWidthHalf, SrcHeightHalf);
-  BottomLeft := RotatePoint(-SrcWidthHalf, -SrcHeightHalf);
-  BottomRight := RotatePoint(SrcWidthHalf, -SrcHeightHalf);
-
   if FitRotated then
   begin
-    // Encompass the whole area of rotate image => bounding box
-    DstWidth  := Ceil(Max4(TopLeft.X, TopRight.X, BottomLeft.X, BottomRight.X) -
-                      Min4(TopLeft.X, TopRight.X, BottomLeft.X, BottomRight.X));
-    DstHeight := Ceil(Max4(TopLeft.Y, TopRight.Y, BottomLeft.Y, BottomRight.Y) -
-                      Min4(TopLeft.Y, TopRight.Y, BottomLeft.Y, BottomRight.Y));
+    // Encompass the whole area of rotated image => bounding box
+    DstWidth  := Ceil(Abs(SrcWidth * ForwardCos) + Abs(SrcHeight * ForwardSin));
+    DstHeight := Ceil(Abs(SrcWidth * ForwardSin) + Abs(SrcHeight * ForwardCos));
 
     if ResamplingFilter <> rfNearest then
     begin
@@ -611,6 +662,10 @@ begin
     DstWidth := SrcWidth;
     DstHeight := SrcHeight;
   end;
+
+  // Prevent zero or negative dimensions if input was tiny and angle produced near-zero span
+  if DstWidth <= 0 then DstWidth := 1;
+  if DstHeight <= 0 then DstHeight := 1;
 
   DstWidthHalf := (DstWidth - 1) / 2;
   DstHeightHalf := (DstHeight - 1) / 2;
@@ -629,7 +684,7 @@ begin
       begin
         CalcSourceCoordinates(X, Y, SrcX, SrcY);
 
-        if (SrcX >= 0) and (SrcY >= 0) and (SrcX <= SrcWidth - 1) and (SrcY <= SrcHeight - 1) then
+        if (SrcX >= 0) and (SrcY >= 0) and (SrcX < SrcWidth) and (SrcY < SrcHeight) then
         begin
           if Bpp = 3 then
             PColor24Rec(DstByte)^ := PColor24RecArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)]
@@ -651,7 +706,7 @@ begin
       DstPixel24 := DstImage.Bits;
       BackColor24 := TColor32Rec(BackgroundColor).Color24Rec;
 
-      // RGB 24bit path
+      // RGB 24 bit path
       for Y := 0 to DstHeight - 1 do
         for X := 0 to DstWidth - 1 do
         begin
@@ -667,7 +722,7 @@ begin
     end
     else
     begin
-      // A bit more generic 8+32bit path
+      // A bit more generic 8 and 32 bit path
       for Y := 0 to DstHeight - 1 do
         for X := 0 to DstWidth - 1 do
         begin
