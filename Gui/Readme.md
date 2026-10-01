@@ -1,8 +1,8 @@
 GUI Frontend for Deskew Command Line Tool
 ===========================================
 
-by Marek Mauder  
-<https://galfar.vevb.net/deskew>  
+by Marek Mauder
+<https://galfar.vevb.net/deskew>
 <https://github.com/galfar/deskew>
 
 
@@ -24,18 +24,23 @@ License: MPL 2.0
 
 ### Downloads And Releases
 
-<https://github.com/galfar/deskew/releases>  
+<https://github.com/galfar/deskew/releases>
 <https://galfar.vevb.net/deskew#downloads>
 
-### Bugs, Issues, Proposals 
+### Bugs, Issues, Proposals
 
-File them here, mark as "GUI":  
-<https://github.com/galfar/deskew/issues>  
+File them here, mark as "GUI":
+<https://github.com/galfar/deskew/issues>
 
 Version History
 ------------------------
 
-v1.00 2021-06-01:
+Unreleased 2026-10-01:
+
+- new advanced options: angle step, DPI override, and "detect only" (just report the skew angle, no output files)
+- extra command line parameters now support quoted values and repeated spaces
+
+v0.95 2021-06-01:
 
 - added many missing options/parameters for CLI (resampling, compression, auto crop, ...)
 - allows passing extra parameters to CLI so all features are usable at least in this form (e.g. when pairing with newer version of CLI tool)

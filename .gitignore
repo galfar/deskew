@@ -2,7 +2,7 @@ __history
 __recovery
 backup
 
-_internal/*
+__internal/*
 Dcu/*
 dcu/*
 Releases/*
@@ -24,4 +24,5 @@ deskew.cfg
 *.dbg
 *.res
 *.stat
+*.dsv
 

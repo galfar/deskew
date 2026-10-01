@@ -64,6 +64,10 @@ type
     CropToInput: Boolean;
 
     // Advanced options
+    AngleStep: Double;
+    DpiOverrideEnabled: Boolean;
+    DpiOverride: Integer;
+    DetectOnly: Boolean;
     ResamplingFilter: TResamplingFilter;
     ForcedOutputFormat: TForcedOutputFormat;
     JpegCompressionQuality: Integer;
@@ -94,7 +98,7 @@ type
 implementation
 
 uses
-  ImagingUtility, Utils, TypInfo;
+  ImagingUtility, Utils, TypInfo, LazFileUtils;
 
 // From ImagingTiff.pas
 const
@@ -108,7 +112,9 @@ const
 const
   DefaultBackgroundColor = $FFFFFFFF; // white
   DefaultMaxAngle = 10.0;
+  DefaultAngleStep = 0.1;
   DefaultSkipAngle = 0.01;
+  DefaultDpiOverride = 300;
   DefaultThresholdLevel = 128;
   DefaultJpegCompressionQuality = 90; // imaginglib default
   DefaultTiffCompressionScheme = TiffCompressionOptionLzw; // imaginglib default
@@ -233,6 +239,29 @@ procedure TOptions.ToCmdLineParameters(AParams: TStrings; AFileIndex: Integer);
     Result := StrArrayJoin(FileParams, ',');
   end;
 
+  function OperationalFlagsToString: string;
+  begin
+    Result := '';
+    if CropToInput then
+      Result := Result + 'c';
+    if DetectOnly then
+      Result := Result + 'd';
+  end;
+
+  procedure AddExtraCmdLineArgs;
+  var
+    ExtraArgs: TStringList;
+  begin
+    ExtraArgs := TStringList.Create;
+    try
+      // Handles quoted args and repeated spaces
+      SplitCmdLineParams(ExtraCmdLineArgs, ExtraArgs);
+      AParams.AddStrings(ExtraArgs);
+    finally
+      ExtraArgs.Free;
+    end;
+  end;
+
 begin
   Assert(AFileIndex < FFiles.Count);
 
@@ -241,14 +270,18 @@ begin
 
   if BackgroundColor <> $FF000000 then
     AParams.AddStrings(['-b', IntToHex(BackgroundColor, 8)]);
-  if CropToInput then
-    AParams.AddStrings(['-g', 'c']);
+  if OperationalFlagsToString <> '' then
+    AParams.AddStrings(['-g', OperationalFlagsToString]);
 
   // Advanced options
   if not SameFloat(MaxAngle, DefaultMaxAngle, 0.1) then
     AParams.AddStrings(['-a', FloatToStrFmt(MaxAngle)]);
+  if not SameFloat(AngleStep, DefaultAngleStep, 0.001) then
+    AParams.AddStrings(['-d', FloatToStrFmt(AngleStep)]);
   if not SameFloat(SkipAngle, DefaultSkipAngle, 0.01) then
     AParams.AddStrings(['-l', FloatToStrFmt(SkipAngle)]);
+  if DpiOverrideEnabled then
+    AParams.AddStrings(['-p', IntToStr(DpiOverride)]);
   if ForcedOutputFormat <> fofNone then
     AParams.AddStrings(['-f', FormatIds[ForcedOutputFormat]]);
   if ResamplingFilter <> rfDefaultLinear then
@@ -261,7 +294,7 @@ begin
     AParams.AddStrings(['-s', 'p']);
 
   if ExtraCmdLineArgs <> '' then
-    AParams.AddStrings(ExtraCmdLineArgs.Split(' '));
+    AddExtraCmdLineArgs;
 
   AParams.Add(FFiles[AFileIndex]);
 end;
@@ -276,6 +309,10 @@ begin
 
   ResamplingFilter := rfDefaultLinear;
   MaxAngle := DefaultMaxAngle;
+  AngleStep := DefaultAngleStep;
+  DpiOverrideEnabled := False;
+  DpiOverride := DefaultDpiOverride;
+  DetectOnly := False;
   ThresholdLevel := DefaultThresholdLevel;
   ThresholdingAuto := True;
   ForcedOutputFormat := fofNone;
@@ -299,6 +336,10 @@ begin
 
   Ini.WriteString(IniSectionAdvanced, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
   Ini.WriteFloat(IniSectionAdvanced, 'MaxAngle', MaxAngle);
+  Ini.WriteFloat(IniSectionAdvanced, 'AngleStep', AngleStep);
+  Ini.WriteNiceBool(IniSectionAdvanced, 'DpiOverrideEnabled', DpiOverrideEnabled);
+  Ini.WriteInteger(IniSectionAdvanced, 'DpiOverride', DpiOverride);
+  Ini.WriteNiceBool(IniSectionAdvanced, 'DetectOnly', DetectOnly);
   Ini.WriteInteger(IniSectionAdvanced, 'ThresholdLevel', ThresholdLevel);
   Ini.WriteNiceBool(IniSectionAdvanced, 'ThresholdingAuto', ThresholdingAuto);
   Ini.WriteString(IniSectionAdvanced, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
@@ -322,6 +363,10 @@ begin
 
   ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ResamplingFilter', ''));
   MaxAngle := Ini.ReadFloat(IniSectionAdvanced, 'MaxAngle', DefaultMaxAngle);
+  AngleStep := Ini.ReadFloat(IniSectionAdvanced, 'AngleStep', DefaultAngleStep);
+  DpiOverrideEnabled := Ini.ReadNiceBool(IniSectionAdvanced, 'DpiOverrideEnabled', False);
+  DpiOverride := Ini.ReadInteger(IniSectionAdvanced, 'DpiOverride', DefaultDpiOverride);
+  DetectOnly := Ini.ReadNiceBool(IniSectionAdvanced, 'DetectOnly', False);
   ThresholdLevel := Ini.ReadInteger(IniSectionAdvanced, 'ThresholdLevel', DefaultThresholdLevel);
   ThresholdingAuto := Ini.ReadNiceBool(IniSectionAdvanced, 'ThresholdingAuto', True);
 

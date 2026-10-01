@@ -28,6 +28,8 @@ type
     BtnOk: TBitBtn;
     BtnResetOptions: TBitBtn;
     CheckPrintParams: TCheckBox;
+    CheckDetectOnly: TCheckBox;
+    CheckDpiOverride: TCheckBox;
     CheckThresholdAuto: TCheckBox;
     CheckJpegQuality: TCheckBox;
     CheckDefaultExecutable: TCheckBox;
@@ -45,6 +47,7 @@ type
     LabTitle: TLabel;
     LabForcedFormat: TLabel;
     LabMaxAngle: TLabel;
+    LabAngleStep: TLabel;
     LabSkipAngle: TLabel;
     Panel1: TPanel;
     Shape1: TShape;
@@ -52,6 +55,8 @@ type
     SpinThresholdValue: TSpinEdit;
     SpinEditJpegQuality: TSpinEdit;
     SpinEditMaxAngle: TFloatSpinEdit;
+    SpinEditAngleStep: TFloatSpinEdit;
+    SpinEditDpiOverride: TSpinEdit;
     SpinEditSkipAngle: TFloatSpinEdit;
     procedure ActResetOptionsExecute(Sender: TObject);
     procedure ActBrowseDeskewExeExecute(Sender: TObject);
@@ -123,6 +128,7 @@ end;
 procedure TFormAdvOptions.ApplyOptions(AOptions: TOptions);
 begin
   SpinEditMaxAngle.Value := AOptions.MaxAngle;
+  SpinEditAngleStep.Value := AOptions.AngleStep;
   SpinEditSkipAngle.Value := AOptions.SkipAngle;
   ComboResampling.ItemIndex := Integer(AOptions.ResamplingFilter);
   ComboOutputFormat.ItemIndex := Integer(AOptions.ForcedOutputFormat);
@@ -132,6 +138,9 @@ begin
   ComboTiffCompression.ItemIndex := AOptions.TiffCompressionScheme;
   CheckThresholdAuto.Checked := AOptions.ThresholdingAuto;
   SpinThresholdValue.Value := AOptions.ThresholdLevel;
+  CheckDpiOverride.Checked := AOptions.DpiOverrideEnabled;
+  SpinEditDpiOverride.Value := AOptions.DpiOverride;
+  CheckDetectOnly.Checked := AOptions.DetectOnly;
   CheckPrintParams.Checked := AOptions.PrintParams;
   EdExtraCmdArgs.Text := AOptions.ExtraCmdLineArgs;
 
@@ -143,6 +152,7 @@ end;
 procedure TFormAdvOptions.GatherOptions(AOptions: TOptions);
 begin
   AOptions.MaxAngle := SpinEditMaxAngle.Value;
+  AOptions.AngleStep := SpinEditAngleStep.Value;
   AOptions.SkipAngle := SpinEditSkipAngle.Value;
   AOptions.ResamplingFilter := TResamplingFilter(PtrUInt(ComboResampling.Items.Objects[ComboResampling.ItemIndex]));
   AOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
@@ -150,6 +160,9 @@ begin
   AOptions.TiffCompressionScheme := ComboTiffCompression.ItemIndex;
   AOptions.ThresholdingAuto := CheckThresholdAuto.Checked;
   AOptions.ThresholdLevel := SpinThresholdValue.Value;
+  AOptions.DpiOverrideEnabled := CheckDpiOverride.Checked;
+  AOptions.DpiOverride := SpinEditDpiOverride.Value;
+  AOptions.DetectOnly := CheckDetectOnly.Checked;
   AOptions.PrintParams := CheckPrintParams.Checked;
   AOptions.ExtraCmdLineArgs := EdExtraCmdArgs.Text;
 
@@ -168,6 +181,7 @@ begin
   SpinEditJpegQuality.Enabled := CheckJpegQuality.Checked;
   ComboTiffCompression.Enabled := CheckTiffCompression.Checked;
   SpinThresholdValue.Enabled := not CheckThresholdAuto.Checked;
+  SpinEditDpiOverride.Enabled := CheckDpiOverride.Checked;
 end;
 
 procedure TFormAdvOptions.ActBrowseDeskewExeExecute(Sender: TObject);
