@@ -1,10 +1,8 @@
 name: Build on ARM
 
 on:
-  # on each push and manual trigger
-  push:
-    branches: [ master ]
-    paths-ignore: [ "**/Readme.md" ]
+  # Manual trigger only. Legacy QEMU-based ARM builds from before GitHub hosted ARM runners,
+  # native ARM64 builds now run in the main CI workflow (ci.yml).
   workflow_dispatch:
 
 jobs:

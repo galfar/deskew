@@ -7,36 +7,103 @@ on:
     paths-ignore: [ "**/Readme.md" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
+    name: build (${{ matrix.operating-system }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.operating-system }}
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        # currently stable="Lazarus 3.6 / FPC 3.2.2" with setup-lazarus@v3.3.1
-        lazarus-versions: [stable]
+        include:
+          # Windows x86_64
+          - operating-system: windows-latest
+            arch: x86_64
+            laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Windows%2064%20bits/Lazarus%204.8/lazarus-4.8-fpc-3.2.2-win64.exe
+            fpc-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Windows%2064%20bits/Lazarus%204.8/lazarus-4.8-fpc-3.2.2-cross-i386-win32-win64.exe
+
+          # Ubuntu x86_64
+          - operating-system: ubuntu-latest
+            arch: x86_64
+            laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20amd64%20DEB/Lazarus%204.8/lazarus-project_4.8.0-0_amd64.deb
+            fpc-url: |
+              https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20amd64%20DEB/Lazarus%204.8/fpc-laz_3.2.2-210709_amd64.deb
+              https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20amd64%20DEB/Lazarus%204.8/fpc-src_3.2.2-210709_amd64.deb
+
+          # Ubuntu ARM64
+          - operating-system: ubuntu-24.04-arm
+            arch: arm64
+            laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20arm64%20DEB/Lazarus%204.8/lazarus-project_4.8.0-0_arm64.deb
+            fpc-url: |
+              https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20arm64%20DEB/Lazarus%204.8/fpc-laz_3.2.3-240813_arm64.deb
+              https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20arm64%20DEB/Lazarus%204.8/fpc-src_3.2.3-240813_arm64.deb
+
+          # macOS ARM64
+          - operating-system: macos-latest
+            arch: arm64
+            laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20aarch64/Lazarus%204.8/lazarus-darwin-aarch64-4.8.zip
+            fpc-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20aarch64/Lazarus%204.8/fpc-3.2.4rc1a.intelarm64-macosx.dmg
+
+          # macOS x86_64
+          - operating-system: macos-15-intel
+            arch: x86_64
+            laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20x86-64/Lazarus%204.8/lazarus-darwin-x86_64-4.8.zip
+            fpc-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20x86-64/Lazarus%204.8/fpc-3.2.4rc1a.intelarm64-macosx.dmg
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Lazarus
-        uses: gcarreno/setup-lazarus@v3
+      - uses: actions/checkout@v7
+
+      - name: Install FPC & Lazarus
+        uses: ollydev/setup-lazarus@v4.1
         with:
-          lazarus-version: ${{ matrix.lazarus-versions }}
+          laz-url: ${{ matrix.laz-url }}
+          fpc-url: ${{ matrix.fpc-url }}
+
+      - name: Setup Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          # Add FPC to PATH
+          LAZ_DIR="$RUNNER_TEMP/lazarus"
+          FPC_BIN=$(find "$LAZ_DIR/" -type f -executable -name "fpc.exe" | head -1)
+          FPC_DIR=$(dirname "$FPC_BIN")
+          echo "Found FPC: $FPC_BIN"
+          echo "$FPC_DIR" >> $GITHUB_PATH
+
+      - name: Setup Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          # Deskew loads libtiff.so dynamically, -dev package provides the unversioned symlink
+          sudo apt install libtiff-dev -y
+
+      - name: Setup macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew untap aws/tap 2>/dev/null || true  # Silence the warnings on macOS runners, we don't need AWS stuff
 
       - name: Print info
         shell: bash
         run: |
           echo "Lazarus:" $(lazbuild --version)
           echo "FPC:" $(fpc -iWTPTO)
-          echo "OS:" $(uname -a)
+          echo "OS: "$RUNNER_OS", ARCH:" $RUNNER_ARCH
+          echo "    "$(uname -a)
           if [ "$RUNNER_OS" == "Linux" ]; then
-            echo $(lsb_release -d)
+            echo "    "$(lsb_release -d)
           fi
 
       - name: Build Deskew CLI
         shell: bash
         run:  |
           if [ "$RUNNER_OS" == "macOS" ]; then
-              lazbuild --build-mode=Release-macOS "deskew.lpi"
+              # Release-macOS build mode has x86_64 target CPU set, override it for ARM runners
+              if [ "$RUNNER_ARCH" == "ARM64" ]; then CPU=aarch64; else CPU=x86_64; fi
+              lazbuild --build-mode=Release-macOS --cpu=$CPU "deskew.lpi"
           else
               lazbuild --build-mode=Release "deskew.lpi"
           fi
@@ -45,9 +112,11 @@ jobs:
         shell: bash
         run:   |
           if [ "$RUNNER_OS" == "macOS" ]; then
-            lazbuild --build-mode=Release-macOS "Gui/deskewgui.lpi"
+              if [ "$RUNNER_ARCH" == "ARM64" ]; then CPU=aarch64; else CPU=x86_64; fi
+              # Need to specify some older macOS as minimum version, otherwise the LCL linking may fail (new XCode, latest ARM macOS) with "Error: ld: malformed method list atom 'ltmp5' "
+              lazbuild --build-mode=Release-macOS --cpu=$CPU --opt="-WM10.14" "Gui/deskewgui.lpi"
           else
-            lazbuild --build-mode=Release "Gui/deskewgui.lpi"
+              lazbuild --build-mode=Release "Gui/deskewgui.lpi"
           fi
 
       - name: Build unit tests
@@ -73,18 +142,18 @@ jobs:
           fi
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: deskew-binaries-${{ matrix.operating-system }}
+          name: deskew-binaries-${{ runner.os }}-${{ runner.arch }}
           path: |
             Bin/deskew*
           if-no-files-found: error
 
       - name: Upload artifacts
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: deskew-artifacts-${{ matrix.operating-system }}
+          name: deskew-artifacts-${{ runner.os }}-${{ runner.arch }}
           path: |
             Bin
           if-no-files-found: error
