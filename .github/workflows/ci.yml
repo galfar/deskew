@@ -138,7 +138,7 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              ./runtests.sh deskew-mac --no-tiff
+              ./runtests.sh deskew-mac
           fi
 
       - name: Upload binaries
