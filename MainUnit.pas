@@ -92,8 +92,7 @@ begin
   WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
   WriteLn('                   can be defined - delimited by commas. Supported specs:');
   WriteLn('                   jXX - JPEG compression quality, XX in range [1,100(best)]');
-  WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4|input');
-
+  WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4|input|input-lossless');
 
   Count := GetFileFormatCount;
   for I := 0 to Count - 1 do
@@ -198,6 +197,8 @@ var
   end;
 
   function ChangeOutputFormatIfNeeded: Boolean;
+  var
+    ReplacedLossy: Boolean;
   begin
     Result := False;
 
@@ -213,10 +214,12 @@ var
     // Special handling for TIFF compression
     if Imaging.FindImageFileFormatByName(Options.OutputFileName) is TBaseTiffFileFormat then
     begin
-      if Options.TiffCompressionScheme = TiffCompressionOptionAsInput then
+      if Options.TiffCompressionScheme in [TiffCompressionOptionAsInput, TiffCompressionOptionAsInputLossless] then
       begin
-        if not Options.TrySetTiffCompressionFromMetadata(Imaging.GlobalMetadata) then
-          WriteLn('Could not set TIFF output compression from input, using default.');
+        if not Options.TrySetTiffCompressionFromMetadata(Imaging.GlobalMetadata, ReplacedLossy) then
+          WriteLn('Could not set TIFF output compression from input, using default.')
+        else if ReplacedLossy then
+          WriteLn('Input TIFF is JPEG-compressed, using lossless LZW compression for output instead.');
       end;
 
       if Options.TiffCompressionScheme = TiffCompressionOptionGroup4 then
@@ -340,12 +343,17 @@ procedure RunDeskew;
   begin
     if SameText(SrcPath, DestPath) then
       Exit; // No need to copy anything
-
     SrcStream := TFileStream.Create(SrcPath, fmOpenRead);
-    DestStream := TFileStream.Create(DestPath, fmCreate);
-    DestStream.CopyFrom(SrcStream, SrcStream.Size);
-    DestStream.Free;
-    SrcStream.Free;
+    try
+      DestStream := TFileStream.Create(DestPath, fmCreate);
+      try
+        DestStream.CopyFrom(SrcStream, SrcStream.Size);
+      finally
+        DestStream.Free;
+      end;
+    finally
+      SrcStream.Free;
+    end;
   end;
 
   procedure SetImagingOutputOptions;
@@ -356,11 +364,9 @@ procedure RunDeskew;
       Imaging.SetOption(ImagingTiffJpegQuality, Options.JpegCompressionQuality);
       Imaging.SetOption(ImagingJNGQuality, Options.JpegCompressionQuality);
     end;
-    if Options.TiffCompressionScheme <> -1 then
-    begin
-      Assert(Options.TiffCompressionScheme in [TiffCompressionOptionNone..TiffCompressionOptionGroup4]);
+    // "As input" schemes were already resolved to a real one in ChangeOutputFormatIfNeeded
+    if Options.TiffCompressionScheme in [TiffCompressionOptionNone..TiffCompressionOptionGroup4] then
       Imaging.SetOption(ImagingTiffCompression, Options.TiffCompressionScheme);
-    end;
   end;
 
 var

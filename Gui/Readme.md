@@ -38,6 +38,7 @@ Version History
 Unreleased 2026-10-01:
 
 - new advanced options: angle step, DPI override, and "detect only" (just report the skew angle, no output files)
+- new TIFF compression choices "As input" and "As input (lossless)": keep the compression scheme of the input TIFF; the lossless variant uses LZW instead of JPEG so JPEG-compressed TIFFs are never recompressed lossily
 - extra command line parameters now support quoted values and repeated spaces
 
 v0.95 2021-06-01:

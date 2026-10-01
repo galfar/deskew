@@ -108,6 +108,9 @@ const
   TiffCompressionOptionDeflate     = 3;
   TiffCompressionOptionJpeg        = 4;
   TiffCompressionOptionGroup4      = 5;
+  // From CmdLineOptions.pas
+  TiffCompressionOptionAsInput         = 6;
+  TiffCompressionOptionAsInputLossless = 7;
 
 const
   DefaultBackgroundColor = $FFFFFFFF; // white
@@ -148,8 +151,8 @@ const
     'lanczos'  // rfLanczos
   );
 
-  TiffCompressionSchemeNames: array[TiffCompressionOptionNone..TiffCompressionOptionGroup4] of string = (
-    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4'
+  TiffCompressionSchemeNames: array[TiffCompressionOptionNone..TiffCompressionOptionAsInputLossless] of string = (
+    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4', 'input', 'input-lossless'
   );
 
   IniSectionOptions = 'Options';

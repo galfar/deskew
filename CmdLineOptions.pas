@@ -92,7 +92,11 @@ type
     // on user input (content vs margin, units).
     function CalcContentRectForImage(const ImageBounds: TRect; Metadata: TMetadata; out FinalRect: TRect): Boolean;
 
-    function TrySetTiffCompressionFromMetadata(Metadata: TMetadata): Boolean;
+    // Resolves the "as input" TIFF compression options (input, input-lossless) to a real
+    // scheme using the compression of the loaded input TIFF (stored in Metadata).
+    // Returns False and resets the scheme to default when the input scheme is unknown.
+    // With input-lossless, lossy input scheme (JPEG) is replaced by LZW (ReplacedLossy = True).
+    function TrySetTiffCompressionFromMetadata(Metadata: TMetadata; out ReplacedLossy: Boolean): Boolean;
 
     property InputFileName: string read FInputFileName;
     property OutputFileName: string read FOutputFileName;
@@ -151,7 +155,10 @@ type
   end;
 
 const
+  // Same compression as the input TIFF (including lossy JPEG)
   TiffCompressionOptionAsInput = TiffCompressionOptionGroup4 + 1;
+  // Same compression as the input TIFF but never lossy (JPEG input => LZW)
+  TiffCompressionOptionAsInputLossless = TiffCompressionOptionAsInput + 1;
 
 function EnsureTrailingPathDelimiter(const DirPath: string): string;
 
@@ -161,8 +168,8 @@ uses
   TypInfo, Math;
 
 const
-  TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionAsInput] of string = (
-    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4', 'input'
+  TiffCompressionNames: array[TiffCompressionOptionNone..TiffCompressionOptionAsInputLossless] of string = (
+    'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4', 'input', 'input-lossless'
   );
   SizeUnitTokens: array[TSizeUnit] of string = ('px', '%', 'mm', 'cm', 'in');
 
@@ -610,12 +617,15 @@ begin
   Result := True;
 end;
 
-function TCmdLineOptions.TrySetTiffCompressionFromMetadata(Metadata: TMetadata): Boolean;
+function TCmdLineOptions.TrySetTiffCompressionFromMetadata(Metadata: TMetadata; out ReplacedLossy: Boolean): Boolean;
 var
   CompName: string;
+  LosslessOnly: Boolean;
 begin
   Result := True;
-  Assert(FTiffCompressionScheme = TiffCompressionOptionAsInput);
+  ReplacedLossy := False;
+  Assert(FTiffCompressionScheme in [TiffCompressionOptionAsInput, TiffCompressionOptionAsInputLossless]);
+  LosslessOnly := FTiffCompressionScheme = TiffCompressionOptionAsInputLossless;
   if not Metadata.HasMetaItem(SMetaTiffCompressionName) then
   begin
     FTiffCompressionScheme := -1;
@@ -633,13 +643,23 @@ begin
     FTiffCompressionScheme := TiffCompressionOptionJpeg
   else if CompName = 'Deflate' then
     FTiffCompressionScheme := TiffCompressionOptionDeflate
+  else if CompName = 'Packbits RLE' then
+    FTiffCompressionScheme := TiffCompressionOptionPackbitsRle
   else if StrUtils.MatchStr(CompName, ['CCITT Group 4 Fax', 'CCITT']) then
     FTiffCompressionScheme := TiffCompressionOptionGroup4;
 
-  if FTiffCompressionScheme = TiffCompressionOptionAsInput then
+  if FTiffCompressionScheme in [TiffCompressionOptionAsInput, TiffCompressionOptionAsInputLossless] then
   begin
+    // Input compression scheme is unknown or not supported for output (e.g. old-style JPEG)
     FTiffCompressionScheme := -1;
     Exit(False);
+  end;
+
+  if LosslessOnly and (FTiffCompressionScheme = TiffCompressionOptionJpeg) then
+  begin
+    // Recompressing already lossy-compressed rotated image would degrade it even more
+    FTiffCompressionScheme := TiffCompressionOptionLzw;
+    ReplacedLossy := True;
   end;
 end;
 

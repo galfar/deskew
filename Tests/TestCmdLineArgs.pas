@@ -42,6 +42,7 @@ type
     procedure TestOutputFormat;
     procedure TestBackgroundColor;
     procedure TestCompression;
+    procedure TestTiffCompressionFromInput;
 
     // Test flags
     procedure TestOperationalFlags;
@@ -315,10 +316,10 @@ end;
 
 procedure TTestCmdLineOptions.TestCompression;
 const
-  Count = 4;
-  TiffNames: array[1..Count] of string = ('g4', 'rle', 'input', 'none');
+  Count = 5;
+  TiffNames: array[1..Count] of string = ('g4', 'rle', 'input', 'none', 'input-lossless');
   TiffValues: array[1..Count] of Integer = (TiffCompressionOptionGroup4, TiffCompressionOptionPackbitsRle,
-    TiffCompressionOptionAsInput, TiffCompressionOptionNone);
+    TiffCompressionOptionAsInput, TiffCompressionOptionNone, TiffCompressionOptionAsInputLossless);
 var
   ParseResult: Boolean;
   I: Integer;
@@ -364,6 +365,71 @@ begin
   AssertParseFailAndErrorContains(ParseResult, 'TIFF output compression already set but received: lzw', 'Invalid 2x TIFF');
   ParseResult := FCmdOptions.Parse(['-c', 'j80,trle,j99', 'in.png']); // 2x JPEG
   AssertParseFailAndErrorContains(ParseResult, 'JPEG output compression already set but received: 99', 'Invalid 2x JPEG');
+end;
+
+procedure TTestCmdLineOptions.TestTiffCompressionFromInput;
+const
+  Count = 6;
+  // Compression names as stored in metadata by TIFF loader
+  InputNames: array[1..Count] of string = ('None', 'LZW', 'Deflate', 'Packbits RLE', 'JPEG', 'CCITT Group 4 Fax');
+  Expected: array[1..Count] of Integer = (TiffCompressionOptionNone, TiffCompressionOptionLzw,
+    TiffCompressionOptionDeflate, TiffCompressionOptionPackbitsRle, TiffCompressionOptionJpeg,
+    TiffCompressionOptionGroup4);
+  JpegIndex = 5;
+var
+  Meta: TMetadata;
+  I: Integer;
+  Replaced: Boolean;
+
+  function Resolve(const Spec: string): Boolean;
+  begin
+    AssertParseSuccesAndEmptyError(FCmdOptions.Parse(['-c', Spec, 'in.tif']), Spec);
+    Result := FCmdOptions.TrySetTiffCompressionFromMetadata(Meta, Replaced);
+  end;
+
+begin
+  Meta := TMetadata.Create;
+  try
+    for I := Low(InputNames) to High(InputNames) do
+    begin
+      Meta.ClearMetaItems;
+      Meta.SetMetaItem(SMetaTiffCompressionName, InputNames[I]);
+
+      AssertTrue('input: resolved for ' + InputNames[I], Resolve('tinput'));
+      AssertEquals('input: scheme for ' + InputNames[I], Expected[I], FCmdOptions.TiffCompressionScheme);
+      AssertFalse('input: nothing replaced for ' + InputNames[I], Replaced);
+
+      AssertTrue('input-lossless: resolved for ' + InputNames[I], Resolve('tinput-lossless'));
+      if I = JpegIndex then
+      begin
+        AssertEquals('input-lossless: JPEG => LZW', TiffCompressionOptionLzw, FCmdOptions.TiffCompressionScheme);
+        AssertTrue('input-lossless: JPEG replaced', Replaced);
+      end
+      else
+      begin
+        AssertEquals('input-lossless: scheme for ' + InputNames[I], Expected[I], FCmdOptions.TiffCompressionScheme);
+        AssertFalse('input-lossless: nothing replaced for ' + InputNames[I], Replaced);
+      end;
+    end;
+
+    // Input scheme we cannot (or do not want to) write => default scheme
+    Meta.ClearMetaItems;
+    Meta.SetMetaItem(SMetaTiffCompressionName, 'Old JPEG');
+    AssertFalse('input: unsupported scheme', Resolve('tinput'));
+    AssertEquals('input: unsupported => default', -1, FCmdOptions.TiffCompressionScheme);
+    AssertFalse('input-lossless: unsupported scheme', Resolve('tinput-lossless'));
+    AssertEquals('input-lossless: unsupported => default', -1, FCmdOptions.TiffCompressionScheme);
+    AssertFalse('unsupported: nothing replaced', Replaced);
+
+    // Input without TIFF compression info (not a TIFF)
+    Meta.ClearMetaItems;
+    AssertFalse('input: no info', Resolve('tinput'));
+    AssertEquals('input: no info => default', -1, FCmdOptions.TiffCompressionScheme);
+    AssertFalse('input-lossless: no info', Resolve('tinput-lossless'));
+    AssertEquals('input-lossless: no info => default', -1, FCmdOptions.TiffCompressionScheme);
+  finally
+    Meta.Free;
+  end;
 end;
 
 procedure TTestCmdLineOptions.TestOperationalFlags;

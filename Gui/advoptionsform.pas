@@ -108,6 +108,8 @@ begin
   ComboTiffCompression.Items.Add('Deflate/ZLib');
   ComboTiffCompression.Items.Add('JPEG');
   ComboTiffCompression.Items.Add('Group 4 Fax');
+  ComboTiffCompression.Items.Add('As input');
+  ComboTiffCompression.Items.Add('As input (lossless)');
   ComboTiffCompression.ItemIndex := 0;
 
   if not Config.ShowDeskewExeOption then
