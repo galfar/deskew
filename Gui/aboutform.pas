@@ -40,7 +40,7 @@ var
 implementation
 
 uses
-  LCLIntf, DataModule, Config;
+  LCLIntf, DataModule, Config, Utils;
 
 {$R *.lfm}
 
@@ -56,7 +56,8 @@ begin
   {$IFDEF MSWINDOWS}Color := clWhite;{$ENDIF}
 
   LabTitle.Caption := Application.Title;
-  LabVersion.Caption := 'v' + Module.VersionString;
+  LabVersion.Caption := 'v' + Module.VersionString + ' (' + SBuildTarget
+    {$IFDEF DEBUG} + ', DEBUG'{$ENDIF} + ')';
   LabWeb.Caption := Config.WebLink;
 end;
 

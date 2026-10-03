@@ -21,6 +21,8 @@ const
   NullRect: TRect = (Left: 0; Top: 0; Right: 0; Bottom: 0);
   NullFloatRect: TFloatRect = (Left: 0; Top: 0; Right: 0; Bottom: 0);
 
+{$I BuildTarget.inc}
+
 // Checks if all rect values are zero
 function IsRectNull(const R: TRect): Boolean;
 // Checks if all rect values are zero. Exact bitwise zero - do not use
