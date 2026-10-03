@@ -225,7 +225,7 @@ procedure IndexSetDstPixel(Dst: PByte; DstInfo: PImageFormatInfo;
   Index: UInt32);
 
 
-{ Pixel readers/writers for 32bit and FP colors}
+{ Pixel readers/writers for 32bit, 64bit and FP colors}
 
 { Function for getting pixel colors. Native pixel is read from Image and
   then translated to 32 bit ARGB.}
@@ -235,6 +235,14 @@ function GetPixel32Generic(Bits: Pointer; Info: PImageFormatInfo;
     native format and then written to Image.}
 procedure SetPixel32Generic(Bits: Pointer; Info: PImageFormatInfo;
   Palette: PPalette32; const Color: TColor32Rec);
+{ Function for getting pixel colors. Native pixel is read from Image and
+  then translated to 64 bit ARGB (16 bits per channel).}
+function GetPixel64Generic(Bits: Pointer; Info: PImageFormatInfo;
+  Palette: PPalette32): TColor64Rec;
+{ Procedure for setting pixel colors. Input 64 bit ARGB color (16 bits per
+    channel) is translated to native format and then written to Image.}
+procedure SetPixel64Generic(Bits: Pointer; Info: PImageFormatInfo;
+  Palette: PPalette32; const Color: TColor64Rec);
 { Function for getting pixel colors. Native pixel is read from Image and
   then translated to FP ARGB.}
 function GetPixelFPGeneric(Bits: Pointer; Info: PImageFormatInfo;
@@ -1442,15 +1450,17 @@ begin
   ScaleX := (SrcWidth shl 16) div DstWidth;
   ScaleY := (SrcHeight shl 16) div DstHeight;
   Yp := 0;
+
   for Y := 0 to DstHeight - 1 do
   begin
     Xp := 0;
-    SrcLine := @PByteArray(SrcImage.Bits)[((SrcY + Yp shr 16) * SrcImage.Width + SrcX) * Info.BytesPerPixel];
-    DstPixel := @PByteArray(DstImage.Bits)[((DstY + Y) * DstImage.Width + DstX) * Info.BytesPerPixel];
+    SrcLine :=  PBuffer(SrcImage.Bits) + ((SrcY + Yp shr 16) * PtrInt(SrcImage.Width) + SrcX) * Info.BytesPerPixel;
+    DstPixel := PBuffer(DstImage.Bits) + ((DstY + Y)         * PtrInt(DstImage.Width) + DstX) * Info.BytesPerPixel;
+
     for X := 0 to DstWidth - 1 do
     begin
       case Info.BytesPerPixel of
-        1: PByte(DstPixel)^ := PByteArray(SrcLine)[Xp shr 16];
+        1: PByte(DstPixel)^ := PBuffer(SrcLine)[Xp shr 16];
         2: PWord(DstPixel)^ := PWordArray(SrcLine)[Xp shr 16];
         3: PColor24Rec(DstPixel)^ := PPalette24(SrcLine)[Xp shr 16];
         4: PColor32(DstPixel)^ := PUInt32Array(SrcLine)[Xp shr 16];
@@ -1777,12 +1787,10 @@ var
   DstLine: PByte;
   SrcFloat: TColorFPRec;
   Info: TImageFormatInfo;
-  BytesPerChannel: Integer;
 begin
   GetImageFormatInfo(SrcImage.Format, Info);
   Assert(SrcImage.Format = DstImage.Format);
   Assert(not Info.IsSpecial and not Info.IsIndexed);
-  BytesPerChannel := Info.BytesPerPixel div Info.ChannelCount;
 
   // Create horizontal and vertical mapping tables
   MapX := BuildMappingTable(DstX, DstX + DstWidth, SrcX, SrcX + SrcWidth,
@@ -1817,7 +1825,8 @@ begin
         begin
           // Accumulate this pixel's weighted value
           Weight := ClusterY[Y].Weight;
-          SrcFloat := Info.GetPixelFP(@PByteArray(SrcImage.Bits)[(ClusterY[Y].Pos * SrcImage.Width + X) * Info.BytesPerPixel], @Info, nil);
+          SrcFloat := Info.GetPixelFP(@PBuffer(SrcImage.Bits)[(ClusterY[Y].Pos * PtrInt(SrcImage.Width) + X) * Info.BytesPerPixel],
+            @Info, nil);
           AccumA := AccumA + SrcFloat.A * Weight;
           AccumR := AccumR + SrcFloat.R * Weight;
           AccumG := AccumG + SrcFloat.G * Weight;
@@ -1833,7 +1842,7 @@ begin
         end;
       end;
 
-      DstLine := @PByteArray(DstImage.Bits)[((J + DstY) * DstImage.Width + DstX) * Info.BytesPerPixel];
+      DstLine := @PBuffer(DstImage.Bits)[((J + DstY) * PtrInt(DstImage.Width) + DstX) * Info.BytesPerPixel];
       // Now compute final colors for target pixels in the current row
       // by sampling horizontally
       for I := 0 to DstWidth - 1 do
@@ -2056,7 +2065,7 @@ var
 begin
   W := Width * Bpp;
   for I := 0 to Height - 1 do
-    Move(PByteArray(DataIn)[I * W], PByteArray(DataOut)[I * WidthBytes], W);
+    Move(PBuffer(DataIn)[I * W], PBuffer(DataOut)[I * WidthBytes], W);
 end;
 
 procedure RemovePadBytes(DataIn: Pointer; DataOut: Pointer; Width, Height,
@@ -2066,7 +2075,7 @@ var
 begin
   W := Width * Bpp;
   for I := 0 to Height - 1 do
-    Move(PByteArray(DataIn)[I * WidthBytes], PByteArray(DataOut)[I * W], W);
+    Move(PBuffer(DataIn)[I * WidthBytes], PBuffer(DataOut)[I * W], W);
 end;
 
 procedure Convert1To8(DataIn, DataOut: PByte; Width, Height,
@@ -2077,7 +2086,7 @@ const
   Scaling: Byte = 255;
 var
   X, Y: LongInt;
-  InArray: PByteArray absolute DataIn;
+  InArray: PBuffer absolute DataIn;
 begin
   for Y := 0 to Height - 1 do
     for X := 0 to Width - 1 do
@@ -2097,7 +2106,7 @@ const
   Scaling: Byte = 85;
 var
   X, Y: LongInt;
-  InArray: PByteArray absolute DataIn;
+  InArray: PBuffer absolute DataIn;
 begin
   for Y := 0 to Height - 1 do
     for X := 0 to Width - 1 do
@@ -2117,7 +2126,7 @@ const
   Scaling: Byte = 17;
 var
   X, Y: LongInt;
-  InArray: PByteArray absolute DataIn;
+  InArray: PBuffer absolute DataIn;
 begin
   for Y := 0 to Height - 1 do
     for X := 0 to Width - 1 do
@@ -2198,7 +2207,7 @@ var
 begin
   Assert(not FormatInfo.IsSpecial);
   LineBytes := FormatInfo.GetPixelsSize(FormatInfo.Format, LineWidth, 1);
-  Result := @PByteArray(ImageBits)[Index * LineBytes];
+  Result := @PBuffer(ImageBits)[Index * LineBytes];
 end;
 
 function IsImageFormatValid(Format: TImageFormat): Boolean;
@@ -2678,7 +2687,7 @@ begin
 end;
 
 
-{ Pixel readers/writers for 32bit and FP colors}
+{ Pixel readers/writers for 32bit, 64bit and FP colors}
 
 function GetPixel32Generic(Bits: Pointer; Info: PImageFormatInfo; Palette: PPalette32): TColor32Rec;
 var
@@ -2770,6 +2779,90 @@ begin
     Pix64.G := MulDiv(Color.G, 65535, 255);
     Pix64.B := MulDiv(Color.B, 65535, 255);
     ChannelSetDstPixel(Bits, Info, Pix64);
+  end;
+end;
+
+function GetPixel64Generic(Bits: Pointer; Info: PImageFormatInfo; Palette: PPalette32): TColor64Rec;
+var
+  Pix32: TColor32Rec;
+  Pix64: TColor64Rec;
+  PixF: TColorFPRec;
+  Alpha: Word;
+  Index: UInt32;
+begin
+  if Info.Format = ifA16R16G16B16 then
+  begin
+    Result := PColor64Rec(Bits)^
+  end
+  else if Info.IsFloatingPoint then
+  begin
+    FloatGetSrcPixel(Bits, Info, PixF);
+    Result.A := ClampToWord(Round(PixF.A * 65535.0));
+    Result.R := ClampToWord(Round(PixF.R * 65535.0));
+    Result.G := ClampToWord(Round(PixF.G * 65535.0));
+    Result.B := ClampToWord(Round(PixF.B * 65535.0));
+  end
+  else if Info.HasGrayChannel then
+  begin
+    GrayGetSrcPixel(Bits, Info, Pix64, Alpha);
+    Result.A := Alpha;
+    Result.R := Pix64.A;
+    Result.G := Pix64.A;
+    Result.B := Pix64.A;
+  end
+  else if Info.IsIndexed then
+  begin
+    IndexGetSrcPixel(Bits, Info, Index);
+    Pix32 := Palette[Index];
+    Result.A := Pix32.A * 257;
+    Result.R := Pix32.R * 257;
+    Result.G := Pix32.G * 257;
+    Result.B := Pix32.B * 257;
+  end
+  else
+  begin
+    ChannelGetSrcPixel(Bits, Info, Result);
+  end;
+end;
+
+procedure SetPixel64Generic(Bits: Pointer; Info: PImageFormatInfo; Palette: PPalette32; const Color: TColor64Rec);
+var
+  Pix32: TColor32Rec;
+  Pix64: TColor64Rec;
+  PixF: TColorFPRec;
+  Index: UInt32;
+begin
+  if Info.Format = ifA16R16G16B16 then
+  begin
+    PColor64Rec(Bits)^ := Color
+  end
+  else if Info.IsFloatingPoint then
+  begin
+    PixF.A := Color.A * OneDiv16Bit;
+    PixF.R := Color.R * OneDiv16Bit;
+    PixF.G := Color.G * OneDiv16Bit;
+    PixF.B := Color.B * OneDiv16Bit;
+    FloatSetDstPixel(Bits, Info, PixF);
+  end
+  else if Info.HasGrayChannel then
+  begin
+    Pix64.Color := 0;
+    Pix64.A := ClampToWord(Round(GrayConv.R * Color.R + GrayConv.G * Color.G +
+      GrayConv.B * Color.B));
+    GraySetDstPixel(Bits, Info, Pix64, Color.A);
+  end
+  else if Info.IsIndexed then
+  begin
+    Pix32.A := Color.A shr 8;
+    Pix32.R := Color.R shr 8;
+    Pix32.G := Color.G shr 8;
+    Pix32.B := Color.B shr 8;
+    Index := FindColor(Palette, Info.PaletteEntries, Pix32.Color);
+    IndexSetDstPixel(Bits, Info, Index);
+  end
+  else
+  begin
+    ChannelSetDstPixel(Bits, Info, Color);
   end;
 end;
 
@@ -2966,14 +3059,14 @@ begin
   if (SrcInfo.Format = ifGray8) and (DstInfo.Format = ifGray16) then
   begin
     for I := 0 to NumPixels - 1 do
-      PWordArray(Dst)[I] := PByteArray(Src)[I] shl 8;
+      PWordArray(Dst)[I] := PBuffer(Src)[I] shl 8;
   end
   else
   begin
     if (DstInfo.Format = ifGray8) and (SrcInfo.Format = ifGray16) then
     begin
       for I := 0 to NumPixels - 1 do
-        PByteArray(Dst)[I] := PWordArray(Src)[I] shr 8;
+        PBuffer(Dst)[I] := PWordArray(Src)[I] shr 8;
     end
     else
       for I := 0 to NumPixels - 1 do
@@ -3654,7 +3747,7 @@ begin
     Result := Result or (Mask[I] shl (I shl 1));
 end;
 
-procedure GetAlphaMask(Ep0, Ep1: Byte; var Block: TPixelBlock; Mask: PByteArray);
+procedure GetAlphaMask(Ep0, Ep1: Byte; var Block: TPixelBlock; Mask: PBuffer);
 var
   Alphas: array[0..7] of Byte;
   M: array[0..15] of Byte;
@@ -3739,7 +3832,7 @@ begin
     begin
       GetBlock(Pixels, SrcBits, X, Y, Width, Height);
       for I := 0 to 7 do
-        PByteArray(@AlphaBlock.Alphas)[I] :=
+        PBuffer(@AlphaBlock.Alphas)[I] :=
           (Pixels[I shl 1].Alpha shr 4) or ((Pixels[I shl 1 + 1].Alpha shr 4) shl 4);
       GetEndpoints(Pixels, Block.Color0, Block.Color1);
       FixEndpoints(Block.Color0, Block.Color1, False);
@@ -3767,7 +3860,7 @@ begin
       Block.Mask := GetColorMask(Block.Color0, Block.Color1, 4, Pixels);
       GetAlphaEndPoints(Pixels, AlphaBlock.Alphas[1], AlphaBlock.Alphas[0]);
       GetAlphaMask(AlphaBlock.Alphas[0], AlphaBlock.Alphas[1], Pixels,
-        PByteArray(@AlphaBlock.Alphas[2]));
+        PBuffer(@AlphaBlock.Alphas[2]));
       PDXTAlphaBlockInt(DestBits)^ := AlphaBlock;
       Inc(DestBits, SizeOf(AlphaBlock));
       PDXTColorBlock(DestBits)^ := Block;
@@ -3802,7 +3895,7 @@ begin
       for I := 0 to 3 do
         for J := 0 to 3 do
         begin
-          Pixels[K] := PByteArray(SrcBits)[(Y shl 2 + I) * Width + X shl 2 + J];
+          Pixels[K] := PBuffer(SrcBits)[(Y shl 2 + I) * Width + X shl 2 + J];
           Inc(M, Pixels[K]);
           Inc(K);
         end;
@@ -3849,7 +3942,7 @@ begin
   for Y := 0 to 3 do
     for X := 0 to 3 do
     begin
-      Src := @PByteArray(SrcBits)[(YPos * 4 + Y) * Width * BytesPP +
+      Src := @PBuffer(SrcBits)[(YPos * 4 + Y) * Width * BytesPP +
         (XPos * 4 + X) * BytesPP + ChannelIdx];
       Block[I].Alpha := Src^;
       Inc(I);
@@ -3869,7 +3962,7 @@ begin
       GetOneChannelBlock(Pixels, SrcBits, X, Y, Width, Height, 1, 0);
       GetAlphaEndPoints(Pixels, AlphaBlock.Alphas[1], AlphaBlock.Alphas[0]);
       GetAlphaMask(AlphaBlock.Alphas[0], AlphaBlock.Alphas[1], Pixels,
-        PByteArray(@AlphaBlock.Alphas[2]));
+        PBuffer(@AlphaBlock.Alphas[2]));
       PDXTAlphaBlockInt(DestBits)^ := AlphaBlock;
       Inc(DestBits, SizeOf(AlphaBlock));
     end;
@@ -3888,14 +3981,14 @@ begin
       GetOneChannelBlock(Pixels, SrcBits, X, Y, Width, Height, 4, ChannelRed);
       GetAlphaEndPoints(Pixels, AlphaBlock.Alphas[1], AlphaBlock.Alphas[0]);
       GetAlphaMask(AlphaBlock.Alphas[0], AlphaBlock.Alphas[1], Pixels,
-        PByteArray(@AlphaBlock.Alphas[2]));
+        PBuffer(@AlphaBlock.Alphas[2]));
       PDXTAlphaBlockInt(DestBits)^ := AlphaBlock;
       Inc(DestBits, SizeOf(AlphaBlock));
       // Encode Green/Y channel
       GetOneChannelBlock(Pixels, SrcBits, X, Y, Width, Height, 4, ChannelGreen);
       GetAlphaEndPoints(Pixels, AlphaBlock.Alphas[1], AlphaBlock.Alphas[0]);
       GetAlphaMask(AlphaBlock.Alphas[0], AlphaBlock.Alphas[1], Pixels,
-        PByteArray(@AlphaBlock.Alphas[2]));
+        PBuffer(@AlphaBlock.Alphas[2]));
       PDXTAlphaBlockInt(DestBits)^ := AlphaBlock;
       Inc(DestBits, SizeOf(AlphaBlock));
     end;
@@ -3904,7 +3997,7 @@ end;
 procedure EncodeBinary(SrcBits: Pointer; DestBits: PByte; Width, Height: Integer);
 var
   Src: PByte absolute SrcBits;
-  Bitmap: PByteArray absolute DestBits;
+  Bitmap: PBuffer absolute DestBits;
   X, Y, WidthBytes: Integer;
   PixelThresholded, Threshold: Byte;
 begin
@@ -3945,7 +4038,7 @@ begin
       for I := 0 to 3 do
         for J := 0 to 3 do
         begin
-          Dest := @PByteArray(DestBits)[(Y shl 2 + I) * Width + X shl 2 + J];
+          Dest := @PBuffer(DestBits)[(Y shl 2 + I) * Width + X shl 2 + J];
           if Block.BitField and (1 shl K) <> 0 then
             Dest^ := Block.MUpper
           else
@@ -3978,7 +4071,7 @@ begin
       for J := 0 to 3 do
        for I := 0 to 3 do
        begin
-         PByteArray(DestBits)[(Y shl 2 + J) * Width + (X shl 2 + I)] :=
+         PBuffer(DestBits)[(Y shl 2 + J) * Width + (X shl 2 + I)] :=
            AlphaBlock.Alphas[AMask[J shr 1] and 7];
          AMask[J shr 1] := AMask[J shr 1] shr 3;
        end;
@@ -4067,7 +4160,7 @@ var
 
   procedure CheckSize(var Img: TImageData; Info: PImageFormatInfo);
   var
-    Width, Height: LongInt;
+    Width, Height: Integer;
   begin
     Width := Img.Width;
     Height := Img.Height;

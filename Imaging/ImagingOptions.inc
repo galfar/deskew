@@ -10,12 +10,12 @@
 {$DEFINE USE_ASM}             // If defined, assembler versions of some
                               // functions will be used (only for x86).
 
-                              // Debug options: If none of these two are defined
-                              // your project settings are used.
-{.$DEFINE IMAGING_DEBUG}      // If defined, debug info, range/IO/overflow
-                              // checking, stack frames, assertions, and
-                              // other debugging options will be turned on.
-{.$DEFINE IMAGING_RELEASE}    // If defined, all debug info is off.
+{.$DEFINE FORCE_DEBUG}      // Normally, Imaging takes DEBUG/RELEASE compiler options
+                            // as defined for project/program.
+                            // If needed, debug options can be forced with this define.
+                            // If defined, debug info, range/IO/overflow
+                            // checking, stack frames, assertions, and
+                            // other debugging options will be turned on.
 
 
 
@@ -44,6 +44,13 @@
                              // ImagingExtFileFormats.pas unit.
 
 {.$DEFINE DONT_LINK_FILE_FORMATS} // no auto link support of any file format
+
+// Application-specific options: define IMAGING_USER_OPTIONS and put your own
+// ImagingUserOptions.inc on the include path (outside the Imaging folders).
+// It can (un)define anything from the User Options section above.
+{$IFDEF IMAGING_USER_OPTIONS}
+  {$I ImagingUserOptions.inc}
+{$ENDIF}
 
 {
   Auto Options
@@ -82,11 +89,8 @@
   {$ENDIF}
 {$IFEND}
 
-{$IFDEF DEBUG}
-  {$DEFINE IMAGING_DEBUG}
-{$ENDIF}
-
-{$IF Defined(IMAGING_DEBUG)}
+{$IFDEF FORCE_DEBUG}
+  {$DEFINE DEBUG}
   {$ASSERTIONS ON}
   {$DEBUGINFO ON}
   {$RANGECHECKS ON}
@@ -101,21 +105,7 @@
   {$IFDEF FPC}
     {$S+}
   {$ENDIF}
-{$ELSEIF Defined(IMAGING_RELEASE)}
-  {$ASSERTIONS OFF}
-  {$DEBUGINFO OFF}
-  {$RANGECHECKS OFF}
-  {$IOCHECKS OFF}
-  {$OVERFLOWCHECKS OFF}
-  {$IFDEF DCC}
-    {$OPTIMIZATION ON}
-    {$STACKFRAMES OFF}
-    {$LOCALSYMBOLS OFF}
-  {$ENDIF}
-  {$IFDEF FPC}
-    {$S-}
-  {$ENDIF}
-{$IFEND}
+{$ENDIF}
 
 {$IF Defined(CPU86) and not Defined(CPUX86)}
   {$DEFINE CPUX86} // Compatibility with Delphi
@@ -227,15 +217,4 @@
   {$INLINE ON}             // turns inlining on for compilers that support it
 {$ENDIF}
 
-// -------------------------------------------------------
-// DESKEW Options
-// -------------------------------------------------------
-
-// core formats
-{$DEFINE DONT_LINK_RADHDR}
-
-// from ImagingExtFileFormats.pas
-{$DEFINE DONT_LINK_JPEG2000}
-{$DEFINE DONT_LINK_PCX}
-{$DEFINE DONT_LINK_XPM}
 

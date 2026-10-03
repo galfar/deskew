@@ -790,13 +790,13 @@ var
 begin
   L := Length(S);
   I := 1;
-  while (I <= L) and (S[I] in CharSet) do
+  while (I <= L) and CharInSet(S[I], CharSet) do
     Inc(I);
   if I > L then
     Result := ''
   else
   begin
-    while S[L] in CharSet do
+    while CharInSet(S[L], CharSet) do
       Dec(L);
     Result := Copy(S, I, L - I + 1);
   end;
@@ -808,7 +808,7 @@ var
 begin
   L := Length(S);
   I := 1;
-  while (I <= L) and (S[I] in CharSet) do
+  while (I <= L) and CharInSet(S[I], CharSet) do
     Inc(I);
   Result := Copy(S, I, MaxInt);
 end;

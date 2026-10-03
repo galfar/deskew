@@ -15,7 +15,7 @@ type
 {$IFNDEF FPC}
 {$IF CompilerVersion <= 18.5}
   SizeInt = Integer;
-  PtrUInt = LongWord;
+  PtrUInt = Cardinal;
 {$ELSE}
   SizeInt = NativeInt;
   PtrUInt = NativeUInt;
@@ -35,11 +35,23 @@ function  snprintf(buffer: Pointer; n: Integer; format: Pointer; arguments: va_l
 function  fputs(s: Pointer; stream: Pointer): Integer; cdecl; external SRuntimeLib;
 function  fputc(c: Integer; stream: Pointer): Integer; cdecl; external SRuntimeLib;
 function  isprint(c: Integer): Integer; cdecl; external SRuntimeLib;
+
+function  memcmp(a, b: Pointer; c:SizeInt):Integer; cdecl; {$ifdef FPC}[public];{$endif}
 procedure memset(a: Pointer; b: Integer; c: SizeInt); cdecl; {$ifdef FPC}[public];{$endif}
 function  memcpy(dest: Pointer; const src: Pointer; count: SizeInt): Pointer; cdecl; {$ifdef FPC}[public];{$endif}
-function  memcmp(a, b: Pointer; c:SizeInt):Integer; cdecl; {$ifdef FPC}[public];{$endif}
-function  malloc(s: Longint): Pointer; cdecl; {$ifdef FPC}[public];{$endif}
+
+// Do not implement malloc/free in Pascal, rather import from C RTL.
+// It happens that other linked objects (OpenJpeg) pickup one of these
+// (instead of their linked C RTL) and crash (e.g. Pascal malloc + C free).
+{$IFDEF CPUX86}
+function  malloc(s: SizeInt): Pointer; cdecl; external SRuntimeLib;
+procedure free(p: Pointer); cdecl; external SRuntimeLib;
+{$ELSE}
+// 64 bit FPC does not pickup externals when linking the objects, needs local wrappers
+function  malloc(s: SizeInt): Pointer; cdecl; {$ifdef FPC}[public];{$endif}
 procedure free(p: Pointer); cdecl; {$ifdef FPC}[public];{$endif}
+{$ENDIF}
+
 {$ifndef FPC}
 function  _ftol: Integer; cdecl; external SRuntimeLib;
 function  _ltolower(ch: Integer): Integer; cdecl; external SRuntimeLib;
@@ -102,15 +114,20 @@ begin
 end;
 {$endif}
 
+{$IFNDEF CPUX86}
+function _crt_malloc(s: SizeInt): Pointer; cdecl; external SRuntimeLib name 'malloc';
+procedure _crt_free(p: Pointer); cdecl; external SRuntimeLib name 'free';
+
 procedure free(p: Pointer); cdecl;
 begin
-  FreeMem(p);
+  _crt_free(p);
 end;
 
-function malloc(s: Longint): Pointer; cdecl;
+function malloc(s: SizeInt): Pointer; cdecl;
 begin
-  Result := AllocMem(s);
+  Result := _crt_malloc(s);
 end;
+{$ENDIF}
 
 function memcpy(dest: Pointer; const src: Pointer; count: SizeInt): Pointer; cdecl;
 begin
@@ -120,7 +137,7 @@ end;
 
 procedure memset(a: Pointer; b: Integer; c: SizeInt); cdecl;
 begin
-  system.FillChar(a^,c,b);
+  FillChar(a^,c,b);
 end;
 
 function memcmp(a, b: Pointer; c: SizeInt): Integer; cdecl; {$ifdef FPC}[public];{$endif}

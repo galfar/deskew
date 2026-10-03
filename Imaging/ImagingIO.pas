@@ -73,8 +73,8 @@ type
       when destroyed. }
     constructor Create(const AIOFunctions: TIOFunctions; AHandle: TImagingHandle);
 
-    function Read(var Buffer; Count: TIOReadWriteCount): TIOReadWriteCount; override;
-    function Write(const Buffer; Count: TIOReadWriteCount): TIOReadWriteCount; override;
+    function Read(var Buffer; Count: LongInt): LongInt; override;
+    function Write(const Buffer; Count: LongInt): LongInt; override;
     function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
 
 {$IFNDEF FPC}
@@ -162,7 +162,7 @@ end;
 
 procedure TBufferedStream.ReadBuffer;
 var
-  SeekResult: Integer;
+  SeekResult: Int64;
 begin
   SeekResult := FStream.Seek(FBufStart, soBeginning);
   if SeekResult = -1 then
@@ -174,7 +174,7 @@ end;
 
 procedure TBufferedStream.WriteBuffer;
 var
-  SeekResult: Integer;
+  SeekResult: Int64;
   BytesWritten: Integer;
 begin
   SeekResult := FStream.Seek(FBufStart, soBeginning);
@@ -394,7 +394,7 @@ begin
   raise EStreamError.CreateFmt('%s does not support SetSize', [ClassName]);
 end;
 
-function TImagingIOStream.Read(var Buffer; Count: TIOReadWriteCount): TIOReadWriteCount;
+function TImagingIOStream.Read(var Buffer; Count: LongInt): LongInt;
 begin
   Result := 0;
   if Count < 0 then raise EStreamError.Create('Read count cannot be negative');
@@ -403,7 +403,7 @@ begin
   Result := FIO.Read(FHandle, @Buffer, Count);
 end;
 
-function TImagingIOStream.Write(const Buffer; Count: TIOReadWriteCount): TIOReadWriteCount;
+function TImagingIOStream.Write(const Buffer; Count: LongInt): LongInt;
 begin
   Result := 0;
   if Count < 0 then raise EStreamError.Create('Write count cannot be negative');
