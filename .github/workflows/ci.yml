@@ -1,7 +1,7 @@
 name: CI
 
 on:
-  # on each push and manual trigger
+  # On each push and manual trigger
   push:
     branches: [ master ]
     paths-ignore: [ "**/Readme.md" ]
@@ -11,6 +11,15 @@ permissions:
   contents: read
 
 jobs:
+  imaging-sync-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      # Bundled Imaging must match the imaginglib commit recorded in Imaging/IMAGING_SYNC.txt
+      - name: Check Imaging/ is in sync
+        run: ./Scripts/sync_imaging.sh check
+
   build:
     name: build (${{ matrix.operating-system }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.operating-system }}

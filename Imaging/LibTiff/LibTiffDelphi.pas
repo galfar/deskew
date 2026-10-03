@@ -9,9 +9,11 @@
 unit LibTiffDelphi;
 
 {$IFDEF FPC}
+  // libtiff 4.0.3 (BigTIFF support)
   {$MODE OBJFPC}
-  {$DEFINE VER403} // libtiff 4.0.3
+  {$DEFINE VER403}
 {$ELSE}
+  // libtiff 3.9.4
   {$DEFINE DCC}
   {$ALIGN 8}
   {$MINENUMSIZE 1}
@@ -32,14 +34,13 @@ type
     UInt32 = Cardinal;
   {$IFEND}
 {$IFEND}
+
   tmsize_t = SizeInt;
-  tsize_t = SizeInt;
+  tsize_t = tmsize_t;
   toff_t = {$ifdef VER403}Int64{$else}Integer{$endif};
   poff_t = ^toff_t;
   tsample_t = Word;
-  // Beware: THandle is 32bit in size even on 64bit Linux - this may cause
-  // problems as pointers to client data are passed in thandle_t vars.
-  thandle_t = THandle;
+  thandle_t = Pointer;
   tdata_t = Pointer;
   ttag_t = UInt32;
   tdir_t = Word;
@@ -455,20 +456,17 @@ const
   EXIFTAG_IMAGEUNIQUEID                 = 42016;   { Unique image ID (in exif ver.2.2) }
 
 type
-
   PTIFF = Pointer;
   PTIFFRGBAImage = Pointer;
 
-  TIFFErrorHandler = procedure(Module: PAnsiChar; Format: PAnsiChar; Params: va_list); cdecl;
-  LibTiffDelphiErrorHandler = procedure(const a,b: AnsiString);
-  TIFFReadWriteProc = function(Fd: THandle; Buffer: Pointer; Size: tmsize_t): Integer; cdecl;
-  TIFFCloseProc = function(Fd: THandle): Integer; cdecl;
-  TIFFSeekProc = function(Fd: THandle; Off: toff_t; Whence: Integer): toff_t; cdecl;
-  TIFFSizeProc = function(Fd: THandle): toff_t; cdecl;
-  TIFFMapFileProc = function(Fd: THandle; PBase: PPointer; PSize: poff_t): Integer; cdecl;
-  TIFFUnmapFileProc = procedure(Fd: THandle; Base: Pointer; Size: toff_t); cdecl;
+  TIFFReadWriteProc = function(handle: thandle_t; buf: tdata_t; size: tmsize_t): tmsize_t; cdecl;
+  TIFFSeekProc = function(handle: thandle_t; off: toff_t; whence: Integer): toff_t; cdecl;
+  TIFFCloseProc = function(handle: thandle_t): Integer; cdecl;
+  TIFFSizeProc = function(handle: thandle_t): toff_t; cdecl;
+  TIFFMapFileProc = function(handle: thandle_t; var pbase: tdata_t; var psize: toff_t): Integer; cdecl;
+  TIFFUnmapFileProc = procedure(handle: thandle_t; base: tdata_t; size: toff_t); cdecl;
   TIFFExtendProc = procedure(Handle: PTIFF); cdecl;
-
+  TIFFErrorHandler = procedure(Module: PAnsiChar; Format: PAnsiChar; Params: va_list); cdecl;
   TIFFInitMethod = function(Handle: PTIFF; Scheme: Integer): Integer; cdecl;
 
   PTIFFCodec = ^TIFFCodec;
@@ -504,10 +502,9 @@ procedure TIFFUnRegisterCODEC(c: PTIFFCodec); cdecl; external;
 function  TIFFIsCODECConfigured(Scheme: Word): Integer; cdecl; external;
 function  TIFFGetConfiguredCODECs: PTIFFCodec; cdecl; external;
 
-function  TIFFOpen(const Name: AnsiString; const Mode: AnsiString): PTIFF;
 function  TIFFClientOpen(Name: PAnsiChar;
                          Mode: PAnsiChar;
-                         ClientData: THandle;
+                         ClientData: thandle_t;
                          ReadProc: TIFFReadWriteProc;
                          WriteProc: TIFFReadWriteProc;
                          SeekProc: TIFFSeekProc;
@@ -519,8 +516,8 @@ procedure TIFFCleanup(Handle: PTIFF); cdecl; external;
 procedure TIFFClose(Handle: PTIFF); cdecl; external;
 function  TIFFFileno(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFSetFileno(Handle: PTIFF; Newvalue: Integer): Integer; cdecl; external;
-function  TIFFClientdata(Handle: PTIFF): THandle; cdecl; external;
-function  TIFFSetClientdata(Handle: PTIFF; Newvalue: THandle): THandle; cdecl; external;
+function  TIFFClientdata(Handle: PTIFF): thandle_t; cdecl; external;
+function  TIFFSetClientdata(Handle: PTIFF; Newvalue: thandle_t): thandle_t; cdecl; external;
 function  TIFFGetMode(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFSetMode(Handle: PTIFF; Mode: Integer): Integer; cdecl; external;
 function  TIFFFileName(Handle: PTIFF): Pointer; cdecl; external;
@@ -544,11 +541,11 @@ function  TIFFReadEXIFDirectory(Handle: PTIFF; Diroff: toff_t): Integer; cdecl; 
 
 function  TIFFReadDirectory(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFCurrentDirectory(Handle: PTIFF): Word; cdecl; external;
-function  TIFFCurrentDirOffset(Handle: PTIFF): {$ifdef VER403}int64{$else}Cardinal{$endif}; cdecl; external;
+function  TIFFCurrentDirOffset(Handle: PTIFF): toff_t; cdecl; external;
 function  TIFFLastDirectory(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFNumberOfDirectories(Handle: PTIFF): Word; cdecl; external;
 function  TIFFSetDirectory(Handle: PTIFF; Dirn: Word): Integer; cdecl; external;
-function  TIFFSetSubDirectory(Handle: PTIFF; Diroff: {$ifdef VER403}int64{$else}Cardinal{$endif}): Integer; cdecl; external;
+function  TIFFSetSubDirectory(Handle: PTIFF; Diroff: toff_t): Integer; cdecl; external;
 function  TIFFCreateDirectory(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFWriteDirectory(Handle: PTIFF): Integer; cdecl; external;
 function  TIFFUnlinkDirectory(handle: PTIFF; Dirn: Word): Integer; cdecl; external;
@@ -671,7 +668,6 @@ function  strlen(s: Pointer): Cardinal; cdecl; forward; {$ifdef FPC}[public];{$e
 function  strcmp(a: Pointer; b: Pointer): Integer; cdecl; forward; {$ifdef FPC}[public];{$endif}
 function  strncmp(a: Pointer; b: Pointer; c: Longint): Integer; cdecl; forward; {$ifdef FPC}[public];{$endif}
 procedure qsort(base: Pointer; num: Cardinal; width: Cardinal; compare: TCompareFunc); cdecl; forward; {$ifdef FPC}[public];{$endif}
-//DW function  bsearch(key: Pointer; base: Pointer; nelem: Cardinal; width: Cardinal; fcmp: TCompareFunc): Pointer; cdecl; forward;
 function  memmove(dest: Pointer; src: Pointer; n: Cardinal): Pointer; cdecl; forward; {$ifdef FPC}[public];{$endif}
 function  strchr(s: Pointer; c: Integer): Pointer; cdecl; forward; {$ifdef FPC}[public];{$endif}
 
@@ -1336,136 +1332,6 @@ const
        (name:'SGILog24'; scheme: COMPRESSION_SGILOG24; init: TIFFInitSGILog),
        (name:nil; scheme:0; init:nil));
 }
-
-{LibTiffDelphi}
-
-function  TIFFFileReadProc(Fd: THandle; Buffer: Pointer; Size: Integer): Integer; cdecl; forward;
-function  TIFFFileWriteProc(Fd: THandle; Buffer: Pointer; Size: Integer): Integer; cdecl; forward;
-function  TIFFFileSizeProc(Fd: THandle): {$ifdef VER403}int64{$else}Cardinal{$endif}; cdecl; forward;
-function  TIFFFileSeekProc(Fd: THandle; Off: {$ifdef VER403}int64{$else}Cardinal{$endif}; Whence: Integer): {$ifdef VER403}int64{$else}Cardinal{$endif}; cdecl; forward;
-function  TIFFFileCloseProc(Fd: THandle): Integer; cdecl; forward;
-
-function  TIFFNoMapProc(Fd: THandle; PBase: PPointer; PSize: {$ifdef VER403}PInt64{$else}PCardinal{$endif}): Integer; cdecl; forward;
-procedure TIFFNoUnmapProc(Fd: THandle; Base: Pointer; Size: {$ifdef VER403}int64{$else}Cardinal{$endif}); cdecl; forward;
-
-function TIFFFileCloseProc(Fd: THandle): Integer; cdecl;
-begin
-  FileClose(Fd);
-  Result:=0;
-  {
-  if CloseHandle(Fd)=True then
-    Result:=0
-  else
-    Result:=-1;
-  }
-end;
-
-const
-  SEEK_SET = 0;
-  SEEK_CUR = 1;
-  SEEK_END = 2;
-
-function TIFFFileSizeProc(Fd: THandle): {$ifdef VER403}int64{$else}Cardinal{$endif}; cdecl;
-begin
-  Result := FileSeek(fd, 0, SEEK_END);
-  {$ifndef VER403}
-  if Result <> UInt32(-1) then
-    Result := 0;
-  {$endif}
-  //Result:=GetFileSize(Fd,nil);
-end;
-
-function TIFFFileSeekProc(Fd: THandle; Off: {$ifdef VER403}int64{$else}Cardinal{$endif}; Whence: Integer): {$ifdef VER403}int64{$else}Cardinal{$endif}; cdecl;
-begin
-  if Off = UInt32(-1) then
-  begin
-    Result := UInt32(-1);
-    exit;
-  end;
-  Result := FileSeek(Fd,Off,Whence);
-end;
-
-function TIFFFileReadProc(Fd: THandle; Buffer: Pointer; Size: Integer): Integer; cdecl;
-begin
-  Result:=FileRead(Fd,Buffer^,Cardinal(Size));
-  if Result<0 then
-   Result:=0;
-end;
-
-function TIFFFileWriteProc(Fd: THandle; Buffer: Pointer; Size: Integer): Integer; cdecl;
-begin
-  Result:=FileWrite(Fd,Buffer^,Cardinal(Size));
-  if Result<0 then
-    Result:=0;
-end;
-
-function TIFFNoMapProc(Fd: THandle; PBase: PPointer; PSize: {$ifdef VER403}PInt64{$else}PCardinal{$endif}): Integer; cdecl;
-begin
-  Result:=0;
-end;
-
-procedure TIFFNoUnmapProc(Fd: THandle; Base: Pointer; Size: {$ifdef VER403}int64{$else}Cardinal{$endif}); cdecl;
-begin
-end;
-
-function TIFFOpen(const Name: AnsiString; const Mode: AnsiString): PTIFF;
-const
-  Module: AnsiString = 'TIFFOpen';
-  O_RDONLY = 0;
-  O_WRONLY = 1;
-  O_RDWR = 2;
-  O_CREAT = $0100;
-  O_TRUNC = $0200;
-var
-  m: Integer;
-  DesiredAccess: Cardinal;
-  fd: THandle;
-  InvalidHandle: THandle;
-begin
-  m:=_TIFFgetMode(PAnsiChar(Mode),PAnsiChar(Module));
-  if m=o_RDONLY then
-    DesiredAccess:=fmOpenRead
-  else
-    DesiredAccess:=fmOpenReadWrite;
-
-  case m of
-    O_RDONLY: DesiredAccess:=fmOpenRead;
-    O_RDWR: DesiredAccess:=fmOpenReadWrite;
-    (O_RDWR or O_CREAT): DesiredAccess:=DesiredAccess or fmCreate;
-    (O_RDWR or O_TRUNC): DesiredAccess:=fmCreate;
-    (O_RDWR or O_CREAT or O_TRUNC): DesiredAccess:=fmCreate;
-  else
-    Result:=nil;
-    exit;
-  end;
-
-{$IFDEF DCC}
-  InvalidHandle := INVALID_HANDLE_VALUE;
-{$ELSE}
-  InvalidHandle := feInvalidHandle;
-{$ENDIF}
-
-  if DesiredAccess = fmCreate then
-    fd := FileCreate(Name, fmShareDenyWrite)
-  else
-    fd := FileOpen(Name, fmShareDenyWrite or DesiredAccess);
-
-  if fd = InvalidHandle then
-  begin
-    TiffError(PAnsiChar(Module), PAnsiChar('Cannot open file: ' + Name), nil);
-    Result:=nil;
-    exit;
-  end;
-
-  Result := TIFFClientOpen(PAnsiChar(Name), PAnsiChar(Mode), fd,
-              TIFFReadWriteProc(@TIFFFileReadProc), TIFFReadWriteProc(@TIFFFileWriteProc), TIFFSeekProc(@TIFFFileSeekProc), TIFFCloseProc(@TIFFFileCloseProc),
-              TIFFSizeProc(@TIFFFileSizeProc), TIFFMapFileProc(@TIFFNoMapProc), TIFFUnmapFileProc(@TIFFNoUnmapProc));
-
-  if Result <> nil then
-    TIFFSetFileno(Result,fd)
-  else
-    FileClose(fd);
-end;
 
 {$IF Defined(DCC) and Defined(MSWINDOWS) and not Defined(CPUX64)}
   // Delphi Win32

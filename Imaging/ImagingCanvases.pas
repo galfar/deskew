@@ -1450,7 +1450,7 @@ begin
       for Y := 0 to Length(ClusterY) - 1 do
       begin
         Weight := ClusterY[Y].Weight;
-        SrcPix := FFormatInfo.GetPixelFP(@PByteArray(FPData.Bits)[(ClusterY[Y].Pos * FPData.Width + X) * SrcBpp],
+        SrcPix := FFormatInfo.GetPixelFP(@PBuffer(FPData.Bits)[(ClusterY[Y].Pos * PtrInt(FPData.Width) + X) * SrcBpp],
           @FFormatInfo, FPData.Palette);
         AccumB := AccumB + SrcPix.B * Weight;
         AccumG := AccumG + SrcPix.G * Weight;
@@ -1466,7 +1466,7 @@ begin
       end;
     end;
 
-    DestLine := @PByteArray(DestCanvas.FPData.Bits)[((J + DestY) * DestCanvas.FPData.Width + DestX) * DestBpp];
+    DestLine := @PBuffer(DestCanvas.FPData.Bits)[((J + DestY) * PtrInt(DestCanvas.FPData.Width) + DestX) * DestBpp];
 
     for I := 0 to DestWidth - 1 do
     begin

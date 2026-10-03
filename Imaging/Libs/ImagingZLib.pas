@@ -22,100 +22,85 @@
     Default implementation is IMPASZLIB because it can be compiled
   by all supported compilers and works on all supported platforms.
     FPCPASZLIB is useful for Lazarus applications. FPC's zlib is linked
-  to exe by default so there is no need to link additional (and almost identical)
-  IMPASZLIB.
-
-  There is a small speed comparison table of some of the
-  supported implementations (TGA image 28 311 570 bytes, compression level = 6,
-  Delphi 9, Win32, Athlon XP 1900).
-
-                 ZLib version Decompression  Compression   Comp. Size
-  IMPASZLIB     |   1.1.2   |    824 ms    |  4 280 ms  |  18 760 133 B
-  ZLIBEX        |   1.2.2   |    710 ms    |  1 590 ms* |  19 056 621 B
-  DELPHIZLIB    |   1.0.4   |    976 ms    |  9 190 ms  |  18 365 562 B
-  ZLIBPAS       |   1.2.3   |    680 ms    |  3 790  ms |  18 365 387 B
-    * obj files are compiled with compression level hardcoded to 1 (fastest)
+  to exe by default so there is no need to link additional (and almost identical) IMPASZLIB.
 }
 
-unit dzlib;
+unit ImagingZLib;
 
 {$I ImagingOptions.inc}
 
 interface
 
-{$DEFINE IMPASZLIB}
-{ $DEFINE ZLIBPAS}
+{ $DEFINE IMPASZLIB}
+{ $DEFINE ZLIB_DYNLIB}
+
 { $DEFINE FPCPASZLIB}
-{ $DEFINE ZLIBEX}
 { $DEFINE DELPHIZLIB}
 
-{ Automatically use FPC's PasZLib when compiling with FPC.}
+{$IF not Defined(IMPASZLIB) and not Defined(ZLIB_DYNLIB)}
+  {$DEFINE NO_USER_ZLIB}
+{$IFEND}
 
-{$IFDEF FPC}
-  {$UNDEF IMPASZLIB}
+
+{$IF Defined(FPC) and Defined(NO_USER_ZLIB)}
+  { Automatically use FPC's PasZLib when compiling with FPC.}
   {$DEFINE FPCPASZLIB}
-{$ENDIF}
+{$IFEND}
+
+{$IF Defined(DELPHI) and (CompilerVersion > 23) and Defined(NO_USER_ZLIB)}
+  { Automatically use Delphi's ZLib when compiling with Delphi (recent versions include
+    recentish ZLib compiled to objects, can be 2x faster than IMPASZLIB).
+    Needs Delphi XE2+ for deflateInit2 etc.}
+  {$DEFINE DELPHIZLIB}
+{$IFEND}
+
+{$IF not Defined(FPCPASZLIB) and not Defined(DELPHIZLIB) and not Defined(ZLIB_DYNLIB)}
+  {$DEFINE IMPASZLIB}  // Fallback
+{$IFEND}
 
 uses
 {$IF Defined(IMPASZLIB)}
-  { Use paszlib modified by me for Delphi and FPC }
-  imzdeflate, imzinflate, impaszlib,
+  { Use paszlib modified by me for Delphi and FPC. Fall-back solution. }
+  ImPasZLib,
 {$ELSEIF Defined(FPCPASZLIB)}
   { Use FPC's paszlib }
   zbase, paszlib,
-{$ELSEIF Defined(ZLIBPAS)}
-  { Pascal interface to ZLib shipped with ZLib C source }
-  zlibpas,
-{$ELSEIF Defined(ZLIBEX)}
-  { Use ZlibEx unit }
-  ZLibEx,
 {$ELSEIF Defined(DELPHIZLIB)}
   { Use ZLib unit shipped with Delphi }
   ZLib,
+{$ELSEIF Defined(ZLIB_DYNLIB)}
+  { Use zlib dll/so/dylib. Can also use zlib-ng compat. }
+  ZLibDynLib,
 {$IFEND}
   ImagingTypes, SysUtils, Classes;
 
-{$IF Defined(IMPASZLIB) or Defined(FPCPASZLIB) or Defined(ZLIBPAS)}
+{$IF not Defined(TZStreamRec)}
 type
   TZStreamRec = z_stream;
 {$IFEND}
 
-const
-  Z_NO_FLUSH      = 0;
-  Z_PARTIAL_FLUSH = 1;
-  Z_SYNC_FLUSH    = 2;
-  Z_FULL_FLUSH    = 3;
-  Z_FINISH        = 4;
+  { CompressBuf compresses data, buffer to buffer, in one call.
+   In: InBuf = ptr to compressed data
+       InBytes = number of bytes in InBuf
+  Out: OutBuf = ptr to newly allocated buffer containing decompressed data
+       OutBytes = number of bytes in OutBuf   }
+  procedure CompressBuf(const InBuf: Pointer; InBytes: Integer;
+    var OutBuf: Pointer; var OutBytes: Integer;
+    CompressLevel: Integer = Z_DEFAULT_COMPRESSION;
+    CompressStrategy: Integer = Z_DEFAULT_STRATEGY);
 
-  Z_OK            =  0;
-  Z_STREAM_END    =  1;
-  Z_NEED_DICT     =  2;
-  Z_ERRNO         = -1;
-  Z_STREAM_ERROR  = -2;
-  Z_DATA_ERROR    = -3;
-  Z_MEM_ERROR     = -4;
-  Z_BUF_ERROR     = -5;
-  Z_VERSION_ERROR = -6;
-
-  Z_NO_COMPRESSION       =  0;
-  Z_BEST_SPEED           =  1;
-  Z_BEST_COMPRESSION     =  9;
-  Z_DEFAULT_COMPRESSION  = -1;
-
-  Z_FILTERED            = 1;
-  Z_HUFFMAN_ONLY        = 2;
-  Z_RLE                 = 3;
-  Z_DEFAULT_STRATEGY    = 0;
-
-  Z_BINARY   = 0;
-  Z_ASCII    = 1;
-  Z_UNKNOWN  = 2;
-
-  Z_DEFLATED = 8;
+  { DecompressBuf decompresses data, buffer to buffer, in one call.
+     In: InBuf = ptr to compressed data
+         InBytes = number of bytes in InBuf
+         OutEstimate = zero, or est. size of the decompressed data
+    Out: OutBuf = ptr to newly allocated buffer containing decompressed data
+         OutBytes = number of bytes in OutBuf   }
+  procedure DecompressBuf(const InBuf: Pointer; InBytes: Integer;
+    OutEstimate: Integer; var OutBuf: Pointer; var OutBytes: Integer);
 
 type
   { Abstract ancestor class }
-  TCustomZlibStream = class(TStream)
+  TCustomZLibStream = class(TStream)
   private
     FStrm: TStream;
     FStrmPos: Integer;
@@ -125,6 +110,7 @@ type
   protected
     procedure Progress(Sender: TObject); dynamic;
     property OnProgress: TNotifyEvent read FOnProgress write FOnProgress;
+  public
     constructor Create(Strm: TStream);
   end;
 
@@ -195,31 +181,28 @@ type
     property OnProgress;
   end;
 
-{ CompressBuf compresses data, buffer to buffer, in one call.
-   In: InBuf = ptr to compressed data
-       InBytes = number of bytes in InBuf
-  Out: OutBuf = ptr to newly allocated buffer containing decompressed data
-       OutBytes = number of bytes in OutBuf   }
-procedure CompressBuf(const InBuf: Pointer; InBytes: Integer;
-  var OutBuf: Pointer; var OutBytes: Integer;
-  CompressLevel: Integer = Z_DEFAULT_COMPRESSION;
-  CompressStrategy: Integer = Z_DEFAULT_STRATEGY);
-
-{ DecompressBuf decompresses data, buffer to buffer, in one call.
-   In: InBuf = ptr to compressed data
-       InBytes = number of bytes in InBuf
-       OutEstimate = zero, or est. size of the decompressed data
-  Out: OutBuf = ptr to newly allocated buffer containing decompressed data
-       OutBytes = number of bytes in OutBuf   }
-procedure DecompressBuf(const InBuf: Pointer; InBytes: Integer;
- OutEstimate: Integer; var OutBuf: Pointer; var OutBytes: Integer);
-
 type
   EZlibError = class(Exception);
   ECompressionError = class(EZlibError);
   EDecompressionError = class(EZlibError);
 
 implementation
+
+const
+  // Version string used with the API calls. We use just very basic
+  // parts supported since forever.
+  MinZLibVersion = '1.1.2';
+
+{$IF not Defined(IMPASZLIB) and not Defined(FPCPASZLIB)}
+  // Use Pascal mem allocation when using compiled C libs
+  {$DEFINE USE_PASCAL_ALLOC}
+{$IFEND}
+
+{$IF Defined(DELPHIZLIB) or Defined(ZLIB_DYNLIB)}
+const
+  DEF_MEM_LEVEL = 9;
+  MAX_WBITS = 15;
+{$IFEND}
 
 const
   ZErrorMessages: array[0..9] of PAnsiChar = (
@@ -234,12 +217,12 @@ const
     'incompatible version',   // Z_VERSION_ERROR  (-6)
     '');
 
-function zlibAllocMem(AppData: Pointer; Items, Size: Cardinal): Pointer;
+function zlibAllocMem(AppData: Pointer; Items, Size: Cardinal): Pointer; cdecl;
 begin
   GetMem(Result, Items*Size);
 end;
 
-procedure zlibFreeMem(AppData, Block: Pointer);
+procedure zlibFreeMem(AppData, Block: Pointer); cdecl;
 begin
   FreeMem(Block);
 end;
@@ -262,39 +245,42 @@ procedure CompressBuf(const InBuf: Pointer; InBytes: Integer;
   var OutBuf: Pointer; var OutBytes: Integer;
   CompressLevel, CompressStrategy: Integer);
 var
-  strm: TZStreamRec;
-  P: Pointer;
+  ZStream: TZStreamRec;
 begin
-  FillChar(strm, sizeof(strm), 0);
-{$IFNDEF FPCPASZLIB}
-  strm.zalloc := @zlibAllocMem;
-  strm.zfree := @zlibFreeMem;
+  FillChar(ZStream, sizeof(ZStream), 0);
+{$IFDEF USE_PASCAL_ALLOC}
+  ZStream.zalloc := @zlibAllocMem;
+  ZStream.zfree := @zlibFreeMem;
 {$ENDIF}
+  // Estimates ~1.1 * InBytes as initial compressed size: usually much slower,
+  // if incompressible the deflate() loop will increase the buffer size incrementaly.
+  // With newer ZLib we could use deflateBound() to get rid of the loop.
+
   OutBytes := ((InBytes + (InBytes div 10) + 12) + 255) and not 255;
   GetMem(OutBuf, OutBytes);
-  try
-    strm.next_in := InBuf;
-    strm.avail_in := InBytes;
-    strm.next_out := OutBuf;
-    strm.avail_out := OutBytes;
 
-    CCheck(deflateInit2(strm, CompressLevel, Z_DEFLATED, MAX_WBITS,
-      DEF_MEM_LEVEL, CompressStrategy));
+  try
+    ZStream.next_in := InBuf;
+    ZStream.avail_in := InBytes;
+    ZStream.next_out := OutBuf;
+    ZStream.avail_out := OutBytes;
+
+    CCheck(deflateInit2_(ZStream, CompressLevel, Z_DEFLATED, MAX_WBITS,
+      DEF_MEM_LEVEL, CompressStrategy, MinZLibVersion, SizeOf(z_stream)));
 
     try
-      while CCheck(deflate(strm, Z_FINISH)) <> Z_STREAM_END do
+      while CCheck(deflate(ZStream, Z_FINISH)) <> Z_STREAM_END do
       begin
-        P := OutBuf;
         Inc(OutBytes, 256);
         ReallocMem(OutBuf, OutBytes);
-        strm.next_out := Pointer(PtrUInt(OutBuf) + (PtrUInt(strm.next_out) - PtrUInt(P)));
-        strm.avail_out := 256;
+        ZStream.next_out := Pointer(PtrUInt(OutBuf) + ZStream.total_out);
+        ZStream.avail_out := 256;
       end;
     finally
-      CCheck(deflateEnd(strm));
+      CCheck(deflateEnd(ZStream));
     end;
-    ReallocMem(OutBuf, strm.total_out);
-    OutBytes := strm.total_out;
+    ReallocMem(OutBuf, ZStream.total_out);
+    OutBytes := ZStream.total_out;
   except
     zlibFreeMem(nil, OutBuf);
     raise
@@ -302,57 +288,63 @@ begin
 end;
 
 procedure DecompressBuf(const InBuf: Pointer; InBytes: Integer;
- OutEstimate: Integer; var OutBuf: Pointer; var OutBytes: Integer);
+  OutEstimate: Integer; var OutBuf: Pointer; var OutBytes: Integer);
 var
-  strm: TZStreamRec;
-  P: Pointer;
+  ZStream: TZStreamRec;
   BufInc: Integer;
 begin
-  FillChar(strm, sizeof(strm), 0);
-{$IFNDEF FPCPASZLIB}
-  strm.zalloc := @zlibAllocMem;
-  strm.zfree := @zlibFreeMem;
+  FillChar(ZStream, sizeof(ZStream), 0);
+{$IFDEF USE_PASCAL_ALLOC}
+  ZStream.zalloc := @zlibAllocMem;
+  ZStream.zfree := @zlibFreeMem;
 {$ENDIF}
   BufInc := (InBytes + 255) and not 255;
+
+  // Use the estimate if possible to avoid the reallocation loop.
   if OutEstimate = 0 then
     OutBytes := BufInc
   else
     OutBytes := OutEstimate;
+
   GetMem(OutBuf, OutBytes);
   try
-    strm.next_in := InBuf;
-    strm.avail_in := InBytes;
-    strm.next_out := OutBuf;
-    strm.avail_out := OutBytes;
-    DCheck(inflateInit_(strm, zlib_version, sizeof(strm)));
+    ZStream.next_in := InBuf;
+    ZStream.avail_in := InBytes;
+    ZStream.next_out := OutBuf;
+    ZStream.avail_out := OutBytes;
+
+    DCheck(inflateInit_(ZStream, MinZLibVersion, sizeof(ZStream)));
     try
-      while DCheck(inflate(strm, Z_NO_FLUSH)) <> Z_STREAM_END do
+      while DCheck(inflate(ZStream, Z_NO_FLUSH)) <> Z_STREAM_END do
       begin
-        P := OutBuf;
         Inc(OutBytes, BufInc);
         ReallocMem(OutBuf, OutBytes);
-        strm.next_out := Pointer(PtrUInt(OutBuf) + (PtrUInt(strm.next_out) - PtrUInt(P)));
-        strm.avail_out := BufInc;
+        ZStream.next_out := Pointer(PtrUInt(OutBuf) + ZStream.total_out);
+        ZStream.avail_out := BufInc;
       end;
     finally
-      DCheck(inflateEnd(strm));
+      DCheck(inflateEnd(ZStream));
     end;
-    ReallocMem(OutBuf, strm.total_out);
-    OutBytes := strm.total_out;
+
+    if OutBytes <> ZStream.total_out then
+    begin
+      ReallocMem(OutBuf, ZStream.total_out);
+      OutBytes := ZStream.total_out;
+    end;
   except
     zlibFreeMem(nil, OutBuf);
     raise
   end;
 end;
 
-{ TCustomZlibStream }
+{ TCustomZLibStream }
 
 constructor TCustomZLibStream.Create(Strm: TStream);
 begin
   inherited Create;
   FStrm := Strm;
   FStrmPos := Strm.Position;
-{$IFNDEF FPCPASZLIB}
+{$IFDEF USE_PASCAL_ALLOC}
   FZRec.zalloc := @zlibAllocMem;
   FZRec.zfree := @zlibFreeMem;
 {$ENDIF}
@@ -374,7 +366,7 @@ begin
   inherited Create(Dest);
   FZRec.next_out := @FBuffer;
   FZRec.avail_out := sizeof(FBuffer);
-  CCheck(deflateInit_(FZRec, Levels[CompressionLevel], zlib_version, sizeof(FZRec)));
+  CCheck(deflateInit_(FZRec, Levels[CompressionLevel], MinZLibVersion, sizeof(FZRec)));
 end;
 
 destructor TCompressionStream.Destroy;
@@ -447,7 +439,7 @@ begin
   inherited Create(Source);
   FZRec.next_in := @FBuffer;
   FZRec.avail_in := 0;
-  DCheck(inflateInit_(FZRec, zlib_version, sizeof(FZRec)));
+  DCheck(inflateInit_(FZRec, MinZLibVersion, sizeof(FZRec)));
 end;
 
 destructor TDecompressionStream.Destroy;
@@ -499,8 +491,8 @@ begin
     FStrm.Position := 0;
     FStrmPos := 0;
   end
-  else if ( (Offset >= 0) and (Origin = soFromCurrent)) or
-          ( ((Offset - Integer(FZRec.total_out)) > 0) and (Origin = soFromBeginning)) then
+  else if ((Offset >= 0) and (Origin = soFromCurrent)) or
+          (((Offset - Integer(FZRec.total_out)) > 0) and (Origin = soFromBeginning)) then
   begin
     if Origin = soFromBeginning then Dec(Offset, FZRec.total_out);
     if Offset > 0 then

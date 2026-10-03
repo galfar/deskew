@@ -24,7 +24,8 @@ interface
 {$ENDIF}
 
 uses
-  Types, SysUtils, Classes, ImagingTypes, Imaging, ImagingUtility, ImagingFormats, dzlib;
+  Types, SysUtils, Classes, ImagingTypes, Imaging, ImagingUtility,
+  ImagingFormats, ImagingZLib;
 
 type
   { Basic class for Network Graphics file formats loaders/savers.}

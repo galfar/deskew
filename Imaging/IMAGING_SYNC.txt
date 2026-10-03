@@ -1,0 +1,3 @@
+Synced by Scripts/sync_imaging.sh, do not edit files in this folder.
+repo: https://github.com/galfar/imaginglib
+commit: 66fd71cc7e8fc6a8889569701ef64293525b6253

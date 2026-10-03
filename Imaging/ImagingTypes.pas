@@ -20,7 +20,7 @@ const
   { Current Major version of Imaging.}
   ImagingVersionMajor = 0;
   { Current Minor version of Imaging.}
-  ImagingVersionMinor = 90;
+  ImagingVersionMinor = 85;
 
   { Imaging Option Ids whose values can be set/get by SetOption/
     GetOption functions.}
@@ -31,6 +31,12 @@ const
   { Specifies whether Jpeg images are saved in progressive format,
     can be 0 or 1. Default value is 0.}
   ImagingJpegProgressive       = 11;
+  { Specifies chroma subsampling used when saving color Jpeg images
+    (resolution of color components relative to luminance). Allowed values
+    are: 0 (4:2:0 - half horizontal and vertical resolution), 1 (4:2:2 - half
+    horizontal resolution), 2 (4:4:4 - full resolution, no subsampling).
+    Ignored for grayscale images. Default value is 0.}
+  ImagingJpegChromaSubsampling = 22;
 
   { Specifies whether Windows Bitmaps are saved using RLE compression
     (only for 1/4/8 bit images), can be 0 or 1. Default value is 1.}
@@ -187,6 +193,7 @@ const
   ChannelAlpha = 3;
 
 type
+
 {$IFDEF DCC}
   {$IF CompilerVersion <= 18.5}
     PtrUInt = Cardinal;
@@ -209,6 +216,34 @@ type
   {$IF not Defined(PInt32) or not Defined(PUInt32)}
     PInt32 = ^Int32;
     PUInt32 = ^UInt32;
+  {$IFEND}
+{$ENDIF}
+
+{ Address type for indexed byte-buffer access.
+  Usual PByteArray[Index] is capped at ~2GB
+  (even in Delphi 64, not limited in FPC).
+
+  Aliases to PByte with "$POINTERMATH ON" in
+  Delphi 2009+ and FPC, falls back to PAnsiChar (which has always
+  supported pointer arithmetic) on Delphi 2007 and earlier.
+
+  Usages:
+    ScanLinePtr := @PBuffer(Bits)[Y * Width * Bpp];
+    ScanLinePtr := PBuffer(Bits) + Y * Width * Bpp;
+
+  Remember:
+    When calculating the offset with all 32 bit operands one of them needs
+    to be cast to 64 bit - Pascal won't promote result to 64 bits by itself
+    even if the target variable is 64 bit. }
+{$IFDEF FPC}
+  {$POINTERMATH ON}
+  PBuffer = PByte;
+{$ELSE}
+  {$IF CompilerVersion >= 20.0} // Delphi 2009+
+    {$POINTERMATH ON}
+    PBuffer = PByte;
+  {$ELSE} // Delphi 2007 and earlier - no POINTERMATH support
+    PBuffer = PAnsiChar;
   {$IFEND}
 {$ENDIF}
 
@@ -387,7 +422,7 @@ type
     Remember, that in Pascal when multiplying integers you need to cast (one or all operands,
     not the result!) to 64 bit even when the receiveng variable is 64 bit:
       Size64 := Int64(Width) * Height * Bpp;
-    }
+  }
   TImageData = packed record
     Width: Integer;       // Width of image in pixels
     Height: Integer;      // Height of image in pixels
@@ -398,6 +433,9 @@ type
     Tag: Pointer;         // User data
   end;
   PImageData = ^TImageData;
+
+  { Dynamic array of TImageData records }
+  TDynImageDataArray = array of TImageData;
 
   { Pixel format information used in conversions to/from 16 and 8 bit ARGB
     image formats.}
