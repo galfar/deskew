@@ -5,7 +5,7 @@ interface
 uses
   Types, Classes, SysUtils,
   DeskewTestUtils,
-  ImagingTypes, ImagingClasses, ImagingColors, ImagingUtility,
+  ImagingTypes, Imaging, ImagingClasses, ImagingColors, ImagingUtility,
   ImageUtils;
 
 type
@@ -80,10 +80,24 @@ uses
 type
   TImageHelper = class helper for TBaseImage
   public
+    procedure Fill(Color: Pointer); overload;
     procedure Fill(AValue: Byte); overload;
+    procedure FillRect(const ARect: TRect; Color: Pointer); overload;
     procedure FillRect(const ARect: TRect;  AValue: Byte); overload;
     function GetPixelByte(X, Y: Integer): Byte;
   end;
+
+procedure TImageHelper.Fill(Color: Pointer);
+begin
+  FillRect(BoundsRect, Color);
+end;
+
+procedure TImageHelper.FillRect(const ARect: TRect; Color: Pointer);
+begin
+  Assert(Valid);
+  Imaging.FillRect(ImageDataPointer^, ARect.Left, ARect.Top, ARect.Right - ARect.Left,
+    ARect.Bottom - ARect.Top, Color);
+end;
 
 procedure TImageHelper.Fill(AValue: Byte);
 begin

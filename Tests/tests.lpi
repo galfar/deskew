@@ -81,7 +81,7 @@
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\Imaging"/>
       <Libraries Value="..\Imaging\LibTiff\Compiled"/>
-      <OtherUnitFiles Value="..;..\Imaging;..\Imaging\ZLib;..\Imaging\LibTiff"/>
+      <OtherUnitFiles Value="..;..\Imaging;..\Imaging\Libs;..\Imaging\LibTiff"/>
       <UnitOutputDirectory Value="..\Dcu\tests\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
@@ -108,10 +108,10 @@
         <ShowNotes Value="False"/>
         <ShowHints Value="False"/>
       </Verbosity>
-      <CustomOptions Value="-dPASJPEG
+      <CustomOptions Value="-dFPCPASJPEG
 -dDONT_LINK_FILE_FORMATS"/>
       <OtherDefines Count="1">
-        <Define0 Value="PASJPEG"/>
+        <Define0 Value="FPCPASJPEG"/>
       </OtherDefines>
     </Other>
   </CompilerOptions>

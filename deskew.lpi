@@ -29,9 +29,9 @@
             <Filename Value="Bin\deskew"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
             <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -61,7 +61,7 @@
               <ShowHints Value="False"/>
               <ShowHintsForUnusedUnitsInMainSrc Value="True"/>
             </Verbosity>
-            <CustomOptions Value="-dDEBUG"/>
+            <CustomOptions Value="-dDEBUG -dIMAGING_USER_OPTIONS"/>
           </Other>
         </CompilerOptions>
       </Item2>
@@ -73,9 +73,9 @@
             <Filename Value="Bin\deskew"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
             <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -103,6 +103,7 @@
               <ShowNotes Value="False"/>
               <ShowHints Value="False"/>
             </Verbosity>
+            <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
           </Other>
         </CompilerOptions>
       </Item3>
@@ -114,9 +115,9 @@
             <Filename Value="Bin\deskew32"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
             <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -144,6 +145,7 @@
               <ShowNotes Value="False"/>
               <ShowHints Value="False"/>
             </Verbosity>
+            <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
           </Other>
         </CompilerOptions>
       </Item4>
@@ -155,9 +157,9 @@
             <Filename Value="Bin\deskew-mac"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
             <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -185,6 +187,7 @@
               <ShowNotes Value="False"/>
               <ShowHints Value="False"/>
             </Verbosity>
+            <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
           </Other>
         </CompilerOptions>
       </Item5>
@@ -229,9 +232,9 @@
       <Filename Value="Bin\deskew"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="Imaging;$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
       <Libraries Value="Imaging\LibTiff\Compiled"/>
-      <OtherUnitFiles Value="Imaging;Imaging\ZLib;Imaging\JpegLib;Imaging\LibTiff"/>
+      <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
       <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
@@ -258,6 +261,7 @@
         <ShowNotes Value="False"/>
         <ShowHints Value="False"/>
       </Verbosity>
+      <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
     </Other>
   </CompilerOptions>
   <Debugging>
