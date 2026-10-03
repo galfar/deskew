@@ -94,7 +94,7 @@ jobs:
         shell: bash
         run: |
           brew untap aws/tap 2>/dev/null || true  # Silence the warnings on macOS runners, we don't need AWS stuff
-          # Deskew loads libtiff.dylib dynamically (no-op if already installed)
+          # Deskew loads libtiff.dylib dynamically, also from Homebrew locations (no-op if already installed)
           brew install libtiff
           ls -l "$(brew --prefix)"/lib/libtiff*.dylib
 
@@ -150,9 +150,6 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              # Homebrew lib dir on ARM (/opt/homebrew/lib) is not in the default dyld search path,
-              # Deskew also looks for libtiff.dylib next to the executable
-              ln -sf "$(brew --prefix)/lib/libtiff.dylib" libtiff.dylib
               ./runtests.sh deskew-mac
           fi
 

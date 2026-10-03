@@ -63,10 +63,7 @@ deskew [-o output] [-a angle] [-b color] [..] input
 
 For TIFF support in Linux and macOS you need to have libtiff 4.x installed (package is usually called libtiff5).
 
-For macOS you can download prebuilt libtiff binaries here: <https://galfar.github.io/store/TiffLibBins-macOS.zip>. Just put the files inside the archive to the same folder as `deskew-mac` executable.
-
-On ARM targets linking to libtiff is disabled at the moment (known
-to crash with deskew). If you want to try yourself enable it in `ImagingTiff.pas` unit.
+For macOS, libtiff installed with Homebrew (`brew install libtiff`) is picked up automatically. Alternatively, you can download prebuilt libtiff binaries here: <https://galfar.github.io/store/TiffLibBins-macOS.zip>. Just put the files inside the archive to the same folder as `deskew-mac` executable.
 
 You can find some test images in TestImages folder and
 scripts to run tests (`RunTests.bat` and `runtests.sh`) in Bin.
