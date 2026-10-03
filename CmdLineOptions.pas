@@ -82,7 +82,7 @@ type
     constructor Create;
 
     // Parses command line arguments provided as an array of strings
-    function Parse(Args: TStringDynArray): Boolean; overload;
+    function Parse(const Args: array of string): Boolean;
     // Calles Parse() to get options set by user using global ParamStr/ParamCount
     function ParseCommandLine: Boolean;
 
@@ -505,7 +505,7 @@ begin
     Result := False;
 end;
 
-function TCmdLineOptions.Parse(Args: TStringDynArray): Boolean;
+function TCmdLineOptions.Parse(const Args: array of string): Boolean;
 var
   I: Integer;
   Param, Value: string;
