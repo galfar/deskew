@@ -79,7 +79,7 @@
       <Filename Value="..\Bin\tests"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\Imaging"/>
+      <IncludeFiles Value="$(ProjOutDir);..;..\Imaging"/>
       <Libraries Value="..\Imaging\LibTiff\Compiled"/>
       <OtherUnitFiles Value="..;..\Imaging;..\Imaging\Libs;..\Imaging\LibTiff"/>
       <UnitOutputDirectory Value="..\Dcu\tests\$(TargetCPU)-$(TargetOS)"/>
@@ -109,7 +109,7 @@
         <ShowHints Value="False"/>
       </Verbosity>
       <CustomOptions Value="-dFPCPASJPEG
--dDONT_LINK_FILE_FORMATS"/>
+-dIMAGING_USER_OPTIONS"/>
       <OtherDefines Count="1">
         <Define0 Value="FPCPASJPEG"/>
       </OtherDefines>
