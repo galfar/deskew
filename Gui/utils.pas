@@ -42,6 +42,8 @@ function GetRedValue(Color32: TColor32): Byte; inline;
 function GetGreenValue(Color32: TColor32): Byte; inline;
 function GetBlueValue(Color32: TColor32): Byte; inline;
 
+const
+{$I ../BuildTarget.inc}
 
 implementation
 
