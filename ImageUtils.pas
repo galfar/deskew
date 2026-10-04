@@ -332,7 +332,7 @@ var
                 (1 - HorzWeight) * (1 - VertWeight) * C11 +
                 (1 - HorzWeight) * VertWeight       * C12 +
                 HorzWeight       * (1 - VertWeight) * C21 +
-                HorzWeight       * VertWeight       * C22));
+                HorzWeight       * VertWeight       * C22 + 0.5));
   end;
 
   function Bilinear24(X, Y: Single): TColor24Rec; inline;
