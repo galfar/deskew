@@ -86,7 +86,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          # Deskew loads libtiff.so dynamically, -dev package provides the unversioned symlink
+          # Just get the -dev with unversioned symlink, instead of libtiff5 vs libtiff6 in different distro versions
           sudo apt install libtiff-dev -y
 
       - name: Setup macOS

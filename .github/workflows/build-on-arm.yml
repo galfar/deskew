@@ -1,26 +1,42 @@
-name: Build on ARM
+name: Build on other architectures (QEMU)
 
 on:
-  # Manual trigger only. Legacy QEMU-based ARM builds from before GitHub hosted ARM runners,
-  # native ARM64 builds now run in the main CI workflow (ci.yml).
+  # Manual trigger only. Builds and tests on CPU architectures without GitHub hosted
+  # runners, emulated with QEMU. Native x86_64 and ARM64 builds run in the main CI workflow (ci.yml).
   workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write  # run-on-arch-action caches its Docker images in the GitHub package registry
 
 jobs:
   build_job:
     runs-on: ubuntu-latest
     name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
+    timeout-minutes: 60
+    # New architectures are allowed to fail until they are known to work
+    continue-on-error: ${{ matrix.experimental }}
 
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - arch: aarch64
-            distro: ubuntu_latest
+          # 32-bit ARM, Debian is the base of Raspberry Pi OS
           - arch: armv7
+            distro: bookworm
+            experimental: false
+          # ARM64, Debian with distro FPC and older glibc
+          - arch: aarch64
+            distro: bookworm
+            experimental: false
+          # 64-bit POWER, little endian
+          - arch: ppc64le
             distro: ubuntu_latest
+            experimental: true
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: uraimo/run-on-arch-action@v2
+      - uses: actions/checkout@v7
+      - uses: uraimo/run-on-arch-action@v3
         name: Build binaries
         id: build
         with:
@@ -30,17 +46,13 @@ jobs:
           githubToken: ${{ github.token }}
 
           install: |
-            # ubuntu_latest is 24.04 as of 11-2024
-            echo "OS:" $(uname -a)
-            echo "   " $(lsb_release -d)
-            echo
-
-            apt update
-            apt -y install fpc
-            # Just get the -dev, instead of libtiff5 vs libtiff6 in some newer distros
-            apt -y install libtiff-dev
+            apt-get update -q -y
+            apt-get install -q -y fpc
+            # Just get the -dev with unversioned symlink, instead of libtiff5 vs libtiff6 in different distro versions
+            apt-get install -q -y libtiff-dev
 
           run: |
+            echo "OS:" $(grep PRETTY_NAME /etc/os-release | cut -d= -f2) "/" $(uname -m)
             echo "FPC:" $(fpc -iWTPTO)
             echo
 
@@ -54,7 +66,7 @@ jobs:
             ./runtests.sh
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deskew-binaries-${{ matrix.arch }}-${{ matrix.distro }}
           path: |
@@ -63,10 +75,9 @@ jobs:
 
       - name: Upload artifacts
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deskew-artifacts-${{ matrix.arch }}-${{ matrix.distro }}
           path: |
             Bin
           if-no-files-found: error
-
