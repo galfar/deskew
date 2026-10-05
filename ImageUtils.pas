@@ -126,8 +126,11 @@ end;
 
 function OtsuThresholding(var Image: TImageData; AContentRect: PRect): Integer;
 var
-  Histogram: array[Byte] of Single;
-  Level, Max, Min, I, J, X, Y, NumPixelsInRect: Integer;
+  // Pixels are counted here first so it must be Double: Single stops counting
+  // at 2^24 which even ordinary scans of mostly white pages exceed.
+  Histogram: array[Byte] of Double;
+  NumPixelsInRect: Int64;
+  Level, Max, Min, I, J, X, Y: Integer;
   PixPtr: PByte;
   Mean, Variance: Single;
   Mu, Omega, LevelMean, LargestMu: Single;
@@ -146,7 +149,7 @@ begin
   else
     EffectiveRect := ImageBounds;
 
-  NumPixelsInRect := RectWidth(EffectiveRect) * RectHeight(EffectiveRect);
+  NumPixelsInRect := Int64(RectWidth(EffectiveRect)) * RectHeight(EffectiveRect);
   if NumPixelsInRect <= 0 then
     Exit(128); // Default threshold if rect is empty
 
@@ -158,7 +161,7 @@ begin
   // Compute histogram and determine min and max pixel values within the EffectiveRect
   for Y := EffectiveRect.Top to EffectiveRect.Bottom - 1 do
   begin
-    PixPtr := @PByteArray(Image.Bits)[Y * Image.Width + EffectiveRect.Left];
+    PixPtr := @PBuffer(Image.Bits)[NativeInt(Y) * Image.Width + EffectiveRect.Left];
     for X := EffectiveRect.Left to EffectiveRect.Right - 1 do
     begin
       Histogram[PixPtr^] := Histogram[PixPtr^] + 1.0;
@@ -239,7 +242,7 @@ begin
   // Do thresholding using given level, only within EffectiveRect
   for Y := EffectiveRect.Top to EffectiveRect.Bottom - 1 do
   begin
-    PixPtr := @PByteArray(Image.Bits)[Y * Image.Width + EffectiveRect.Left];
+    PixPtr := @PBuffer(Image.Bits)[NativeInt(Y) * Image.Width + EffectiveRect.Left];
     for X := EffectiveRect.Left to EffectiveRect.Right - 1 do
     begin
       if PixPtr^ >= Threshold then
@@ -454,7 +457,7 @@ var
   TopLeft, TopRight, BottomLeft, BottomRight: TFloatPoint;
   SrcImage, DstImage: TImageData;
   FormatInfo: TImageFormatInfo;
-  X, Y, Bpp: Integer;
+  X, Y, Bpp, NearestX, NearestY: Integer;
   DstPixel24: PColor24Rec;
   BackColor24: TColor24Rec;
   BackColor32, Pixel32: TColor32Rec;
@@ -478,7 +481,7 @@ var
   function GetPixelColor24(X, Y: Integer): TColor24Rec; {$IFDEF FPC}inline;{$ENDIF}
   begin
     if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
-      Result := PColor24RecArray(SrcImage.Bits)[Y * SrcWidth + X]
+      Result := PColor24Rec(@PBuffer(SrcImage.Bits)[(NativeInt(Y) * SrcWidth + X) * 3])^
     else
       Result := BackColor24;
   end;
@@ -486,7 +489,7 @@ var
   function GetPixelColor8(X, Y: Integer): Byte; {$IFDEF FPC}inline;{$ENDIF}
   begin
     if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
-      Result := PByteArray(SrcImage.Bits)[Y * SrcWidth + X]
+      Result := PBuffer(SrcImage.Bits)[NativeInt(Y) * SrcWidth + X]
     else
       Result := BackColor32.B;
   end;
@@ -494,7 +497,7 @@ var
   function GetPixelColor32(X, Y: Integer): TColor32Rec; {$IFDEF FPC}inline;{$ENDIF}
   begin
     if (X >= 0) and (X < SrcWidth) and (Y >= 0) and (Y < SrcHeight) then
-      Result := PColor32RecArray(SrcImage.Bits)[Y * SrcWidth + X]
+      Result := PColor32Rec(@PBuffer(SrcImage.Bits)[(NativeInt(Y) * SrcWidth + X) * 4])^
     else
       Result := BackColor32;
   end;
@@ -692,7 +695,7 @@ var
       WeightVert := FilterFunction(I + FracYS);
     {$ENDIF}
 
-      SrcPixel := PColor32Rec(@PByteArray(SrcImage.Bits)[(LoX + CeilX + (I + CeilY) * SrcWidth) * Bpp]);
+      SrcPixel := PColor32Rec(@PBuffer(SrcImage.Bits)[(LoX + CeilX + NativeInt(I + CeilY) * SrcWidth) * Bpp]);
 
       if WeightVert <> 0 then
       begin
@@ -870,15 +873,19 @@ begin
       for X := 0 to DstWidth - 1 do
       begin
         CalcSourceCoordinates(X, Y, SrcX, SrcY);
+        // Bounds must be checked after the rounding, coordinate just below
+        // the width or height would end up outside of the image otherwise
+        NearestX := Round(SrcX);
+        NearestY := Round(SrcY);
 
-        if (SrcX >= 0) and (SrcY >= 0) and (SrcX < SrcWidth) and (SrcY < SrcHeight) then
+        if (NearestX >= 0) and (NearestY >= 0) and (NearestX < SrcWidth) and (NearestY < SrcHeight) then
         begin
           if Bpp = 3 then
-            PColor24Rec(DstByte)^ := PColor24RecArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)]
+            PColor24Rec(DstByte)^ := PColor24Rec(@PBuffer(SrcImage.Bits)[(NativeInt(NearestY) * SrcWidth + NearestX) * 3])^
           else if Bpp = 1 then
-            DstByte^ := PByteArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)]
+            DstByte^ := PBuffer(SrcImage.Bits)[NativeInt(NearestY) * SrcWidth + NearestX]
           else
-            PColor32Rec(DstByte)^ := PColor32RecArray(SrcImage.Bits)[Round(SrcY) * SrcWidth + Round(SrcX)];
+            PColor32Rec(DstByte)^ := PColor32Rec(@PBuffer(SrcImage.Bits)[(NativeInt(NearestY) * SrcWidth + NearestX) * 4])^;
         end
         else
           CopyPixel(@BackColor32, DstByte, Bpp);
