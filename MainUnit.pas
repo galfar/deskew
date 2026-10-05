@@ -150,10 +150,10 @@ begin
   WriteLn(Log^, '    -d angle:      Angle step during detection in degrees (default: 0.1)');
   WriteLn(Log^, '    -t a|level:    Auto threshold or level in 1..255, darker pixels are');
   WriteLn(Log^, '                   considered to be text (default: auto)');
-  WriteLn(Log^, '    -m margins:    Skew detection only outside page margins:');
+  WriteLn(Log^, '    -m margins:    Page margins left out of skew detection:');
   WriteLn(Log^, '                   L,T,R,B[,unit] or H,V[,unit] or A[,unit] (default: whole page)');
   WriteLn(Log^, '                   unit: px|%|mm|cm|in (default: px)');
-  WriteLn(Log^, '    -r rect:       Skew detection only in content rectangle:');
+  WriteLn(Log^, '    -r rect:       Skew detection only inside content rectangle:');
   WriteLn(Log^, '                   L,T,R,B[,unit] or auto (default: whole page)');
   WriteLn(Log^, '                   unit: px|%|mm|cm|in (default: px)');
   WriteLn(Log^, '                   auto: content area is found automatically for each image');
