@@ -109,8 +109,11 @@ begin
   FileVerInfo := TFileVersionInfo.Create(nil);
   try
     FileVerInfo.ReadFileInfo;
+    // Major.Minor with two digit minor version: 0.97, 1.00, ...
     VersionString := FileVerInfo.VersionStrings.Values['FileVersion'];
     VersionString := Copy(VersionString, 1, PosEx('.', VersionString, 3) - 1);
+    if Length(VersionString) - Pos('.', VersionString) = 1 then
+      Insert('0', VersionString, Pos('.', VersionString) + 1);
   finally
     FileVerInfo.Free;
   end;
