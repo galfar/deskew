@@ -23,6 +23,10 @@
 %DESKEW% -f g8 -b 77 -s t -o TestOut/Outg6.png ../TestImages/6.png || goto :error
 %DESKEW% -g d ../TestImages/5.png || goto :error
 %DESKEW% -a 5 -l 2 -o TestOut/OutlF1550.jpg ../TestImages/F1550.jpg || goto :error
+%DESKEW% -r auto -s s -o TestOut/Outra3.png ../TestImages/3.png || goto :error
+%DESKEW% -o TestOut/OutBlank.png ../TestImages/blank.png || goto :error
+%DESKEW% -g f -o TestOut/OutBlankForced.png ../TestImages/blank.png || goto :error
+%DESKEW% -g f -l 5 -o TestOut/OutForced5.png ../TestImages/5.png || goto :error
 
 %DESKEW% -t a -a 5 -o TestOut/Out1.tif ../TestImages/1-lzw.tif || goto :error
 %DESKEW% -b DD -c j95,tjpeg -o TestOut/Out1-lzw-to-jpeg.tif ../TestImages/1-lzw.tif || goto :error
@@ -38,4 +42,4 @@
 
 :error
 @echo [91mTESTS FAILED[0m
-@exit /b 
+@exit /b 1

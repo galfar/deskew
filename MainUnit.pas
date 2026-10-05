@@ -42,6 +42,14 @@ const
   SAppHome = 'https://github.com/galfar/deskew' + sLineBreak +
              'https://galfar.vevb.net/deskew';
 
+  SDetectionOutcomes: array[TSkewDetectionOutcome] of string = (
+    'detected', 'no content', 'low confidence', 'at range limit');
+  SDetectionOutcomeReasons: array[TSkewDetectionOutcome] of string = (
+    '',
+    'no content to detect the skew from (blank page?)',
+    'no dominant direction of text lines found within the max angle',
+    'skew seems to be larger than the max angle (it can be raised with "-a")');
+
 var
   // Program options
   Options: TCmdLineOptions;
@@ -75,13 +83,16 @@ begin
   WriteLn('                   L,T,R,B[,unit] or H,V[,unit] or A[,unit] (default: whole page)');
   WriteLn('                   unit: px|%|mm|cm|in (default: px)');
   WriteLn('    -r rect:       Skew detection only in content rectangle:');
-  WriteLn('                   L,T,R,B[,unit] (default: whole page)');
+  WriteLn('                   L,T,R,B[,unit] or auto (default: whole page)');
   WriteLn('                   unit: px|%|mm|cm|in (default: px)');
+  WriteLn('                   auto: content area is found automatically for each image');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
   WriteLn('    -p dpi:        Print resolution override');
   WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
   WriteLn('    -g flags:      Operational flags (any combination of):');
-  WriteLn('                   c - crop to input size, d - detect only (no output to file)');
+  WriteLn('                   c - crop to input size, d - detect only (no output to file),');
+  WriteLn('                   f - force rotation: also when the skew angle is not reliable');
+  WriteLn('                   or smaller than the skip angle (-l)');
   WriteLn('    -s info:       Info dump (any combination of):');
   WriteLn('                   s - skew detection stats, p - program parameters, t - timings, ');
   WriteLn('                   w - save work/thresholded image');
@@ -143,17 +154,24 @@ function DoDeskew: Boolean;
 var
   SkewAngle: Double;
   Threshold: Integer;
-  ContentRect: TRect;
+  ContentRect, FoundContentRect: TRect;
   Stats: TCalcSkewAngleStats;
+  HasContent, ForceRotation: Boolean;
 
   procedure WriteDetectionStats;
   begin
     WriteLn('Skew detection stats:');
+    WriteLn('  content area:       ', Iff(HasContent, RectToStr(FoundContentRect), 'none'):16);
     WriteLn('  pixel count:        ', FormatNiceNumber(Stats.PixelCount));
     WriteLn('  tested pixels:      ', FormatNiceNumber(Stats.TestedPixels));
     WriteLn('  accumulator size:   ', FormatNiceNumber(Stats.AccumulatorSize));
     WriteLn('  accumulated counts: ', FormatNiceNumber(Stats.AccumulatedCounts));
     WriteLn('  best count:         ', FormatNiceNumber(Stats.BestCount));
+    WriteLn('  peak angle:         ', Stats.PeakAngle:16:3);
+    WriteLn('  lines at peak:      ', FormatNiceNumber(Stats.LinesAtPeak));
+    WriteLn('  sharpness:          ', Stats.Sharpness:16:3);
+    WriteLn('  confidence:         ', Stats.Confidence:16:3);
+    WriteLn('  outcome:            ', SDetectionOutcomes[Stats.Outcome]:16);
   end;
 
   procedure EnsurePixelFormatForRotation;
@@ -232,6 +250,7 @@ begin
   Result := False;
 
   Threshold := 0;
+  ForceRotation := ofForceRotation in Options.OperationalFlags;
   WriteLn('Preparing input image (', ExtractFileName(Options.InputFileName), ' [',
     InputImage.Width, 'x', InputImage.Height, '/', string(InputImage.FormatInfo.Name), ']) ...');
 
@@ -243,6 +262,7 @@ begin
   if Options.DpiOverride > 0 then
   begin
     // If user DPI override is set we use it for both input and output.
+    // Note that content margins/rectangle calculation of input will use this value.
     GlobalMetadata.SetPhysicalPixelSize(ruDpi, Options.DpiOverride, Options.DpiOverride);
   end;
 
@@ -273,19 +293,49 @@ begin
       end;
   end;
 
-  // Main step - calculate image rotation SkewAngle
-  WriteLn('Calculating skew angle',
-    Iff(EqualRect(InputImage.BoundsRect, ContentRect), '', ' (in ' + RectToStr(ContentRect) +')'),
-    ' using threshold ', Threshold, '...');
+  // Look where the actual content of the page is. Blank pages are recognized this way
+  // and the skew detection can be limited to the content area if the user asks for it.
   Time := GetTimeMicroseconds;
-  SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.AngleStep, Threshold,
-    InputImage.Width, InputImage.Height, InputImage.Bits,
-    @ContentRect, @Stats);
-  WriteTiming('Skew detection');
+  HasContent := DetectContentRect(InputImage.ImageDataPointer^, Threshold, FoundContentRect, @ContentRect);
+  WriteTiming('Content detection');
+
+  if HasContent and Options.AutoContentRect then
+  begin
+    ContentRect := FoundContentRect;
+    // Threshold for the content only, without the surroundings of the page
+    if Options.ThresholdingMethod = tmOtsu then
+      Threshold := OtsuThresholding(InputImage.ImageDataPointer^, @ContentRect);
+  end;
+
+  if HasContent or ForceRotation then
+  begin
+    // Main step - calculate image rotation SkewAngle
+    WriteLn('Calculating skew angle',
+      Iff(EqualRect(InputImage.BoundsRect, ContentRect), '', ' (in ' + RectToStr(ContentRect) +')'),
+      ' using threshold ', Threshold, '...');
+    Time := GetTimeMicroseconds;
+    SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.AngleStep, Threshold,
+      InputImage.Width, InputImage.Height, InputImage.Bits,
+      @ContentRect, @Stats);
+    WriteTiming('Skew detection');
+  end
+  else
+  begin
+    // Nothing to detect the skew from
+    WriteLn('No content found in the image using threshold ', Threshold, ', skew detection skipped.');
+    FillChar(Stats, SizeOf(Stats), 0);
+    Stats.Outcome := sdoNoContent;
+    SkewAngle := 0;
+  end;
+
   WriteLn('Skew angle found [deg]: ', SkewAngle:4:3);
+  WriteLn('Detection confidence: ', Round(Stats.Confidence * 100), '%');
 
   if Options.ShowDetectionStats then
     WriteDetectionStats;
+
+  if Stats.Outcome <> sdoDetected then
+    WriteLn('Skew angle is not reliable: ', SDetectionOutcomeReasons[Stats.Outcome], '.');
 
   if Options.SaveWorkImage then
   begin
@@ -297,9 +347,15 @@ begin
   if ofDetectOnly in Options.OperationalFlags then
     Exit;
 
+  if (Stats.Outcome <> sdoDetected) and not ForceRotation then
+  begin
+    // Rotating by unreliable angle would do more harm than good
+    WriteLn('Skipping deskewing step, use "-g f" to rotate the image anyway.');
+  end
   // Check if detected skew angle is higher than "skip" threshold - may not
-  // want to do rotation needlessly.
-  if Abs(SkewAngle) >= Options.SkipAngle then
+  // want to do rotation needlessly. Forced rotation overrides this too
+  // (there is just nothing to rotate when the angle is zero).
+  else if (ForceRotation and (SkewAngle <> 0)) or (Abs(SkewAngle) >= Options.SkipAngle) then
   begin
     Result := True;
 
