@@ -28,6 +28,7 @@ type
     procedure TestOtsu_ContentRect_IgnoresOutside;
     procedure TestOtsu_ContentRect_Invalid;
     procedure TestOtsu_ContentRect_Clipped;
+    procedure TestOtsu_LargeImage;
 
     procedure TestBinarize_WholeImage_SimpleSplit;
     procedure TestBinarize_ContentRect_LeavesOutsideUnchanged;
@@ -217,6 +218,33 @@ begin
   Threshold := OtsuThresholding(FTestImage.ImageDataPointer^, @OutsideRect);
   // Since the valid part (10,10)-(19,19) is solid 50, threshold should be 50.
   AssertEquals('Threshold for clipped rect (solid 50) should be 50', 50, Threshold);
+end;
+
+procedure TTestImageUtils.TestOtsu_LargeImage;
+const
+  LargeWidth = 8000;
+  LargeHeight = 7500;
+var
+  Image: TSingleImage;
+  Threshold: Integer;
+begin
+  // 60 MPix page (A3 at 600 DPI): mostly white, some gray and a bit of black.
+  // White has much more pixels than 2^24 - where counting in Single stops.
+  Image := TSingleImage.CreateFromParams(LargeWidth, LargeHeight, ifGray8);
+  try
+    Image.Fill(255);
+    Image.FillRect(Rect(0, 0, LargeWidth, 1000), 128);  // 8 MPix of gray
+    Image.FillRect(Rect(0, 1000, LargeWidth, 1250), 0); // 2 MPix of black
+
+    Threshold := OtsuThresholding(Image.ImageDataPointer^);
+
+    // White must be separated from the rest. With inexact pixel counts white looked like
+    // a minority and only black was separated from the rest (threshold 1).
+    AssertTrue('Threshold between gray and white but was ' + IntToStr(Threshold),
+      (Threshold > 128) and (Threshold <= 255));
+  finally
+    Image.Free;
+  end;
 end;
 
 procedure TTestImageUtils.TestBinarize_WholeImage_SimpleSplit;
