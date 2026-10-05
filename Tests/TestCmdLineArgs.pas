@@ -126,6 +126,7 @@ begin
   AssertEquals('Default JPEG Quality', -1, FCmdOptions.JpegCompressionQuality);
   AssertEquals('Default TIFF Compression', -1, FCmdOptions.TiffCompressionScheme);
   AssertTrue('Default OperationalFlags empty', FCmdOptions.OperationalFlags = []);
+  AssertFalse('Default AutoContentRect', FCmdOptions.AutoContentRect);
   AssertEquals('Default Input File Empty', '', FCmdOptions.InputFileName);
   AssertEquals('Default Output File Empty', '', FCmdOptions.OutputFileName);
   AssertEquals('Default Error Message Empty', '', FCmdOptions.ErrorMessage);
@@ -445,6 +446,15 @@ begin
   AssertParseSuccesAndEmptyError(ParseResult, '1 oper flag');
   AssertTrue('CropToInput !set', not (ofCropToInput in FCmdOptions.OperationalFlags));
   AssertTrue('DetectOnly set', ofDetectOnly in FCmdOptions.OperationalFlags);
+  AssertTrue('ForceRotation !set', not (ofForceRotation in FCmdOptions.OperationalFlags));
+
+  ParseResult := FCmdOptions.Parse(['-g', 'f', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'force flag');
+  AssertTrue('Only ForceRotation set', FCmdOptions.OperationalFlags = [ofForceRotation]);
+
+  ParseResult := FCmdOptions.Parse(['-g', 'fc', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'force + crop flags');
+  AssertTrue('ForceRotation + CropToInput set', FCmdOptions.OperationalFlags = [ofForceRotation, ofCropToInput]);
 end;
 
 procedure TTestCmdLineOptions.TestInfoFlags;
@@ -500,6 +510,27 @@ begin
 
   ParseResult := FCmdOptions.Parse(['-m', '10', '-r', '10,10,100,100', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Cannot accept content rectangle when content margins are already defined', 'margins given');
+
+  // Automatic content rectangle
+  AssertFalse('Auto off after explicit rect', FCmdOptions.AutoContentRect);
+  ParseResult := FCmdOptions.Parse(['-r', 'auto', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'auto');
+  AssertTrue('Auto content rect', FCmdOptions.AutoContentRect);
+  AssertTrue('No explicit rect with auto', IsFloatRectNull(FCmdOptions.ContentRect));
+
+  ParseResult := FCmdOptions.Parse(['-r', 'AUTO', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'auto upper case');
+  AssertTrue('Auto content rect upper case', FCmdOptions.AutoContentRect);
+
+  ParseResult := FCmdOptions.Parse(['-r', 'auto', '-r', '10,20,190,80', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'explicit rect after auto');
+  AssertFalse('Explicit rect wins', FCmdOptions.AutoContentRect);
+  AssertEquals('Explicit rect after auto', FloatRect(10, 20, 190, 80), FCmdOptions.ContentRect);
+
+  ParseResult := FCmdOptions.Parse(['-r', 'automatic', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid definition of content rectangle', 'bad auto');
+  ParseResult := FCmdOptions.Parse(['-m', '10', '-r', 'auto', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Cannot accept content rectangle when content margins are already defined', 'margins + auto');
 end;
 
 procedure TTestCmdLineOptions.TestContentMargins;
@@ -547,6 +578,8 @@ begin
 
   ParseResult := FCmdOptions.Parse(['-r', '10,10,100,100', '-m', '10', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Cannot accept content margins when content rectangle is already defined', 'content rect given');
+  ParseResult := FCmdOptions.Parse(['-r', 'auto', '-m', '10', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Cannot accept content margins when content rectangle is already defined', 'auto content rect given');
 end;
 
 procedure TTestCmdLineOptions.TestCalcDetectionRect;
@@ -560,6 +593,11 @@ begin
   AssertTrue(FCmdOptions.Parse(['in.png']));
   AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
   AssertEquals('No content reduction', ImageBounds, FinalRect);
+
+  // Automatic content rect is searched for in the whole page
+  AssertTrue(FCmdOptions.Parse(['-r', 'auto', 'in.png']));
+  AssertTrue(FCmdOptions.CalcContentRectForImage(ImageBounds, Metadata, FinalRect));
+  AssertEquals('Auto content rect', ImageBounds, FinalRect);
 
   // Page Margins
   AssertTrue(FCmdOptions.Parse(['-m', '100,120,140,80', 'in.png']));

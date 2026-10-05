@@ -39,8 +39,13 @@ type
   );
 
   TOperationalFlag = (
+    // Output image keeps the size of the input, corners of the rotated image are cropped
     ofCropToInput,
-    ofDetectOnly
+    // Only detect the skew angle, no rotation and no output file
+    ofDetectOnly,
+    // Rotate by the detected angle always: also when it is not reliable
+    // or smaller than the skip angle
+    ofForceRotation
   );
   TOperationalFlags = set of TOperationalFlag;
 
@@ -59,6 +64,7 @@ type
     FContentRect: TFloatRect;
     FContentMargins: TFloatRect;
     FContentSizeUnit: TSizeUnit;
+    FAutoContentRect: Boolean;
     FForcedOutputFormat: TImageFormat;
     FDpiOverride: Integer;
     FJpegCompressionQuality: Integer;
@@ -125,6 +131,9 @@ type
     property ContentMargins: TFloatRect read FContentMargins;
     // Unit of size of content or margin regions (ContentRect and ContentMargins)
     property ContentSizeUnit: TSizeUnit read FContentSizeUnit;
+    // Content rectangle is not given by the user but it is found automatically
+    // in each page image.
+    property AutoContentRect: Boolean read FAutoContentRect;
 
     // Forced output format (applied just before saving the output)
     property ForcedOutputFormat: TImageFormat read FForcedOutputFormat;
@@ -172,6 +181,7 @@ const
     'none', 'lzw', 'rle', 'deflate', 'jpeg', 'g4', 'input', 'input-lossless'
   );
   SizeUnitTokens: array[TSizeUnit] of string = ('px', '%', 'mm', 'cm', 'in');
+  SAutoContentRect = 'auto';
 
   SDefaultOutputFilePrefix = 'deskewed-';
   SDefaultOutputFileExt = 'png';
@@ -219,6 +229,7 @@ begin
   FContentRect := NullFloatRect;    // whole page
   FContentMargins := NullFloatRect; // whole page
   FContentSizeUnit := suPixels;
+  FAutoContentRect := False;
   FForcedOutputFormat := ifUnknown;
   FDpiOverride := 0;
   FJpegCompressionQuality := -1; // use imaginglib default
@@ -362,6 +373,8 @@ begin
        Include(FOperationalFlags, ofCropToInput);
     if ContainsText(Value, 'd') then
        Include(FOperationalFlags, ofDetectOnly);
+    if ContainsText(Value, 'f') then
+       Include(FOperationalFlags, ofForceRotation);
   end
   else if Param = '-s' then
   begin
@@ -378,6 +391,15 @@ begin
       Exit(False);
     end;
 
+    if ValLower = SAutoContentRect then
+    begin
+      // Content rectangle will be detected for each image
+      FAutoContentRect := True;
+      FContentRect := NullFloatRect;
+      Exit(True);
+    end;
+
+    FAutoContentRect := False;
     StrArray := SplitString(ValLower, ',');
     ValLength := Length(StrArray);
 
@@ -392,7 +414,7 @@ begin
   end
   else if Param = '-m' then
   begin
-    if not IsFloatRectNull(FContentRect) then
+    if FAutoContentRect or not IsFloatRectNull(FContentRect) then
     begin
       FErrorMessage := 'Cannot accept content margins when content rectangle is already defined';
       Exit(False);
@@ -695,13 +717,14 @@ begin
     '  angle step          = ' + FloatToStr(AngleStep) + sLineBreak +
     '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
     '  threshold level     = ' + IntToStr(ThresholdLevel) + sLineBreak +
-    '  content rect        = ' + RectToStr(ContentRect) + sLineBreak +
+    '  content rect        = ' + Iff(AutoContentRect, SAutoContentRect, RectToStr(ContentRect)) + sLineBreak +
     '  content margins     = ' + RectToStr(ContentMargins) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
     '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
     '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +
     '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
-                               + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '') + sLineBreak +
+                               + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '')
+                               + Iff(ofForceRotation in FOperationalFlags, 'force-rotation ', '') + sLineBreak +
     '  info flags          = ' + Iff(ShowParams, 'params ', '') + Iff(ShowDetectionStats, 'detection-stats ', '') +
       Iff(ShowTimings, 'timings ', '') + Iff(SaveWorkImage, 'save-work-image ', '') + sLineBreak +
     '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;

@@ -55,6 +55,14 @@ done
 ./$DESKEW -g d ../TestImages/5.png
 # Skew below the skip limit: deskewing is skipped and the input is copied as is
 ./$DESKEW -a 5 -l 2 -o TestOut/OutlF1550.jpg ../TestImages/F1550.jpg
+# Skew detection only inside automatically found content area, detection stats
+./$DESKEW -r auto -s s -o TestOut/Outra3.png ../TestImages/3.png
+# Blank page with a gray frame: nothing to detect, deskewing is skipped and the input is copied as is
+./$DESKEW -o TestOut/OutBlank.png ../TestImages/blank.png
+# Blank page again, rotation is forced even though the detected angle is not reliable
+./$DESKEW -g f -o TestOut/OutBlankForced.png ../TestImages/blank.png
+# Skew below the skip limit but the rotation is forced
+./$DESKEW -g f -l 5 -o TestOut/OutForced5.png ../TestImages/5.png
 
 if [[ $NOTIFF == 0 ]]; then
   # Binary LZW TIFF in and out, default compression (LZW)

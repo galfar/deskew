@@ -77,45 +77,6 @@ implementation
 uses
   Math;
 
-type
-  TImageHelper = class helper for TBaseImage
-  public
-    procedure Fill(Color: Pointer); overload;
-    procedure Fill(AValue: Byte); overload;
-    procedure FillRect(const ARect: TRect; Color: Pointer); overload;
-    procedure FillRect(const ARect: TRect;  AValue: Byte); overload;
-    function GetPixelByte(X, Y: Integer): Byte;
-  end;
-
-procedure TImageHelper.Fill(Color: Pointer);
-begin
-  FillRect(BoundsRect, Color);
-end;
-
-procedure TImageHelper.FillRect(const ARect: TRect; Color: Pointer);
-begin
-  Assert(Valid);
-  Imaging.FillRect(ImageDataPointer^, ARect.Left, ARect.Top, ARect.Right - ARect.Left,
-    ARect.Bottom - ARect.Top, Color);
-end;
-
-procedure TImageHelper.Fill(AValue: Byte);
-begin
-  Self.Fill(@AValue);
-end;
-
-procedure TImageHelper.FillRect(const ARect: TRect;  AValue: Byte);
-begin
-  Self.FillRect(ARect, @AValue);
-end;
-
-function TImageHelper.GetPixelByte(X, Y: Integer): Byte;
-begin
-  Assert(Valid and (Format = ifGray8));
-  Assert((X >= 0) and (X < Width) and (Y >= 0) and (Y < Height));
-  Result := PByteArray(Scanline[Y])[X];
-end;
-
 procedure TTestImageUtils.CreateTwoValueRect(AImage: TSingleImage; const ARect: TRect;
   Val1: Byte; Val2: Byte; IsHorizontalSplit: Boolean);
 var

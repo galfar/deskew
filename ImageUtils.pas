@@ -43,6 +43,15 @@ function OtsuThresholding(var Image: TImageData; AContentRect: PRect = nil): Int
   within this rectangle. Otherwise, the whole image is processed.}
 procedure BinarizeImage(var Image: TImageData; Threshold: Integer; AContentRect: PRect = nil);
 
+{ Finds the area of 8bit grayscale image with actual content (text, pictures, ...)
+  using given threshold level value [0..255] to tell the content from the background.
+  Dark areas connected to the edges (scanner bed around the page, shadows)
+  and sparse dark pixels (dust, noise) are not considered to be content.
+  If ASearchRect is specified, only this part of the image is examined.
+  Returns False when there is no content to be found (blank page). }
+function DetectContentRect(const Image: TImageData; Threshold: Integer;
+  out ContentRect: TRect; ASearchRect: PRect = nil): Boolean;
+
 type
   TResamplingFilter = (
     rfNearest,
@@ -240,6 +249,184 @@ begin
       Inc(PixPtr);
     end;
   end;
+end;
+
+function DetectContentRect(const Image: TImageData; Threshold: Integer;
+  out ContentRect: TRect; ASearchRect: PRect): Boolean;
+const
+  // Rows and columns with less content pixels than this fraction of their
+  // length are considered empty (dust, noise)
+  NoiseFloorFraction = 0.002;
+  MinNoiseFloor = 2;
+  // Content starts with this many non-empty rows/columns in a row
+  MinContentRun = 3;
+  // Less content pixels than this is no content at all
+  MinContentPixels = 32;
+  // Found area is padded by this fraction of the smaller side of the searched area
+  PaddingFraction = 0.01;
+var
+  Bounds: TRect;
+  W, H, X, Y, OpenCount, RunLeft, RunRight, Padding: Integer;
+  FirstRow, LastRow, FirstCol, LastCol: Integer;
+  ContentPixels: Int64;
+  Row: PBuffer;
+  RowCounts, ColCounts, TopRuns, BottomRuns: array of Integer;
+  ColOpen: array of Boolean;
+
+  function GetRow(Y: Integer): PBuffer;
+  begin
+    Result := @PBuffer(Image.Bits)[NativeInt(Bounds.Top + Y) * Image.Width + Bounds.Left];
+  end;
+
+  // Returns index where the first (or last) run of non-empty items starts,
+  // -1 if there is none.
+  function FindContentEdge(const Counts: array of Integer; NoiseFloor: Integer; FromEnd: Boolean): Integer;
+  var
+    I, Idx, Run, Len: Integer;
+  begin
+    Result := -1;
+    Len := Length(Counts);
+    Run := 0;
+    for I := 0 to Len - 1 do
+    begin
+      if FromEnd then
+        Idx := Len - 1 - I
+      else
+        Idx := I;
+
+      if Counts[Idx] >= NoiseFloor then
+      begin
+        Inc(Run);
+        if (Run >= MinContentRun) or (Run >= Len) then
+        begin
+          if FromEnd then
+            Result := Idx + Run - 1
+          else
+            Result := Idx - Run + 1;
+          Exit;
+        end;
+      end
+      else
+        Run := 0;
+    end;
+  end;
+
+begin
+  Assert(Image.Format = ifGray8);
+  Result := False;
+  ContentRect := NullRect;
+
+  Bounds := Rect(0, 0, Image.Width, Image.Height);
+  if Assigned(ASearchRect) and not IsRectEmpty(ASearchRect^) then
+    if not IntersectRect(Bounds, ASearchRect^, Rect(0, 0, Image.Width, Image.Height)) then
+      Exit;
+
+  W := RectWidth(Bounds);
+  H := RectHeight(Bounds);
+  if (W <= 0) or (H <= 0) then
+    Exit;
+
+  SetLength(RowCounts, H);
+  SetLength(ColCounts, W);
+  SetLength(TopRuns, W);
+  SetLength(BottomRuns, W);
+  SetLength(ColOpen, W);
+
+  // Find dark runs connected to the top edge in each column ...
+  for X := 0 to W - 1 do
+    ColOpen[X] := True;
+
+  OpenCount := W;
+  Y := 0;
+
+  while (Y < H) and (OpenCount > 0) do
+  begin
+    Row := GetRow(Y);
+    for X := 0 to W - 1 do
+      if ColOpen[X] then
+      begin
+        if Row[X] < Threshold then
+          TopRuns[X] := Y + 1
+        else
+        begin
+          ColOpen[X] := False;
+          Dec(OpenCount);
+        end;
+      end;
+    Inc(Y);
+  end;
+
+  // ... and to the bottom edge (unless the whole column is dark already)
+  OpenCount := 0;
+  for X := 0 to W - 1 do
+  begin
+    ColOpen[X] := TopRuns[X] < H;
+    if ColOpen[X] then
+      Inc(OpenCount);
+  end;
+
+  Y := H - 1;
+
+  while (Y >= 0) and (OpenCount > 0) do
+  begin
+    Row := GetRow(Y);
+    for X := 0 to W - 1 do
+      if ColOpen[X] then
+      begin
+        if Row[X] < Threshold then
+          BottomRuns[X] := H - Y
+        else
+        begin
+          ColOpen[X] := False;
+          Dec(OpenCount);
+        end;
+      end;
+    Dec(Y);
+  end;
+
+  // Count content pixels in rows and columns: dark ones that are not
+  // connected to any edge in their row or column.
+  ContentPixels := 0;
+
+  for Y := 0 to H - 1 do
+  begin
+    Row := GetRow(Y);
+
+    RunLeft := 0;
+    while (RunLeft < W) and (Row[RunLeft] < Threshold) do
+      Inc(RunLeft);
+    RunRight := 0;
+    while (RunRight < W - RunLeft) and (Row[W - 1 - RunRight] < Threshold) do
+      Inc(RunRight);
+
+    for X := RunLeft to W - RunRight - 1 do
+      if (Row[X] < Threshold) and (Y >= TopRuns[X]) and (Y < H - BottomRuns[X]) then
+      begin
+        Inc(RowCounts[Y]);
+        Inc(ColCounts[X]);
+        Inc(ContentPixels);
+      end;
+  end;
+
+  if ContentPixels < MinContentPixels then
+    Exit;
+
+  // Content area starts and ends where rows and columns stop being empty
+  FirstRow := FindContentEdge(RowCounts, Max(MinNoiseFloor, Round(W * NoiseFloorFraction)), False);
+  LastRow := FindContentEdge(RowCounts, Max(MinNoiseFloor, Round(W * NoiseFloorFraction)), True);
+  FirstCol := FindContentEdge(ColCounts, Max(MinNoiseFloor, Round(H * NoiseFloorFraction)), False);
+  LastCol := FindContentEdge(ColCounts, Max(MinNoiseFloor, Round(H * NoiseFloorFraction)), True);
+
+  if (FirstRow < 0) or (FirstCol < 0) then
+    Exit;
+
+  Padding := Max(2, Round(Min(W, H) * PaddingFraction));
+  ContentRect := Rect(
+    Max(Bounds.Left, Bounds.Left + FirstCol - Padding),
+    Max(Bounds.Top, Bounds.Top + FirstRow - Padding),
+    Min(Bounds.Right, Bounds.Left + LastCol + 1 + Padding),
+    Min(Bounds.Bottom, Bounds.Top + LastRow + 1 + Padding));
+  Result := True;
 end;
 
 procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;
