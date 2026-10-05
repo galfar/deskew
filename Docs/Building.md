@@ -116,4 +116,5 @@ It also compiles for PowerPC64LE and RISC-V 64. These platforms are not official
 
 ## Release archives
 
-Release archives are made by `Scripts/build_release.sh` and `Scripts/package_release.sh`.
+Release archives are made by `Scripts/build_release.sh` and `Scripts/package_release.sh`,
+see [Releasing.md](Releasing.md).

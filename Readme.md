@@ -213,7 +213,12 @@ they are usually faster. `deskew -s l` shows what is used. Saving WebP needs lib
 **macOS** binaries are not notarized. When macOS refuses to start a downloaded application, remove the quarantine flag
 from the extracted folder: `xattr -dr com.apple.quarantine <folder>`.
 
-**Linux** GUI needs GTK2 libraries. Binaries are built on Ubuntu 22.04 and need glibc 2.35 or newer.
+**Linux** GUI (`deskewgui`) uses Qt6: it needs Qt6 libraries of your distribution (Debian and Ubuntu:
+`libqt6printsupport6`, Fedora: `qt6-qtbase-gui`, Arch: `qt6-base`), `libQt6Pas.so.6` that connects it
+to Qt6 is in the archive next to it. On systems without Qt6 use `deskewgui-gtk2`, the same GUI with
+GTK2. Binaries are built on Ubuntu 24.04.
+`unzip` keeps the executable permission of the files in the archive. If your archive tool does not,
+set it after the extraction: `chmod +x deskew deskewgui deskewgui-gtk2`.
 
 **Large images** (several GiB of pixels) are supported in 64-bit builds, see [Docs/Usage.md](Docs/Usage.md#large-images) for limits.
 
