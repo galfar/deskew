@@ -29,6 +29,7 @@ const
   DefaultMaxAngle = 10;
   DefaultAngleStep = 0.1;
   DefaultSkipAngle = 0.01;
+  MaxAllowedAngle = 90;
 
 type
   TThresholdingMethod = (
@@ -74,6 +75,7 @@ type
     FShowParams: Boolean;
     FShowTimings: Boolean;
     FSaveWorkImage: Boolean;
+    FHelpRequested: Boolean;
 
     // Others
     FFormatSettings: TFormatSettings;
@@ -158,6 +160,8 @@ type
     // Save "working" thresholded image (for testing and tweaking thresholding), effectively an input
     // for skew detection.
     property SaveWorkImage: Boolean read FSaveWorkImage;
+    // User only wants to see the usage/help, other options are not checked then
+    property HelpRequested: Boolean read FHelpRequested;
 
     property IsValid: Boolean read GetIsValid;
     property ErrorMessage: string read FErrorMessage;
@@ -182,6 +186,9 @@ const
   );
   SizeUnitTokens: array[TSizeUnit] of string = ('px', '%', 'mm', 'cm', 'in');
   SAutoContentRect = 'auto';
+  // All the parameters that take a value
+  KnownParams: array[0..13] of string = (
+    '-o', '-a', '-d', '-l', '-t', '-b', '-f', '-q', '-g', '-s', '-r', '-m', '-p', '-c');
 
   SDefaultOutputFilePrefix = 'deskewed-';
   SDefaultOutputFileExt = 'png';
@@ -239,6 +246,7 @@ begin
   FShowParams := False;
   FShowTimings:= False;
   FSaveWorkImage := False;
+  FHelpRequested := False;
 
   FErrorMessage := '';
   Assert(not IsValid);
@@ -276,6 +284,20 @@ var
     end;
   end;
 
+  // Checks that the value consists only of the known flag letters
+  function CheckFlags(const AllowedFlags, FlagKind: string): Boolean;
+  var
+    I: Integer;
+  begin
+    Result := True;
+    for I := 1 to Length(ValLower) do
+      if Pos(ValLower[I], AllowedFlags) = 0 then
+      begin
+        FErrorMessage := Format('Unknown %s flag "%s" in: %s', [FlagKind, ValLower[I], Value]);
+        Exit(False);
+      end;
+  end;
+
   function TryParseSizeUnit(const Str: string; out SizeUnit: TSizeUnit): Boolean;
   var
     S: TSizeUnit;
@@ -299,19 +321,24 @@ begin
   end
   else if Param = '-a' then
   begin
-    if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) then
-      FErrorMessage := 'Invalid value for max angle parameter: ' + Value;
+    if not TryStrToFloat(Value, FMaxAngle, FFormatSettings) or
+       (FMaxAngle <= 0) or (FMaxAngle > MaxAllowedAngle) then
+      FErrorMessage := Format('Invalid value for max angle parameter (number of degrees ' +
+        'greater than 0, up to %d): %s', [MaxAllowedAngle, Value]);
   end
   else if Param = '-d' then
   begin
     if not TryStrToFloat(Value, FAngleStep, FFormatSettings) or
        not InRange(FAngleStep, 0.01, 5) then
-      FErrorMessage := 'Invalid value for angle step parameter: ' + Value;
+      FErrorMessage := 'Invalid value for angle step parameter (number of degrees ' +
+        'in range 0.01 to 5): ' + Value;
   end
   else if Param = '-l' then
   begin
-    if not TryStrToFloat(Value, FSkipAngle, FFormatSettings) then
-      FErrorMessage := 'Invalid value for skip angle parameter: ' + Value;
+    if not TryStrToFloat(Value, FSkipAngle, FFormatSettings) or
+       (FSkipAngle < 0) or (FSkipAngle > MaxAllowedAngle) then
+      FErrorMessage := Format('Invalid value for skip angle parameter (number of degrees ' +
+        'in range 0 to %d): %s', [MaxAllowedAngle, Value]);
   end
   else if Param = '-t' then
   begin
@@ -320,8 +347,9 @@ begin
     else
     begin
       FThresholdingMethod := tmExplicit;
-      if not TryStrToInt(Value, FThresholdLevel) then
-        FErrorMessage := 'Invalid value for treshold parameter: ' + Value;
+      if not TryStrToInt(Value, FThresholdLevel) or not InRange(FThresholdLevel, 1, 255) then
+        FErrorMessage := 'Invalid value for threshold parameter ("a" for auto or ' +
+          'level in range 1 to 255): ' + Value;
     end;
   end
   else if Param = '-b' then
@@ -369,6 +397,8 @@ begin
   end
   else if Param = '-g' then
   begin
+    if not CheckFlags('cdf', 'operational') then
+      Exit(False);
     if ContainsText(Value, 'c') then
        Include(FOperationalFlags, ofCropToInput);
     if ContainsText(Value, 'd') then
@@ -378,6 +408,8 @@ begin
   end
   else if Param = '-s' then
   begin
+    if not CheckFlags('sptw', 'info') then
+      Exit(False);
     if ContainsText(Value, 's') then FShowDetectionStats := True;
     if ContainsText(Value, 'p') then FShowParams := True;
     if ContainsText(Value, 't') then FShowTimings := True;
@@ -513,7 +545,7 @@ begin
       end
       else
       begin
-        FErrorMessage := 'Invalid output compression parameter: ' + S;
+        FErrorMessage := 'Invalid output file format spec: ' + S;
         Exit(False);
       end;
     end;
@@ -531,6 +563,17 @@ function TCmdLineOptions.Parse(const Args: array of string): Boolean;
 var
   I: Integer;
   Param, Value: string;
+
+  function IsKnownParam(const Param: string): Boolean;
+  var
+    I: Integer;
+  begin
+    Result := False;
+    for I := Low(KnownParams) to High(KnownParams) do
+      if Param = KnownParams[I] then
+        Exit(True);
+  end;
+
 begin
   Reset;
   Result := True;
@@ -539,8 +582,22 @@ begin
   while I <= High(Args) do
   begin
     Param := Args[I];
-    if Pos('-', Param) = 1 then
+    if (Param = '-h') or (Param = '--help') or (Param = '-?') then
     begin
+      // Nothing else matters now
+      FHelpRequested := True;
+      Exit(True);
+    end
+    else if Pos('-', Param) = 1 then
+    begin
+      // Unknown parameter is reported as such also when it is the last
+      // argument and its value is missing
+      if not IsKnownParam(Param) then
+      begin
+        FErrorMessage := 'Unknown parameter: ' + Param;
+        Exit(False);
+      end;
+
       if I + 1 <= High(Args) then // Check if value exists
       begin
         Value := Args[I + 1];
@@ -727,7 +784,7 @@ begin
                                + Iff(ofForceRotation in FOperationalFlags, 'force-rotation ', '') + sLineBreak +
     '  info flags          = ' + Iff(ShowParams, 'params ', '') + Iff(ShowDetectionStats, 'detection-stats ', '') +
       Iff(ShowTimings, 'timings ', '') + Iff(SaveWorkImage, 'save-work-image ', '') + sLineBreak +
-    '  output compression  = jpeg:' + CompJpegStr + ' tiff:' + CompTiffStr + sLineBreak;
+    '  output file specs   = jpeg quality:' + CompJpegStr + ' tiff compression:' + CompTiffStr + sLineBreak;
 end;
 
 initialization

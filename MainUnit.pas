@@ -65,20 +65,24 @@ begin
   InFilter := '';
   OutFilter := '';
 
-  WriteLn('Usage:');
-  WriteLn('deskew [-o output] [-a angle] [-b color] [..] input');
+  WriteLn('Usage: deskew [-o output] [-a angle] [-b color] [..] input');
   WriteLn('    input:         Input image file');
+  WriteLn('    -h:            Show this help');
 
+  WriteLn;
   WriteLn('  Options:');
-  WriteLn('    -o output:     Output image file name (default: prefixed input as png)');
+  WriteLn('    -o output:     Output image file name (default: deskewed-<input name>.png');
+  WriteLn('                   next to the input file)');
   WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
-  WriteLn('    -q filter:     Resampling filter used for rotations (default: linear');
+  WriteLn('    -q filter:     Resampling filter used for rotations (default: linear,');
   WriteLn('                   values: nearest|linear|cubic|lanczos)');
   WriteLn('    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
 
-  WriteLn('  Ext. options:');
+  WriteLn;
+  WriteLn('  Advanced options:');
   WriteLn('    -d angle:      Angle step during detection in degrees (default: 0.1)');
-  WriteLn('    -t a|treshold: Auto threshold or value in 0..255 (default: auto)');
+  WriteLn('    -t a|level:    Auto threshold or level in 1..255, darker pixels are');
+  WriteLn('                   considered to be text (default: auto)');
   WriteLn('    -m margins:    Skew detection only outside page margins:');
   WriteLn('                   L,T,R,B[,unit] or H,V[,unit] or A[,unit] (default: whole page)');
   WriteLn('                   unit: px|%|mm|cm|in (default: px)');
@@ -87,19 +91,23 @@ begin
   WriteLn('                   unit: px|%|mm|cm|in (default: px)');
   WriteLn('                   auto: content area is found automatically for each image');
   WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
-  WriteLn('    -p dpi:        Print resolution override');
-  WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller (default: 0.01)');
+  WriteLn('    -p dpi:        Print resolution of the image in DPI, overrides the one stored');
+  WriteLn('                   in the input file (default: use the stored one)');
+  WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller, in degrees (default: 0.01)');
   WriteLn('    -g flags:      Operational flags (any combination of):');
   WriteLn('                   c - crop to input size, d - detect only (no output to file),');
   WriteLn('                   f - force rotation: also when the skew angle is not reliable');
   WriteLn('                   or smaller than the skip angle (-l)');
   WriteLn('    -s info:       Info dump (any combination of):');
-  WriteLn('                   s - skew detection stats, p - program parameters, t - timings, ');
+  WriteLn('                   s - skew detection stats, p - program parameters, t - timings,');
   WriteLn('                   w - save work/thresholded image');
-  WriteLn('    -c specs:      Output compression specs for some file formats. Several specs');
+  WriteLn('    -c specs:      Output file format specs (compression etc.). Several specs');
   WriteLn('                   can be defined - delimited by commas. Supported specs:');
   WriteLn('                   jXX - JPEG compression quality, XX in range [1,100(best)]');
   WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4|input|input-lossless');
+  WriteLn;
+  WriteLn('  Skew angle is positive when the content is turned clockwise (text lines go down');
+  WriteLn('  to the right), image is then rotated counterclockwise by this angle to fix it.');
 
   Count := GetFileFormatCount;
   for I := 0 to Count - 1 do
@@ -119,13 +127,16 @@ end;
 
 procedure ReportBadInput(const Msg: string; ShowUsage: Boolean = True);
 begin
+  if ShowUsage then
+  begin
+    WriteUsage;
+    WriteLn;
+  end;
+
+  // Error goes last so it does not get lost above the usage text
   WriteLn('ERROR: ' + Msg);
   if Options.ErrorMessage <> '' then
     WriteLn(Options.ErrorMessage);
-  WriteLn;
-
-  if ShowUsage then
-    WriteUsage;
 
   ExitCode := 1;
 end;
@@ -422,7 +433,7 @@ procedure RunDeskew;
   end;
 
 var
-  Changed: Boolean;
+  Changed, Parsed: Boolean;
 begin
 {$IF Defined(FPC) and not Defined(MSWINDOWS)}
   // Flush after WriteLn also when output is redirected to file/pipe
@@ -440,7 +451,13 @@ begin
 
   try
     try
-      if Options.ParseCommandLine and Options.IsValid then
+      Parsed := Options.ParseCommandLine;
+
+      if Options.HelpRequested then
+      begin
+        WriteUsage;
+      end
+      else if Parsed and Options.IsValid then
       begin
         if Options.ShowParams then
           WriteLn(Options.OptionsToString);
@@ -502,8 +519,10 @@ begin
       end
       else
       begin
-        // Bad input
-        ReportBadInput('Invalid parameters!');
+        // Bad input, whole usage is shown only when there are no parameters at all
+        ReportBadInput('Invalid parameters!', ParamCount = 0);
+        if ParamCount > 0 then
+          WriteLn('Use "-h" to see all the options.');
       end;
 
     except
