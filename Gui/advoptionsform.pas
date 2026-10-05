@@ -27,6 +27,7 @@ type
     BtnBrowseDeskewExePath: TButton;
     BtnOk: TBitBtn;
     BtnResetOptions: TBitBtn;
+    CheckForceRotation: TCheckBox;
     CheckPrintParams: TCheckBox;
     CheckDetectOnly: TCheckBox;
     CheckDpiOverride: TCheckBox;
@@ -143,6 +144,7 @@ begin
   CheckDpiOverride.Checked := AOptions.DpiOverrideEnabled;
   SpinEditDpiOverride.Value := AOptions.DpiOverride;
   CheckDetectOnly.Checked := AOptions.DetectOnly;
+  CheckForceRotation.Checked := AOptions.ForceRotation;
   CheckPrintParams.Checked := AOptions.PrintParams;
   EdExtraCmdArgs.Text := AOptions.ExtraCmdLineArgs;
 
@@ -165,6 +167,7 @@ begin
   AOptions.DpiOverrideEnabled := CheckDpiOverride.Checked;
   AOptions.DpiOverride := SpinEditDpiOverride.Value;
   AOptions.DetectOnly := CheckDetectOnly.Checked;
+  AOptions.ForceRotation := CheckForceRotation.Checked;
   AOptions.PrintParams := CheckPrintParams.Checked;
   AOptions.ExtraCmdLineArgs := EdExtraCmdArgs.Text;
 

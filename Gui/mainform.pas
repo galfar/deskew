@@ -33,7 +33,6 @@ type
     ActShowAdvOptions: TAction;
     ActionList: TActionList;
     ApplicationProperties: TApplicationProperties;
-    BitBtn1: TBitBtn;
     BtnAddFiles: TBitBtn;
     BtnAdvOptions: TBitBtn;
     BtnClear: TBitBtn;
@@ -41,11 +40,15 @@ type
     BtnBrowseOutputDir: TButton;
     BtnAbout: TButton;
     BtnFinish: TBitBtn;
+    CheckAutoContent: TCheckBox;
     CheckCropToInput: TCheckBox;
     CheckDefaultOutputFileOptions: TCheckBox;
     ColorBtnBackground: TColorButton;
     ComboFileFormat: TComboBox;
     EdDirOutput: TEdit;
+    EdMargins: TEdit;
+    LabContentArea: TLabel;
+    LabMargins: TLabel;
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
@@ -119,6 +122,8 @@ begin
 
   MemoFiles.Clear;
   MemoOutput.Clear;
+  // Always start with the input page, whatever page was active when the form was saved in IDE
+  Notebook.PageIndex := 0;
 
   ComboFileFormat.Items.Clear;
   ComboFileFormat.Items.AddObject('Same as input', TObject(ffSameAsInput));
@@ -162,6 +167,8 @@ begin
   ComboFileFormat.ItemIndex := Integer(AOptions.OutputFileFormat);
   ColorBtnBackground.ButtonColor := RGBToColor(GetRedValue(AOptions.BackgroundColor), GetGreenValue(AOptions.BackgroundColor), GetBlueValue(AOptions.BackgroundColor));
   CheckCropToInput.Checked := AOptions.CropToInput;
+  CheckAutoContent.Checked := AOptions.AutoContentRect;
+  EdMargins.Text := AOptions.ContentMargins;
 end;
 
 procedure TFormMain.GatherOptions(AOptions: TOptions);
@@ -184,6 +191,8 @@ begin
   LazColor := ColorBtnBackground.ButtonColor;
   AOptions.BackgroundColor := Color32(255, Red(LazColor), Green(LazColor), Blue(LazColor)).Color;
   AOptions.CropToInput := CheckCropToInput.Checked;
+  AOptions.AutoContentRect := CheckAutoContent.Checked;
+  AOptions.ContentMargins := Trim(EdMargins.Text);
 end;
 
 procedure TFormMain.RunnerFinished(Sender: TObject; Reason: TFinishReason);
@@ -229,12 +238,26 @@ begin
   ComboFileFormat.Enabled := NoDefault;
   LabOptOutputFolder.Enabled := NoDefault;
   LabOptFileFormat.Enabled := NoDefault;
+  // Content area is either found automatically or given by the margins
+  EdMargins.Enabled := not CheckAutoContent.Checked;
+  LabMargins.Enabled := EdMargins.Enabled;
 
   FormAdvOptions.DoIdle;
 end;
 
 procedure TFormMain.ActDeskewExecute(Sender: TObject);
 begin
+  if not CheckAutoContent.Checked and not TOptions.IsValidMargins(EdMargins.Text) then
+  begin
+    Dialogs.MessageDlg('Invalid Margins',
+      'Margins must be one, two (horizontal, vertical) or four (left, top, right, bottom) ' +
+      'numbers separated by commas. Unit can follow as the last item: px, %, mm, cm or in.' +
+      LineEnding + LineEnding + 'Examples:  5,%    10,20,mm    2.5,in    50,80,50,120',
+      mtError, [mbOK], 0);
+    EdMargins.SetFocus;
+    Exit;
+  end;
+
   GatherOptions(Module.Options);
 
   ActFinish.Caption := 'Stop';

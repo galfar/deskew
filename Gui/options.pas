@@ -68,6 +68,9 @@ type
     DpiOverrideEnabled: Boolean;
     DpiOverride: Integer;
     DetectOnly: Boolean;
+    ForceRotation: Boolean;
+    AutoContentRect: Boolean;
+    ContentMargins: string;
     ResamplingFilter: TResamplingFilter;
     ForcedOutputFormat: TForcedOutputFormat;
     JpegCompressionQuality: Integer;
@@ -90,6 +93,11 @@ type
     procedure SaveToIni(Ini: TIniFile);
     procedure LoadFromIni(Ini: TIniFile);
     procedure Reset;
+
+    // Checks margins given in the form used by the command line tool:
+    // 1, 2, or 4 numbers and optional unit separated by commas.
+    // Empty string (no margins) is valid too.
+    class function IsValidMargins(const Margins: string): Boolean;
 
     property Files: TStrings read FFiles;
     property EffectiveExecutablePath: string read GetEffectiveExecutablePath;
@@ -123,6 +131,9 @@ const
   DefaultTiffCompressionScheme = TiffCompressionOptionLzw; // imaginglib default
   DefaultOutputFileNamePrefix = 'deskewed-';
   DefaultPrintParams = {$IFNDEF DEBUG}False{$ELSE}True{$ENDIF};
+
+  // From CmdLineOptions.pas
+  MarginUnits: array[0..4] of string = ('px', '%', 'mm', 'cm', 'in');
 
   FileExts: array[TFileFormat] of string = (
     '',    // ffSameAsInput
@@ -249,6 +260,14 @@ procedure TOptions.ToCmdLineParameters(AParams: TStrings; AFileIndex: Integer);
       Result := Result + 'c';
     if DetectOnly then
       Result := Result + 'd';
+    if ForceRotation then
+      Result := Result + 'f';
+  end;
+
+  function MarginsToString: string;
+  begin
+    // No spaces so it is always a single parameter
+    Result := StringReplace(Trim(ContentMargins), ' ', '', [rfReplaceAll]);
   end;
 
   procedure AddExtraCmdLineArgs;
@@ -277,12 +296,17 @@ begin
     AParams.AddStrings(['-g', OperationalFlagsToString]);
 
   // Advanced options
-  if not SameFloat(MaxAngle, DefaultMaxAngle, 0.1) then
+  // Tolerances are well below the precision of the values in UI
+  if not SameFloat(MaxAngle, DefaultMaxAngle, 0.001) then
     AParams.AddStrings(['-a', FloatToStrFmt(MaxAngle)]);
   if not SameFloat(AngleStep, DefaultAngleStep, 0.001) then
     AParams.AddStrings(['-d', FloatToStrFmt(AngleStep)]);
-  if not SameFloat(SkipAngle, DefaultSkipAngle, 0.01) then
+  if not SameFloat(SkipAngle, DefaultSkipAngle, 0.001) then
     AParams.AddStrings(['-l', FloatToStrFmt(SkipAngle)]);
+  if AutoContentRect then
+    AParams.AddStrings(['-r', 'auto'])
+  else if MarginsToString <> '' then
+    AParams.AddStrings(['-m', MarginsToString]);
   if DpiOverrideEnabled then
     AParams.AddStrings(['-p', IntToStr(DpiOverride)]);
   if ForcedOutputFormat <> fofNone then
@@ -302,6 +326,42 @@ begin
   AParams.Add(FFiles[AFileIndex]);
 end;
 
+class function TOptions.IsValidMargins(const Margins: string): Boolean;
+var
+  Parts: TStringList;
+  I, NumCount: Integer;
+  Value: Double;
+  S: string;
+begin
+  if Trim(Margins) = '' then
+    Exit(True);
+
+  Parts := TStringList.Create;
+  try
+    Parts.StrictDelimiter := True;
+    Parts.Delimiter := ',';
+    Parts.DelimitedText := Margins;
+    NumCount := Parts.Count;
+
+    // Unit can be the last item
+    S := LowerCase(Trim(Parts[Parts.Count - 1]));
+    for I := Low(MarginUnits) to High(MarginUnits) do
+      if S = MarginUnits[I] then
+      begin
+        Dec(NumCount);
+        Break;
+      end;
+
+    Result := NumCount in [1, 2, 4];
+    if Result then
+      for I := 0 to NumCount - 1 do
+        if not TryStrToFloat(Trim(Parts[I]), Value, ImagingUtility.GetFormatSettingsForFloats) or (Value < 0) then
+          Exit(False);
+  finally
+    Parts.Free;
+  end;
+end;
+
 procedure TOptions.Reset;
 begin
   DefaultOutputFileOptions := True;
@@ -316,6 +376,9 @@ begin
   DpiOverrideEnabled := False;
   DpiOverride := DefaultDpiOverride;
   DetectOnly := False;
+  ForceRotation := False;
+  AutoContentRect := False;
+  ContentMargins := '';
   ThresholdLevel := DefaultThresholdLevel;
   ThresholdingAuto := True;
   ForcedOutputFormat := fofNone;
@@ -343,6 +406,9 @@ begin
   Ini.WriteNiceBool(IniSectionAdvanced, 'DpiOverrideEnabled', DpiOverrideEnabled);
   Ini.WriteInteger(IniSectionAdvanced, 'DpiOverride', DpiOverride);
   Ini.WriteNiceBool(IniSectionAdvanced, 'DetectOnly', DetectOnly);
+  Ini.WriteNiceBool(IniSectionAdvanced, 'ForceRotation', ForceRotation);
+  Ini.WriteNiceBool(IniSectionAdvanced, 'AutoContentRect', AutoContentRect);
+  Ini.WriteString(IniSectionAdvanced, 'ContentMargins', ContentMargins);
   Ini.WriteInteger(IniSectionAdvanced, 'ThresholdLevel', ThresholdLevel);
   Ini.WriteNiceBool(IniSectionAdvanced, 'ThresholdingAuto', ThresholdingAuto);
   Ini.WriteString(IniSectionAdvanced, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
@@ -370,6 +436,11 @@ begin
   DpiOverrideEnabled := Ini.ReadNiceBool(IniSectionAdvanced, 'DpiOverrideEnabled', False);
   DpiOverride := Ini.ReadInteger(IniSectionAdvanced, 'DpiOverride', DefaultDpiOverride);
   DetectOnly := Ini.ReadNiceBool(IniSectionAdvanced, 'DetectOnly', False);
+  ForceRotation := Ini.ReadNiceBool(IniSectionAdvanced, 'ForceRotation', False);
+  AutoContentRect := Ini.ReadNiceBool(IniSectionAdvanced, 'AutoContentRect', False);
+  ContentMargins := Ini.ReadString(IniSectionAdvanced, 'ContentMargins', '');
+  if not IsValidMargins(ContentMargins) then
+    ContentMargins := '';
   ThresholdLevel := Ini.ReadInteger(IniSectionAdvanced, 'ThresholdLevel', DefaultThresholdLevel);
   ThresholdingAuto := Ini.ReadNiceBool(IniSectionAdvanced, 'ThresholdingAuto', True);
 
@@ -378,6 +449,8 @@ begin
   OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionAdvanced, 'OutputFileParamsEnabled', '[]')));
   JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
   TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
+  if (TiffCompressionScheme < Low(TiffCompressionSchemeNames)) or (TiffCompressionScheme > High(TiffCompressionSchemeNames)) then
+    TiffCompressionScheme := DefaultTiffCompressionScheme;
   PrintParams := Ini.ReadNiceBool(IniSectionAdvanced, 'PrintParams', DefaultPrintParams);
   ExtraCmdLineArgs := Ini.ReadString(IniSectionAdvanced, 'ExtraCmdLineArgs', '');
   DefaultExecutable := Ini.ReadNiceBool(IniSectionAdvanced, 'DefaultExecutable', True);

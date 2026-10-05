@@ -61,6 +61,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 129
       Height = 23
+      Hint = 'The largest skew angle that is looked for, in both directions. Larger value takes more time.'#13#10'Pages skewed more than this are left as they are.'
       Top = 234
       Width = 64
       BorderSpacing.Left = 8
@@ -95,6 +96,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Side = asrBottom
       Left = 384
       Height = 23
+      Hint = 'Pages skewed by less than this angle are not rotated.'
       Top = 234
       Width = 64
       Anchors = [akTop, akRight]
@@ -123,6 +125,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 138
       Height = 23
+      Hint = 'Pixel format of the output image.'#13#10'By default it follows the input, only 1bit images become 8bit grayscale so the rotated text stays smooth.'
       Top = 72
       Width = 310
       ItemHeight = 15
@@ -150,6 +153,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrCenter
       Left = 8
       Height = 19
+      Hint = 'Use the Deskew command line tool that comes with this application. Uncheck to choose another one.'
       Top = 402
       Width = 180
       BorderSpacing.Top = 18
@@ -158,7 +162,7 @@ object FormAdvOptions: TFormAdvOptions
       ParentShowHint = False
       ShowHint = True
       State = cbChecked
-      TabOrder = 16
+      TabOrder = 17
     end
     object EdDeskewExePath: TEdit
       AnchorSideLeft.Control = LabDeskewExe
@@ -169,13 +173,14 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrCenter
       Left = 119
       Height = 23
+      Hint = 'Path to the Deskew command line tool to use.'
       Top = 429
       Width = 242
       Anchors = [akTop, akLeft, akRight]
       BorderSpacing.Left = 8
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 17
+      TabOrder = 18
     end
     object BtnBrowseDeskewExePath: TButton
       AnchorSideLeft.Side = asrBottom
@@ -195,7 +200,7 @@ object FormAdvOptions: TFormAdvOptions
       BorderSpacing.Right = 8
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 18
+      TabOrder = 19
     end
     object ComboResampling: TComboBox
       AnchorSideLeft.Control = LabResamling
@@ -204,6 +209,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 138
       Height = 23
+      Hint = 'Filter used for rotating the image.'#13#10'Bilinear is fast and fine for most scans, Bicubic and Lanczos are sharper but slower.'#13#10'Nearest keeps the original pixel values (no new colors) but the edges get jagged.'
       Top = 39
       Width = 310
       BorderSpacing.Left = 20
@@ -244,6 +250,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 10
       Height = 19
+      Hint = 'Set the compression quality of JPEG output files (and of TIFFs with JPEG compression). It is 90 by default.'
       Top = 134
       Width = 82
       BorderSpacing.Left = 2
@@ -260,6 +267,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 96
       Height = 23
+      Hint = 'JPEG quality from 1 to 100. Higher means better image and larger file.'
       Top = 132
       Width = 66
       BorderSpacing.Left = 4
@@ -275,10 +283,11 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = ComboOutputFormat
       AnchorSideRight.Side = asrBottom
-      Left = 336
+      Left = 312
       Height = 23
+      Hint = 'Compression of TIFF output files.'#13#10'"As input" keeps the compression of the input TIFF, even lossy JPEG.'#13#10'"As input (lossless)" does the same but uses LZW instead of JPEG.'
       Top = 132
-      Width = 112
+      Width = 136
       Anchors = [akTop, akRight]
       Enabled = False
       ItemHeight = 15
@@ -294,6 +303,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Control = ComboTiffCompression
       Left = 222
       Height = 19
+      Hint = 'Choose the compression of TIFF output files. It is LZW by default (Group 4 Fax for 1bit images).'
       Top = 134
       Width = 110
       Anchors = [akTop, akRight]
@@ -324,6 +334,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 130
       Height = 19
+      Hint = 'Find the threshold between the text and the background automatically for each image.'#13#10'Uncheck to set the level yourself.'
       Top = 205
       Width = 44
       BorderSpacing.Left = 50
@@ -339,6 +350,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 190
       Height = 23
+      Hint = 'Threshold level from 1 to 255. Pixels darker than this are taken as text when looking for the skew.'
       Top = 203
       Width = 50
       BorderSpacing.Left = 16
@@ -371,13 +383,14 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 195
       Height = 23
+      Hint = 'More parameters passed to the Deskew command line tool as they are.'#13#10'For example content rectangle:  -r 100,150,900,1200'
       Top = 365
       Width = 219
       BorderSpacing.Left = 16
       BorderSpacing.Top = 20
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 15
+      TabOrder = 16
     end
     object LabAngleStep: TLabel
       AnchorSideLeft.Control = LabForcedFormat
@@ -397,6 +410,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 129
       Height = 23
+      Hint = 'Step between the angles tried when looking for the skew. Smaller step is more precise but slower.'
       Top = 265
       Width = 64
       Increment = 0.05
@@ -413,6 +427,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Control = SpinEditDpiOverride
       Left = 294
       Height = 19
+      Hint = 'Set the print resolution of the images yourself. It replaces the one stored in the input files.'#13#10'It is needed for margins in mm, cm or inches when the files have no resolution stored.'
       Top = 267
       Width = 82
       Anchors = [akTop, akRight]
@@ -429,6 +444,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideRight.Side = asrBottom
       Left = 384
       Height = 23
+      Hint = 'Print resolution in DPI (dots per inch).'
       Top = 265
       Width = 64
       Anchors = [akTop, akRight]
@@ -446,6 +462,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 8
       Height = 19
+      Hint = 'Print the parameters passed to the Deskew command line tool into the output log.'
       Top = 300
       Width = 105
       BorderSpacing.Top = 16
@@ -460,12 +477,29 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 129
       Height = 19
+      Hint = 'Only detect the skew angle and print it into the output log. No output files are written.'
       Top = 300
       Width = 78
       Caption = 'Detect only'
       ParentShowHint = False
       ShowHint = True
       TabOrder = 14
+    end
+    object CheckForceRotation: TCheckBox
+      AnchorSideTop.Control = CheckPrintParams
+      AnchorSideTop.Side = asrCenter
+      AnchorSideRight.Control = ComboOutputFormat
+      AnchorSideRight.Side = asrBottom
+      Left = 352
+      Height = 19
+      Hint = 'Rotate the image always: also when the detected skew angle is not reliable (blank pages, pages without text lines)'#13#10'or smaller than the skip angle. Such pages are left as they are by default.'
+      Top = 300
+      Width = 96
+      Anchors = [akTop, akRight]
+      Caption = 'Force rotation'
+      ParentShowHint = False
+      ShowHint = True
+      TabOrder = 15
     end
     object Shape1: TShape
       AnchorSideLeft.Control = Panel1
@@ -505,6 +539,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideBottom.Side = asrBottom
       Left = 308
       Height = 31
+      Hint = 'Use these options and close the window.'
       Top = 496
       Width = 140
       Anchors = [akTop, akRight]
@@ -516,7 +551,7 @@ object FormAdvOptions: TFormAdvOptions
       Font.Height = -16
       ModalResult = 1
       ParentFont = False
-      TabOrder = 19
+      TabOrder = 20
       OnClick = BtnOkClick
     end
     object BtnResetOptions: TBitBtn
@@ -537,7 +572,7 @@ object FormAdvOptions: TFormAdvOptions
       Constraints.MinWidth = 140
       Font.Height = -16
       ParentFont = False
-      TabOrder = 20
+      TabOrder = 21
     end
   end
   object ActionList: TActionList
@@ -545,10 +580,12 @@ object FormAdvOptions: TFormAdvOptions
     Top = 8
     object ActBrowseDeskewExe: TAction
       Caption = 'Browse...'
+      Hint = 'Choose the Deskew command line tool executable.'
       OnExecute = ActBrowseDeskewExeExecute
     end
     object ActResetOptions: TAction
       Caption = 'Reset Options...'
+      Hint = 'Set all the options back to their defaults, including the ones in the main window.'
       OnExecute = ActResetOptionsExecute
     end
   end
