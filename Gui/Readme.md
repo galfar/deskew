@@ -18,6 +18,8 @@ It needs the command line tool which is called for each input file. Both come to
 in the release archives, so there is nothing to set up:
 
 - Windows and Linux: `deskewgui` and `deskew` executables are in the same folder.
+  On Linux `deskewgui` uses Qt6 and `deskewgui-gtk2` is the same GUI for systems without Qt6
+  (see Platform Notes in the [Readme](../Readme.md#platform-notes)).
 - macOS: `DeskewGui.app` is a self-contained application bundle with the command line tool inside.
 
 When the command line tool is not next to the GUI, it is looked for in `PATH` (on macOS also in
@@ -75,6 +77,7 @@ v1.00 2026-10-05:
 - fixed: skip angle 0 and max angle just next to the default value were ignored
 - fixed behavior with empty output folder
 - macOS ARM64 build
+- Linux: Qt6 build (GTK2 build is still there for systems without Qt6)
 
 v0.95 2021-06-01:
 

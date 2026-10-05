@@ -48,6 +48,8 @@ jobs:
           install: |
             apt-get update -q -y
             apt-get install -q -y fpc python3
+            # For the release archive
+            apt-get install -q -y zip
 
           run: |
             echo "OS:" $(grep PRETTY_NAME /etc/os-release | cut -d= -f2) "/" $(uname -m)
@@ -63,6 +65,20 @@ jobs:
             ./tests -a -p --format=plain --no-addresses
             ./runtests.sh
             python3 ../Tests/cli/check_cli.py ./deskew
+            cd ..
+
+            # Release archive with the command line tool only (no Lazarus and GUI here)
+            if [ "${{ matrix.arch }}" = "armv7" ]; then
+              ./Scripts/package_release.sh linux-armv7
+            fi
+
+      - name: Upload release archive
+        if: matrix.arch == 'armv7'
+        uses: actions/upload-artifact@v7
+        with:
+          name: deskew-linux-armv7
+          path: Releases/deskew-*.zip
+          if-no-files-found: error
 
       - name: Upload binaries
         uses: actions/upload-artifact@v7

@@ -1,9 +1,10 @@
 name: CI
 
 on:
-  # On each push and manual trigger
+  # On each push to master, on version tags (release builds) and manual trigger
   push:
     branches: [ master ]
+    tags: [ "v*" ]
     paths-ignore: [ "**/Readme.md" ]
   workflow_dispatch:
 
@@ -21,22 +22,23 @@ jobs:
         run: ./Scripts/sync_imaging.sh check
 
   build:
-    name: build (${{ matrix.operating-system }}, ${{ matrix.arch }})
+    name: build (${{ matrix.target }})
     runs-on: ${{ matrix.operating-system }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
+        # "target" is the name of the release platform for Scripts/build_release.sh and package_release.sh
         include:
-          # Windows x86_64
+          # Windows x86_64 (32-bit Windows binaries are cross compiled here too)
           - operating-system: windows-latest
-            arch: x86_64
+            target: win-x64
             laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Windows%2064%20bits/Lazarus%204.8/lazarus-4.8-fpc-3.2.2-win64.exe
             fpc-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Windows%2064%20bits/Lazarus%204.8/lazarus-4.8-fpc-3.2.2-cross-i386-win32-win64.exe
 
           # Ubuntu x86_64
           - operating-system: ubuntu-latest
-            arch: x86_64
+            target: linux-x64
             laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20amd64%20DEB/Lazarus%204.8/lazarus-project_4.8.0-0_amd64.deb
             fpc-url: |
               https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20amd64%20DEB/Lazarus%204.8/fpc-laz_3.2.2-210709_amd64.deb
@@ -44,7 +46,7 @@ jobs:
 
           # Ubuntu ARM64
           - operating-system: ubuntu-24.04-arm
-            arch: arm64
+            target: linux-arm64
             laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20arm64%20DEB/Lazarus%204.8/lazarus-project_4.8.0-0_arm64.deb
             fpc-url: |
               https://sourceforge.net/projects/lazarus/files/Lazarus%20Linux%20arm64%20DEB/Lazarus%204.8/fpc-laz_3.2.3-240813_arm64.deb
@@ -52,13 +54,13 @@ jobs:
 
           # macOS ARM64
           - operating-system: macos-latest
-            arch: arm64
+            target: macos-arm64
             laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20aarch64/Lazarus%204.8/lazarus-darwin-aarch64-4.8.zip
             fpc-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20aarch64/Lazarus%204.8/fpc-3.2.4rc1a.intelarm64-macosx.dmg
 
           # macOS x86_64
           - operating-system: macos-15-intel
-            arch: x86_64
+            target: macos-x64
             laz-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20x86-64/Lazarus%204.8/lazarus-darwin-x86_64-4.8.zip
             fpc-url: https://sourceforge.net/projects/lazarus/files/Lazarus%20macOS%20x86-64/Lazarus%204.8/fpc-3.2.4rc1a.intelarm64-macosx.dmg
 
@@ -116,24 +118,19 @@ jobs:
           if [ "$RUNNER_OS" == "Linux" ]; then
             echo "    "$(lsb_release -d)
           fi
+          ./Scripts/get_versions.sh
 
-      - name: Build Deskew CLI
+      - name: Build Deskew CLI and GUI
         shell: bash
-        run:  lazbuild --build-mode=Release "deskew.lpi"
+        run:  ./Scripts/build_release.sh ${{ matrix.target }}
 
-      # On macOS the project gives the minimal macOS version itself (linking of LCL fails
-      # with recent Xcode otherwise)
-      - name: Build Deskew GUI
-        shell: bash
-        run:  lazbuild --build-mode=Release "Gui/deskewgui.lpi"
-
-      # Checks that the GUI builds with the other LCL widget sets of Linux (other than 
-      # the default GTK2). Built after the default one as LCL is rebuilt for each.
-      - name: Build Deskew GUI with Qt5, Qt6 and GTK3
+      # Checks that the GUI builds with the other LCL widget sets of Linux (the release
+      # has Qt6 and GTK2 builds). Built after the release ones as LCL is rebuilt for each.
+      - name: Build Deskew GUI with Qt5 and GTK3
         if: runner.os == 'Linux'
         shell: bash
         run:  |
-          for ws in qt5 qt6 gtk3; do
+          for ws in qt5 gtk3; do
               lazbuild --build-mode=Release --ws=$ws --opt="-o$PWD/Bin/deskewgui-$ws" "Gui/deskewgui.lpi"
           done
 
@@ -194,34 +191,58 @@ jobs:
               python3 ../Tests/cli/check_cli.py ./deskew
           fi
 
-      # GUI builds are started and must show their main window: catches startup crashes
-      # and missing shared libraries. Screenshots go to Bin/gui-smoke (in the artifacts).
+      - name: Package release archive
+        shell: bash
+        run:  ./Scripts/package_release.sh ${{ matrix.target }}
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: deskew-${{ matrix.target }}
+          path: Releases/deskew-*.zip
+          if-no-files-found: error
+
+      # GUIs are started and must show their main window: catches startup crashes and
+      # missing shared libraries. GUIs of the release archive are started from its folder
+      # (Releases/<name>/, Linux Qt6 build loads libQt6Pas.so.6 of the archive, macOS GUI
+      # from the application bundle). Screenshots go to Bin/gui-smoke (in the artifacts).
       - name: GUI smoke test (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
+          REL=$(echo Releases/deskew-*-${{ matrix.target }})
           # Window manager: Qt does not paint its dialogs under bare Xvfb
           sudo apt install -y -q xvfb xdotool imagemagick openbox
-          xvfb-run -a -s "-screen 0 1280x1024x24" bash Scripts/ci/gui_smoke.sh Bin/gui-smoke Bin/deskewgui Bin/deskewgui-qt5 Bin/deskewgui-qt6
+          xvfb-run -a -s "-screen 0 1280x1024x24" bash Scripts/ci/gui_smoke.sh Bin/gui-smoke $REL/deskewgui $REL/deskewgui-gtk2 Bin/deskewgui-qt5
           # GTK3 build is known to be broken with Lazarus 4.8, reported only
           xvfb-run -a -s "-screen 0 1280x1024x24" bash Scripts/ci/gui_smoke.sh Bin/gui-smoke Bin/deskewgui-gtk3 || echo "::warning::GTK3 GUI build did not show its window"
 
       - name: GUI smoke test (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./Scripts/ci/gui_smoke.ps1 -OutDir Bin/gui-smoke -Exe Bin/deskewgui.exe
+        shell: bash
+        run: pwsh -File Scripts/ci/gui_smoke.ps1 -OutDir Bin/gui-smoke -Exe "$(echo Releases/deskew-*-${{ matrix.target }})/deskewgui.exe"
 
       - name: GUI smoke test (macOS)
         if: runner.os == 'macOS'
         shell: bash
-        run: bash Scripts/ci/gui_smoke.sh Bin/gui-smoke Bin/deskewgui
+        run: bash Scripts/ci/gui_smoke.sh Bin/gui-smoke "$(echo Releases/deskew-*-${{ matrix.target }})/DeskewGui.app/Contents/MacOS/deskewgui"
 
-      - name: Upload binaries
+      # 32-bit Windows binaries are cross compiled on the 64-bit runner
+      - name: Build, test and package win-x86
+        if: matrix.target == 'win-x64'
+        shell: bash
+        run: |
+          ./Scripts/build_release.sh win-x86
+          (cd Bin && ./RunTests.bat)
+          ./Scripts/package_release.sh win-x86
+          pwsh -File Scripts/ci/gui_smoke.ps1 -OutDir Bin/gui-smoke/win-x86 -Exe "$(echo Releases/deskew-*-win-x86)/deskewgui.exe"
+
+      - name: Upload win-x86 release archive
+        if: matrix.target == 'win-x64'
         uses: actions/upload-artifact@v7
         with:
-          name: deskew-binaries-${{ runner.os }}-${{ runner.arch }}
-          path: |
-            Bin/deskew*
+          name: deskew-win-x86
+          path: Releases/deskew-*-win-x86.zip
           if-no-files-found: error
 
       - name: Upload artifacts
