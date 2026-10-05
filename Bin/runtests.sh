@@ -21,6 +21,8 @@ while (( "$#" )); do
   shift
 done
 
+# Help only
+./$DESKEW -h
 # All defaults, output goes next to the input as deskewed-2.png
 ./$DESKEW ../TestImages/2.png
 # Auto (Otsu) threshold and max skew angle
@@ -55,6 +57,8 @@ done
 ./$DESKEW -g d ../TestImages/5.png
 # Skew below the skip limit: deskewing is skipped and the input is copied as is
 ./$DESKEW -a 5 -l 2 -o TestOut/OutlF1550.jpg ../TestImages/F1550.jpg
+# Coarse angle step, margins in millimeters with DPI given by the user, thresholded work image saved
+./$DESKEW -d 0.5 -p 300 -m 10,mm -s w -o TestOut/Outdp3.png ../TestImages/3.png
 # Skew detection only inside automatically found content area, detection stats
 ./$DESKEW -r auto -s s -o TestOut/Outra3.png ../TestImages/3.png
 # Blank page with a gray frame: nothing to detect, deskewing is skipped and the input is copied as is

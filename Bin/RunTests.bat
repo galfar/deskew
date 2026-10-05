@@ -6,6 +6,7 @@
 @setlocal EnableDelayedExpansion
 @if defined param1 set DESKEW=%param1%
 
+%DESKEW% -h || goto :error
 %DESKEW% ../TestImages/2.png || goto :error
 %DESKEW% -t a -a 10 -o TestOut/Out2.png ../TestImages/2.png || goto :error
 %DESKEW% -a 10 -o TestOut/Out3.png ../TestImages/3.png || goto :error
@@ -23,6 +24,7 @@
 %DESKEW% -f g8 -b 77 -s t -o TestOut/Outg6.png ../TestImages/6.png || goto :error
 %DESKEW% -g d ../TestImages/5.png || goto :error
 %DESKEW% -a 5 -l 2 -o TestOut/OutlF1550.jpg ../TestImages/F1550.jpg || goto :error
+%DESKEW% -d 0.5 -p 300 -m 10,mm -s w -o TestOut/Outdp3.png ../TestImages/3.png || goto :error
 %DESKEW% -r auto -s s -o TestOut/Outra3.png ../TestImages/3.png || goto :error
 %DESKEW% -o TestOut/OutBlank.png ../TestImages/blank.png || goto :error
 %DESKEW% -g f -o TestOut/OutBlankForced.png ../TestImages/blank.png || goto :error

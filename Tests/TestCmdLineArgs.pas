@@ -25,6 +25,7 @@ type
     // Test basics
     procedure TestParsing;
     procedure TestDefaults;
+    procedure TestHelp;
 
     // Test input and output
     procedure TestInputOnly;
@@ -108,6 +109,12 @@ begin
   ParseResult := FCmdOptions.Parse(['in.jpg', '-a']);
   AssertParseFailAndErrorContains(ParseResult, 'Missing value for parameter: -a', 'Missing value');
 
+  // Unknown parameter without a value is still unknown, not missing a value
+  ParseResult := FCmdOptions.Parse(['-x']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter: -x', 'Unknown parameter alone');
+  ParseResult := FCmdOptions.Parse(['in.jpg', '--verbose']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter: --verbose', 'Unknown parameter last');
+
   ParseResult := FCmdOptions.Parse(['in.jpg', '-a', '1']);
   AssertParseSuccesAndEmptyError(ParseResult, 'Param after input');
 end;
@@ -137,6 +144,33 @@ begin
   AssertFalse('Default SaveWorkImage', FCmdOptions.SaveWorkImage);
 
   AssertFalse('Default IsValid (not parsed)', FCmdOptions.IsValid);
+end;
+
+procedure TTestCmdLineOptions.TestHelp;
+begin
+  AssertFalse('Help not requested by default', FCmdOptions.HelpRequested);
+
+  AssertTrue('-h', FCmdOptions.Parse(['-h']));
+  AssertTrue('-h requested', FCmdOptions.HelpRequested);
+  AssertEquals('-h error message empty', '', FCmdOptions.ErrorMessage);
+
+  AssertTrue('--help', FCmdOptions.Parse(['--help']));
+  AssertTrue('--help requested', FCmdOptions.HelpRequested);
+  AssertTrue('-?', FCmdOptions.Parse(['-?']));
+  AssertTrue('-? requested', FCmdOptions.HelpRequested);
+
+  // Other parameters do not matter, not even the wrong ones
+  AssertTrue('-h with others', FCmdOptions.Parse(['in.png', '-a', '5', '-h', '-x']));
+  AssertTrue('-h with others requested', FCmdOptions.HelpRequested);
+
+  // Help flag is reset by next parsing
+  AssertTrue('No help', FCmdOptions.Parse(['in.png']));
+  AssertFalse('No help requested', FCmdOptions.HelpRequested);
+
+  // Value of another parameter is not a help request
+  AssertTrue('Help as value', FCmdOptions.Parse(['-o', '-h', 'in.png']));
+  AssertFalse('Help as value not requested', FCmdOptions.HelpRequested);
+  AssertEquals('Help as value', '-h', FCmdOptions.OutputFileName);
 end;
 
 procedure TTestCmdLineOptions.TestInputOnly;
@@ -195,8 +229,19 @@ begin
   AssertParseSuccesAndEmptyError(ParseResult);
   AssertEquals('MaxAngle Set', 5.7, FCmdOptions.MaxAngle);
 
+  ParseResult := FCmdOptions.Parse(['-a', '90', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Largest');
+  AssertEquals('MaxAngle largest', 90, FCmdOptions.MaxAngle);
+
   ParseResult := FCmdOptions.Parse(['-a', 'not_a_number', 'in.jpg']);
-  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for max angle parameter: not_a_number', 'Invalid value');
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for max angle parameter', 'Invalid value');
+  AssertParseFailAndErrorContains(ParseResult, ': not_a_number', 'Invalid value shown');
+  ParseResult := FCmdOptions.Parse(['-a', '0', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for max angle parameter', 'Zero');
+  ParseResult := FCmdOptions.Parse(['-a', '-5', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for max angle parameter', 'Negative');
+  ParseResult := FCmdOptions.Parse(['-a', '90.5', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for max angle parameter', 'Too large');
 end;
 
 procedure TTestCmdLineOptions.TestAngleStep;
@@ -206,6 +251,17 @@ begin
   ParseResult := FCmdOptions.Parse(['-d', '0.01', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult);
   AssertEquals('AngleStep Set', 0.01, FCmdOptions.AngleStep);
+
+  ParseResult := FCmdOptions.Parse(['-d', '5', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Largest');
+  AssertEquals('AngleStep largest', 5, FCmdOptions.AngleStep);
+
+  ParseResult := FCmdOptions.Parse(['-d', '0.001', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for angle step parameter', 'Too small');
+  ParseResult := FCmdOptions.Parse(['-d', '5.5', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for angle step parameter', 'Too large');
+  ParseResult := FCmdOptions.Parse(['-d', 'step', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for angle step parameter', 'Not a number');
 end;
 
 procedure TTestCmdLineOptions.TestSkipAngle;
@@ -215,6 +271,17 @@ begin
   ParseResult := FCmdOptions.Parse(['-l', '0.5', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult);
   AssertEquals('SkipAngle Set', 0.5, FCmdOptions.SkipAngle);
+
+  ParseResult := FCmdOptions.Parse(['-l', '0', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Zero');
+  AssertEquals('SkipAngle zero', 0, FCmdOptions.SkipAngle);
+
+  ParseResult := FCmdOptions.Parse(['-l', '-0.1', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for skip angle parameter', 'Negative');
+  ParseResult := FCmdOptions.Parse(['-l', '100', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for skip angle parameter', 'Too large');
+  ParseResult := FCmdOptions.Parse(['-l', '1,5', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for skip angle parameter', 'Decimal comma');
 end;
 
 procedure TTestCmdLineOptions.TestDpiOverride;
@@ -224,6 +291,11 @@ begin
   ParseResult := FCmdOptions.Parse(['-p', '300', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult);
   AssertEquals('DPI Override Set', 300, FCmdOptions.DpiOverride);
+
+  ParseResult := FCmdOptions.Parse(['-p', '0', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for DPI override parameter', 'Zero');
+  ParseResult := FCmdOptions.Parse(['-p', '72.5', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for DPI override parameter', 'Float');
 end;
 
 procedure TTestCmdLineOptions.TestThreshold;
@@ -239,11 +311,26 @@ begin
   AssertParseSuccesAndEmptyError(ParseResult, 'Threshold auto');
   AssertTrue('Threshold Method Auto', tmOtsu = FCmdOptions.ThresholdingMethod);
 
+  ParseResult := FCmdOptions.Parse(['-t', '1', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Threshold lowest');
+  ParseResult := FCmdOptions.Parse(['-t', '255', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'Threshold highest');
+  AssertEquals('Threshold Level highest', 255, FCmdOptions.ThresholdLevel);
+
   ParseResult := FCmdOptions.Parse(['-t', 'x', 'in.jpg']);
-  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for treshold parameter: x', 'Invalid value - char');
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for threshold parameter', 'Invalid value - char');
+  AssertParseFailAndErrorContains(ParseResult, ': x', 'Invalid value - char shown');
 
   ParseResult := FCmdOptions.Parse(['-t', '55.55', 'in.jpg']);
-  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for treshold parameter: 55.55', 'Invalid value - float');
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for threshold parameter', 'Invalid value - float');
+
+  // No pixel is darker than 0 and levels end with 255
+  ParseResult := FCmdOptions.Parse(['-t', '0', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for threshold parameter', 'Invalid value - zero');
+  ParseResult := FCmdOptions.Parse(['-t', '256', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for threshold parameter', 'Invalid value - too high');
+  ParseResult := FCmdOptions.Parse(['-t', '-20', 'in.jpg']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value for threshold parameter', 'Invalid value - negative');
 end;
 
 procedure TTestCmdLineOptions.TestResamplingFilter;
@@ -358,7 +445,7 @@ begin
   AssertParseFailAndErrorContains(ParseResult, 'Invalid TIFF output compression spec: XYZ', 'Invalid TIFF spec');
 
   ParseResult := FCmdOptions.Parse(['-c', 'x99', 'in.png']);
-  AssertParseFailAndErrorContains(ParseResult, 'Invalid output compression parameter: x99', 'Invalid param');
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid output file format spec: x99', 'Invalid param');
 
   ParseResult := FCmdOptions.Parse(['-c', 'j80,tBAD', 'in.png']); // valid JPEG, invalid TIFF
   AssertParseFailAndErrorContains(ParseResult, 'Invalid TIFF output compression spec: bad', 'Invalid partial');
@@ -455,6 +542,15 @@ begin
   ParseResult := FCmdOptions.Parse(['-g', 'fc', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, 'force + crop flags');
   AssertTrue('ForceRotation + CropToInput set', FCmdOptions.OperationalFlags = [ofForceRotation, ofCropToInput]);
+
+  ParseResult := FCmdOptions.Parse(['-g', 'C', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'upper case flag');
+  AssertTrue('Only CropToInput set', FCmdOptions.OperationalFlags = [ofCropToInput]);
+
+  ParseResult := FCmdOptions.Parse(['-g', 'cxd', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown operational flag "x"', 'unknown flag');
+  ParseResult := FCmdOptions.Parse(['-g', 's', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown operational flag "s"', 'info flag as operational');
 end;
 
 procedure TTestCmdLineOptions.TestInfoFlags;
@@ -474,6 +570,11 @@ begin
   AssertFalse('Info: !params', FCmdOptions.ShowParams);
   AssertTrue('Info: timings only', FCmdOptions.ShowTimings);
   AssertFalse('Info: !work-image', FCmdOptions.SaveWorkImage);
+
+  ParseResult := FCmdOptions.Parse(['-s', 'sq', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown info flag "q"', 'unknown flag');
+  ParseResult := FCmdOptions.Parse(['-s', 'd', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown info flag "d"', 'operational flag as info');
 end;
 
 procedure TTestCmdLineOptions.TestContentRect;
