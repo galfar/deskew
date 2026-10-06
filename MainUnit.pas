@@ -37,7 +37,8 @@ uses
   RotationDetector;
 
 const
-  SAppTitle = 'Deskew 1.33 (2025-06-02, ' + SBuildTarget + ', ' + SBuildCompiler
+  SAppVersion = '1.33';
+  SAppTitle = 'Deskew ' + SAppVersion + ' (2025-06-02, ' + SBuildTarget + ', ' + SBuildCompiler
     {$IFDEF DEBUG} + ', DEBUG'{$ENDIF}
     + ') by Marek Mauder';
   SAppHome = 'https://github.com/galfar/deskew' + sLineBreak +
@@ -56,11 +57,68 @@ const
   // Other file formats (TIFF, QOI, JPEG, BMP) were tested with more than 4 GiB.
   MaxPngPixelDataSize = Int64(2000) * 1000 * 1000;
 
+type
+  // Steps of the processing that are timed
+  TTimedStep = (tsLoad, tsThresholding, tsContentDetection, tsSkewDetection, tsRotation, tsSave);
+  // What happened with the output file
+  TOutputWritten = (
+    // No output file: detect only mode or an error
+    owNone,
+    // Image was changed and saved in the output file format
+    owSaved,
+    // Image was not changed, input file was copied as it is
+    owCopied
+  );
+
+  // What is known about the current run, collected along the way for JSON report
+  TDeskewReport = record
+    StartTime: Int64;
+    ParamsValid: Boolean;
+    InputLoaded: Boolean;
+    InputWidth, InputHeight: Integer;
+    InputFormat: string;
+    // Print resolution of the input (after the override), zero when not known
+    DpiX, DpiY: Double;
+    DetectionDone: Boolean;
+    Threshold: Integer;
+    HasContent: Boolean;
+    // Content area found in the image and the area where the skew was detected
+    ContentRect, DetectionRect: TRect;
+    SkewAngle: Double;
+    Stats: TCalcSkewAngleStats;
+    Rotated: Boolean;
+    OutputWritten: TOutputWritten;
+    OutputWidth, OutputHeight: Integer;
+    OutputFormat: string;
+    // In microseconds, negative for steps that did not run
+    Timings: array[TTimedStep] of Int64;
+    ErrorMessage: string;
+  end;
+
+  PTextFile = ^Text;
+
+const
+  STimedSteps: array[TTimedStep] of string = (
+    'Load input file', 'Auto thresholding', 'Content detection', 'Skew detection',
+    'Rotate image', 'Save output file');
+
+  // Names used in JSON report
+  SJsonTimedSteps: array[TTimedStep] of string = (
+    'load', 'thresholding', 'contentDetection', 'skewDetection', 'rotation', 'save');
+  SJsonDetectionOutcomes: array[TSkewDetectionOutcome] of string = (
+    'detected', 'noContent', 'lowConfidence', 'atRangeLimit');
+  SJsonOutputWritten: array[TOutputWritten] of string = ('none', 'saved', 'copied');
+
 var
   // Program options
   Options: TCmdLineOptions;
   // Input and output image
   InputImage, OutputImage: TSingleImage;
+  // Where all the text for the user is written to. It is standard output unless
+  // it is taken by JSON report: nothing but the report can be written there then.
+  // Never use WriteLn without it.
+  Log: PTextFile;
+  Report: TDeskewReport;
 
 procedure WriteUsage;
 var
@@ -71,49 +129,51 @@ begin
   InFilter := '';
   OutFilter := '';
 
-  WriteLn('Usage: deskew [-o output] [-a angle] [-b color] [..] input');
-  WriteLn('    input:         Input image file');
-  WriteLn('    -h:            Show this help');
+  WriteLn(Log^, 'Usage: deskew [-o output] [-a angle] [-b color] [..] input');
+  WriteLn(Log^, '    input:         Input image file');
+  WriteLn(Log^, '    -h:            Show this help');
 
-  WriteLn;
-  WriteLn('  Options:');
-  WriteLn('    -o output:     Output image file name (default: deskewed-<input name>.png');
-  WriteLn('                   next to the input file)');
-  WriteLn('    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
-  WriteLn('    -q filter:     Resampling filter used for rotations (default: linear,');
-  WriteLn('                   values: nearest|linear|cubic|lanczos)');
-  WriteLn('    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
+  WriteLn(Log^);
+  WriteLn(Log^, '  Options:');
+  WriteLn(Log^, '    -o output:     Output image file name (default: deskewed-<input name>.png');
+  WriteLn(Log^, '                   next to the input file)');
+  WriteLn(Log^, '    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
+  WriteLn(Log^, '    -q filter:     Resampling filter used for rotations (default: linear,');
+  WriteLn(Log^, '                   values: nearest|linear|cubic|lanczos)');
+  WriteLn(Log^, '    -a angle:      Maximal expected skew angle (both directions) in degrees (default: 10)');
 
-  WriteLn;
-  WriteLn('  Advanced options:');
-  WriteLn('    -d angle:      Angle step during detection in degrees (default: 0.1)');
-  WriteLn('    -t a|level:    Auto threshold or level in 1..255, darker pixels are');
-  WriteLn('                   considered to be text (default: auto)');
-  WriteLn('    -m margins:    Skew detection only outside page margins:');
-  WriteLn('                   L,T,R,B[,unit] or H,V[,unit] or A[,unit] (default: whole page)');
-  WriteLn('                   unit: px|%|mm|cm|in (default: px)');
-  WriteLn('    -r rect:       Skew detection only in content rectangle:');
-  WriteLn('                   L,T,R,B[,unit] or auto (default: whole page)');
-  WriteLn('                   unit: px|%|mm|cm|in (default: px)');
-  WriteLn('                   auto: content area is found automatically for each image');
-  WriteLn('    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
-  WriteLn('    -p dpi:        Print resolution of the image in DPI, overrides the one stored');
-  WriteLn('                   in the input file (default: use the stored one)');
-  WriteLn('    -l angle:      Skip deskewing step if skew angle is smaller, in degrees (default: 0.01)');
-  WriteLn('    -g flags:      Operational flags (any combination of):');
-  WriteLn('                   c - crop to input size, d - detect only (no output to file),');
-  WriteLn('                   f - force rotation: also when the skew angle is not reliable');
-  WriteLn('                   or smaller than the skip angle (-l)');
-  WriteLn('    -s info:       Info dump (any combination of):');
-  WriteLn('                   s - skew detection stats, p - program parameters, t - timings,');
-  WriteLn('                   w - save work/thresholded image');
-  WriteLn('    -c specs:      Output file format specs (compression etc.). Several specs');
-  WriteLn('                   can be defined - delimited by commas. Supported specs:');
-  WriteLn('                   jXX - JPEG compression quality, XX in range [1,100(best)]');
-  WriteLn('                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4|input|input-lossless');
-  WriteLn;
-  WriteLn('  Skew angle is positive when the content is turned clockwise (text lines go down');
-  WriteLn('  to the right), image is then rotated counterclockwise by this angle to fix it.');
+  WriteLn(Log^);
+  WriteLn(Log^, '  Advanced options:');
+  WriteLn(Log^, '    -d angle:      Angle step during detection in degrees (default: 0.1)');
+  WriteLn(Log^, '    -t a|level:    Auto threshold or level in 1..255, darker pixels are');
+  WriteLn(Log^, '                   considered to be text (default: auto)');
+  WriteLn(Log^, '    -m margins:    Skew detection only outside page margins:');
+  WriteLn(Log^, '                   L,T,R,B[,unit] or H,V[,unit] or A[,unit] (default: whole page)');
+  WriteLn(Log^, '                   unit: px|%|mm|cm|in (default: px)');
+  WriteLn(Log^, '    -r rect:       Skew detection only in content rectangle:');
+  WriteLn(Log^, '                   L,T,R,B[,unit] or auto (default: whole page)');
+  WriteLn(Log^, '                   unit: px|%|mm|cm|in (default: px)');
+  WriteLn(Log^, '                   auto: content area is found automatically for each image');
+  WriteLn(Log^, '    -f format:     Force output pixel format (values: b1|g8|rgb24|rgba32)');
+  WriteLn(Log^, '    -p dpi:        Print resolution of the image in DPI, overrides the one stored');
+  WriteLn(Log^, '                   in the input file (default: use the stored one)');
+  WriteLn(Log^, '    -l angle:      Skip deskewing step if skew angle is smaller, in degrees (default: 0.01)');
+  WriteLn(Log^, '    -g flags:      Operational flags (any combination of):');
+  WriteLn(Log^, '                   c - crop to input size, d - detect only (no output to file),');
+  WriteLn(Log^, '                   f - force rotation: also when the skew angle is not reliable');
+  WriteLn(Log^, '                   or smaller than the skip angle (-l)');
+  WriteLn(Log^, '    -s info:       Info dump (any combination of):');
+  WriteLn(Log^, '                   s - skew detection stats, p - program parameters, t - timings,');
+  WriteLn(Log^, '                   w - save work/thresholded image,');
+  WriteLn(Log^, '                   j - JSON report to standard output (and nothing else there),');
+  WriteLn(Log^, '                   r - JSON report to file <output file name>.json');
+  WriteLn(Log^, '    -c specs:      Output file format specs (compression etc.). Several specs');
+  WriteLn(Log^, '                   can be defined - delimited by commas. Supported specs:');
+  WriteLn(Log^, '                   jXX - JPEG compression quality, XX in range [1,100(best)]');
+  WriteLn(Log^, '                   tSCHEME - TIFF compression scheme: none|lzw|rle|deflate|jpeg|g4|input|input-lossless');
+  WriteLn(Log^);
+  WriteLn(Log^, '  Skew angle is positive when the content is turned clockwise (text lines go down');
+  WriteLn(Log^, '  to the right), image is then rotated counterclockwise by this angle to fix it.');
 
   Count := GetFileFormatCount;
   for I := 0 to Count - 1 do
@@ -125,10 +185,10 @@ begin
       OutFilter := OutFilter + Fmt.Extensions[0] + Iff(I < Count - 1, ', ', '');
   end;
 
-  WriteLn;
-  WriteLn('  Supported file formats');
-  WriteLn('    Input:  ', UpperCase(InFilter));
-  WriteLn('    Output: ', UpperCase(OutFilter));
+  WriteLn(Log^);
+  WriteLn(Log^, '  Supported file formats');
+  WriteLn(Log^, '    Input:  ', UpperCase(InFilter));
+  WriteLn(Log^, '    Output: ', UpperCase(OutFilter));
 end;
 
 procedure ReportBadInput(const Msg: string; ShowUsage: Boolean = True);
@@ -136,14 +196,17 @@ begin
   if ShowUsage then
   begin
     WriteUsage;
-    WriteLn;
+    WriteLn(Log^);
   end;
 
   // Error goes last so it does not get lost above the usage text
-  WriteLn('ERROR: ' + Msg);
+  WriteLn(Log^, 'ERROR: ' + Msg);
   if Options.ErrorMessage <> '' then
-    WriteLn(Options.ErrorMessage);
+    WriteLn(Log^, Options.ErrorMessage);
 
+  Report.ErrorMessage := Msg;
+  if Options.ErrorMessage <> '' then
+    Report.ErrorMessage := Msg + ' ' + Options.ErrorMessage;
   ExitCode := 1;
 end;
 
@@ -161,10 +224,206 @@ end;
 var
   Time: Int64;
 
-procedure WriteTiming(const StepName: string);
+procedure WriteTiming(Step: TTimedStep);
+var
+  Elapsed: Int64;
 begin
+  Elapsed := GetTimeMicroseconds - Time;
+  Report.Timings[Step] := Elapsed;
   if Options.ShowTimings then
-    WriteLn(StepName + ' - time taken: ' + FormatNiceNumber(GetTimeMicroseconds - Time, 0) + ' us');
+    WriteLn(Log^, STimedSteps[Step] + ' - time taken: ' + FormatNiceNumber(Elapsed, 0) + ' us');
+end;
+
+procedure InitReport;
+var
+  Step: TTimedStep;
+begin
+  Report.StartTime := GetTimeMicroseconds;
+  Report.ParamsValid := False;
+  Report.InputLoaded := False;
+  Report.InputFormat := '';
+  Report.DpiX := 0;
+  Report.DpiY := 0;
+  Report.DetectionDone := False;
+  Report.Rotated := False;
+  Report.OutputWritten := owNone;
+  Report.OutputFormat := '';
+  Report.ErrorMessage := '';
+  for Step := Low(TTimedStep) to High(TTimedStep) do
+    Report.Timings[Step] := -1;
+end;
+
+function BuildJsonReport: string;
+var
+  Json: TJsonWriter;
+  Step: TTimedStep;
+begin
+  Json := TJsonWriter.Create;
+  try
+    Json.BeginObject;
+
+    Json.BeginObject('deskew');
+    Json.AddString('version', SAppVersion);
+    Json.AddString('target', SBuildTarget + ', ' + SBuildCompiler);
+    Json.EndObject;
+
+    // There is nothing more to tell when Deskew did not even get proper parameters
+    if Report.ParamsValid then
+    begin
+      Json.BeginObject('input');
+      Json.AddString('file', ExpandFileName(Options.InputFileName));
+      if Report.InputLoaded then
+      begin
+        Json.AddInt('width', Report.InputWidth);
+        Json.AddInt('height', Report.InputHeight);
+        Json.AddString('format', Report.InputFormat);
+      end
+      else
+      begin
+        Json.AddNull('width');
+        Json.AddNull('height');
+        Json.AddNull('format');
+      end;
+      if (Report.DpiX > 0) and (Report.DpiY > 0) then
+      begin
+        Json.AddFloat('dpiX', Report.DpiX, 3);
+        Json.AddFloat('dpiY', Report.DpiY, 3);
+      end
+      else
+      begin
+        Json.AddNull('dpiX');
+        Json.AddNull('dpiY');
+      end;
+      Json.EndObject;
+
+      Json.BeginObject('parameters');
+      Options.WriteToJson(Json);
+      Json.EndObject;
+
+      // Detection part is there only when Deskew got that far
+      if Report.DetectionDone then
+      begin
+        Json.BeginObject('detection');
+        Json.AddFloat('skewAngle', Report.SkewAngle);
+        Json.AddFloat('confidence', Report.Stats.Confidence, 3);
+        Json.AddString('outcome', SJsonDetectionOutcomes[Report.Stats.Outcome]);
+        Json.AddBool('reliable', Report.Stats.Outcome = sdoDetected);
+        Json.AddInt('threshold', Report.Threshold);
+        if Report.HasContent then
+          Json.AddRect('contentRect', Report.ContentRect)
+        else
+          Json.AddNull('contentRect');
+        Json.AddRect('detectionRect', Report.DetectionRect);
+        Json.AddFloat('peakAngle', Report.Stats.PeakAngle);
+        Json.AddFloat('sharpness', Report.Stats.Sharpness, 3);
+        Json.AddInt('linesAtPeak', Report.Stats.LinesAtPeak);
+        Json.AddInt('bestCount', Report.Stats.BestCount);
+        Json.AddInt('pixelCount', Report.Stats.PixelCount);
+        Json.AddInt('testedPixels', Report.Stats.TestedPixels);
+        Json.AddInt('accumulatorSize', Report.Stats.AccumulatorSize);
+        Json.AddInt('accumulatedCounts', Report.Stats.AccumulatedCounts);
+        Json.EndObject;
+      end;
+
+      Json.AddBool('rotated', Report.Rotated);
+
+      Json.BeginObject('output');
+      if ofDetectOnly in Options.OperationalFlags then
+        Json.AddNull('file')
+      else
+        Json.AddString('file', ExpandFileName(Options.OutputFileName));
+      Json.AddString('written', SJsonOutputWritten[Report.OutputWritten]);
+      if Report.OutputWritten <> owNone then
+      begin
+        Json.AddInt('width', Report.OutputWidth);
+        Json.AddInt('height', Report.OutputHeight);
+        Json.AddString('format', Report.OutputFormat);
+      end
+      else
+      begin
+        Json.AddNull('width');
+        Json.AddNull('height');
+        Json.AddNull('format');
+      end;
+      Json.EndObject;
+
+      Json.BeginObject('timingsMs');
+      for Step := Low(TTimedStep) to High(TTimedStep) do
+        if Report.Timings[Step] >= 0 then
+          Json.AddFloat(SJsonTimedSteps[Step], Report.Timings[Step] / 1000, 3)
+        else
+          Json.AddNull(SJsonTimedSteps[Step]);
+      Json.AddFloat('total', (GetTimeMicroseconds - Report.StartTime) / 1000, 3);
+      Json.EndObject;
+    end;
+
+    if Report.ErrorMessage <> '' then
+      Json.AddString('error', Report.ErrorMessage)
+    else
+      Json.AddNull('error');
+
+    Json.EndObject;
+    Result := Json.GetText;
+  finally
+    Json.Free;
+  end;
+end;
+
+procedure EnsureOutputLocation(const FileName: string);
+var
+  Dir, Path: string;
+begin
+  Path := ExpandFileName(FileName);
+  Dir := GetFileDir(Path);
+  if Dir <> '' then
+    ForceDirectories(Dir);
+end;
+
+// Writes JSON report where the user wants it: standard output, file, or both.
+// Both get the same text.
+procedure WriteReports;
+var
+  FileName, ReportText: string;
+  FileData: AnsiString;
+  Stream: TFileStream;
+begin
+  if Options.HelpRequested or not (Options.JsonToStdOut or Options.JsonReportFile) then
+    Exit;
+
+  ReportText := BuildJsonReport;
+
+  // File name is not known when there is something wrong with the parameters
+  FileName := Options.JsonReportFileName;
+  if Options.JsonReportFile and (FileName <> '') then
+  try
+    FileData := AnsiString(ReportText + sLineBreak);
+    EnsureOutputLocation(FileName);
+    Stream := TFileStream.Create(FileName, fmCreate);
+    try
+      Stream.WriteBuffer(FileData[1], Length(FileData));
+    finally
+      Stream.Free;
+    end;
+  except
+    on E: Exception do
+    begin
+      WriteLn(Log^);
+      WriteLn(Log^, 'Could not write report file ', FileName, ': ', E.Message);
+      ExitCode := 1;
+      // The other report should know
+      if Report.ErrorMessage = '' then
+      begin
+        Report.ErrorMessage := 'Could not write report file: ' + E.Message;
+        ReportText := BuildJsonReport;
+      end;
+    end;
+  end;
+
+  if Options.JsonToStdOut then
+  begin
+    WriteLn(Output, ReportText);
+    Flush(Output);
+  end;
 end;
 
 function DoDeskew: Boolean;
@@ -177,18 +436,18 @@ var
 
   procedure WriteDetectionStats;
   begin
-    WriteLn('Skew detection stats:');
-    WriteLn('  content area:       ', Iff(HasContent, RectToStr(FoundContentRect), 'none'):16);
-    WriteLn('  pixel count:        ', FormatNiceNumber(Stats.PixelCount));
-    WriteLn('  tested pixels:      ', FormatNiceNumber(Stats.TestedPixels));
-    WriteLn('  accumulator size:   ', FormatNiceNumber(Stats.AccumulatorSize));
-    WriteLn('  accumulated counts: ', FormatNiceNumber(Stats.AccumulatedCounts));
-    WriteLn('  best count:         ', FormatNiceNumber(Stats.BestCount));
-    WriteLn('  peak angle:         ', Stats.PeakAngle:16:3);
-    WriteLn('  lines at peak:      ', FormatNiceNumber(Stats.LinesAtPeak));
-    WriteLn('  sharpness:          ', Stats.Sharpness:16:3);
-    WriteLn('  confidence:         ', Stats.Confidence:16:3);
-    WriteLn('  outcome:            ', SDetectionOutcomes[Stats.Outcome]:16);
+    WriteLn(Log^, 'Skew detection stats:');
+    WriteLn(Log^, '  content area:       ', Iff(HasContent, RectToStr(FoundContentRect), 'none'):16);
+    WriteLn(Log^, '  pixel count:        ', FormatNiceNumber(Stats.PixelCount));
+    WriteLn(Log^, '  tested pixels:      ', FormatNiceNumber(Stats.TestedPixels));
+    WriteLn(Log^, '  accumulator size:   ', FormatNiceNumber(Stats.AccumulatorSize));
+    WriteLn(Log^, '  accumulated counts: ', FormatNiceNumber(Stats.AccumulatedCounts));
+    WriteLn(Log^, '  best count:         ', FormatNiceNumber(Stats.BestCount));
+    WriteLn(Log^, '  peak angle:         ', Stats.PeakAngle:16:3);
+    WriteLn(Log^, '  lines at peak:      ', FormatNiceNumber(Stats.LinesAtPeak));
+    WriteLn(Log^, '  sharpness:          ', Stats.Sharpness:16:3);
+    WriteLn(Log^, '  confidence:         ', Stats.Confidence:16:3);
+    WriteLn(Log^, '  outcome:            ', SDetectionOutcomes[Stats.Outcome]:16);
   end;
 
   procedure EnsurePixelFormatForRotation;
@@ -248,9 +507,9 @@ var
       if Options.TiffCompressionScheme in [TiffCompressionOptionAsInput, TiffCompressionOptionAsInputLossless] then
       begin
         if not Options.TrySetTiffCompressionFromMetadata(Imaging.GlobalMetadata, ReplacedLossy) then
-          WriteLn('Could not set TIFF output compression from input, using default.')
+          WriteLn(Log^, 'Could not set TIFF output compression from input, using default.')
         else if ReplacedLossy then
-          WriteLn('Input TIFF is JPEG-compressed, using lossless LZW compression for output instead.');
+          WriteLn(Log^, 'Input TIFF is JPEG-compressed, using lossless LZW compression for output instead.');
       end;
 
       if Options.TiffCompressionScheme = TiffCompressionOptionGroup4 then
@@ -268,7 +527,7 @@ begin
 
   Threshold := 0;
   ForceRotation := ofForceRotation in Options.OperationalFlags;
-  WriteLn('Preparing input image (', ExtractFileName(Options.InputFileName), ' [',
+  WriteLn(Log^, 'Preparing input image (', ExtractFileName(Options.InputFileName), ' [',
     InputImage.Width, 'x', InputImage.Height, '/', string(InputImage.FormatInfo.Name), ']) ...');
 
   // Clone input image and convert it to 8bit grayscale. This will be our
@@ -281,6 +540,11 @@ begin
     // If user DPI override is set we use it for both input and output.
     // Note that content margins/rectangle calculation of input will use this value.
     GlobalMetadata.SetPhysicalPixelSize(ruDpi, Options.DpiOverride, Options.DpiOverride);
+  end;
+  if not GlobalMetadata.GetPhysicalPixelSize(ruDpi, Report.DpiX, Report.DpiY) then
+  begin
+    Report.DpiX := 0;
+    Report.DpiY := 0;
   end;
 
   // Determine the content rect - where exactly to detect rotated text
@@ -306,7 +570,7 @@ begin
         // Determine the threshold automatically
         Time := GetTimeMicroseconds;
         Threshold := OtsuThresholding(InputImage.ImageDataPointer^, @ContentRect);
-        WriteTiming('Auto thresholding');
+        WriteTiming(tsThresholding);
       end;
   end;
 
@@ -314,7 +578,7 @@ begin
   // and the skew detection can be limited to the content area if the user asks for it.
   Time := GetTimeMicroseconds;
   HasContent := DetectContentRect(InputImage.ImageDataPointer^, Threshold, FoundContentRect, @ContentRect);
-  WriteTiming('Content detection');
+  WriteTiming(tsContentDetection);
 
   if HasContent and Options.AutoContentRect then
   begin
@@ -327,32 +591,40 @@ begin
   if HasContent or ForceRotation then
   begin
     // Main step - calculate image rotation SkewAngle
-    WriteLn('Calculating skew angle',
+    WriteLn(Log^, 'Calculating skew angle',
       Iff(EqualRect(InputImage.BoundsRect, ContentRect), '', ' (in ' + RectToStr(ContentRect) +')'),
       ' using threshold ', Threshold, '...');
     Time := GetTimeMicroseconds;
     SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.AngleStep, Threshold,
       InputImage.Width, InputImage.Height, InputImage.Bits,
       @ContentRect, @Stats);
-    WriteTiming('Skew detection');
+    WriteTiming(tsSkewDetection);
   end
   else
   begin
     // Nothing to detect the skew from
-    WriteLn('No content found in the image using threshold ', Threshold, ', skew detection skipped.');
+    WriteLn(Log^, 'No content found in the image using threshold ', Threshold, ', skew detection skipped.');
     FillChar(Stats, SizeOf(Stats), 0);
     Stats.Outcome := sdoNoContent;
     SkewAngle := 0;
   end;
 
-  WriteLn('Skew angle found [deg]: ', SkewAngle:4:3);
-  WriteLn('Detection confidence: ', Round(Stats.Confidence * 100), '%');
+  Report.DetectionDone := True;
+  Report.Threshold := Threshold;
+  Report.HasContent := HasContent;
+  Report.ContentRect := FoundContentRect;
+  Report.DetectionRect := ContentRect;
+  Report.SkewAngle := SkewAngle;
+  Report.Stats := Stats;
+
+  WriteLn(Log^, 'Skew angle found [deg]: ', SkewAngle:4:3);
+  WriteLn(Log^, 'Detection confidence: ', Round(Stats.Confidence * 100), '%');
 
   if Options.ShowDetectionStats then
     WriteDetectionStats;
 
   if Stats.Outcome <> sdoDetected then
-    WriteLn('Skew angle is not reliable: ', SDetectionOutcomeReasons[Stats.Outcome], '.');
+    WriteLn(Log^, 'Skew angle is not reliable: ', SDetectionOutcomeReasons[Stats.Outcome], '.');
 
   if Options.SaveWorkImage then
   begin
@@ -367,7 +639,7 @@ begin
   if (Stats.Outcome <> sdoDetected) and not ForceRotation then
   begin
     // Rotating by unreliable angle would do more harm than good
-    WriteLn('Skipping deskewing step, use "-g f" to rotate the image anyway.');
+    WriteLn(Log^, 'Skipping deskewing step, use "-g f" to rotate the image anyway.');
   end
   // Check if detected skew angle is higher than "skip" threshold - may not
   // want to do rotation needlessly. Forced rotation overrides this too
@@ -378,33 +650,24 @@ begin
 
     // Finally, rotate the image. We rotate the original input image, not the working
     // one so the color space is preserved if possible.
-    WriteLn('Rotating image...');
+    WriteLn(Log^, 'Rotating image...');
 
     EnsurePixelFormatForRotation;
 
     Time := GetTimeMicroseconds;
     ImageUtils.RotateImage(OutputImage.ImageDataPointer^, SkewAngle, Options.BackgroundColor,
       Options.ResamplingFilter, not (ofCropToInput in Options.OperationalFlags));
-    WriteTiming('Rotate image');
+    WriteTiming(tsRotation);
+    Report.Rotated := True;
   end
   else
-    WriteLn('Skipping deskewing step, skew angle lower than threshold of ', Options.SkipAngle:4:2);
+    WriteLn(Log^, 'Skipping deskewing step, skew angle lower than threshold of ', Options.SkipAngle:4:2);
 
   Result := ChangeOutputFormatIfNeeded or Result;
   // Result is True if the image was actually changed during the whole procedure
 end;
 
 procedure RunDeskew;
-
-  procedure EnsureOutputLocation(const FileName: string);
-  var
-    Dir, Path: string;
-  begin
-    Path := ExpandFileName(FileName);
-    Dir := GetFileDir(Path);
-    if Dir <> '' then
-      ForceDirectories(Dir);
-  end;
 
   procedure CopyFile(const SrcPath, DestPath: string);
   var
@@ -459,19 +722,26 @@ begin
   // Flush after WriteLn also when output is redirected to file/pipe
   if Textrec(Output).FlushFunc = nil then
     Textrec(Output).FlushFunc := Textrec(Output).InOutFunc;
+  if Textrec(ErrOutput).FlushFunc = nil then
+    Textrec(ErrOutput).FlushFunc := Textrec(ErrOutput).InOutFunc;
 {$IFEND}
 
-  WriteLn(SAppTitle);
-  WriteLn(SAppHome);
-  WriteLn;
-
+  Log := @Output;
+  InitReport;
   Options := TCmdLineOptions.Create;
   InputImage := TSingleImage.Create;
   OutputImage := TSingleImage.Create;
 
   try
     try
+      // Parameters go first, they tell where to write the text to
       Parsed := Options.ParseCommandLine;
+      if Options.JsonToStdOut and not Options.HelpRequested then
+        Log := @ErrOutput;
+
+      WriteLn(Log^, SAppTitle);
+      WriteLn(Log^, SAppHome);
+      WriteLn(Log^);
 
       if Options.HelpRequested then
       begin
@@ -479,8 +749,9 @@ begin
       end
       else if Parsed and Options.IsValid then
       begin
+        Report.ParamsValid := True;
         if Options.ShowParams then
-          WriteLn(Options.OptionsToString);
+          WriteLn(Log^, Options.OptionsToString);
 
         if not IsFileFormatSupported(Options.InputFileName) then
         begin
@@ -496,13 +767,18 @@ begin
         // Load input image
         Time := GetTimeMicroseconds;
         InputImage.LoadFromFile(Options.InputFileName);
-        WriteTiming('Load input file');
+        WriteTiming(tsLoad);
 
         if not InputImage.Valid then
         begin
           ReportBadInput('Loaded input image is not valid: ' + Options.InputFileName, False);
           Exit;
         end;
+
+        Report.InputLoaded := True;
+        Report.InputWidth := InputImage.Width;
+        Report.InputHeight := InputImage.Height;
+        Report.InputFormat := string(InputImage.FormatInfo.Name);
 
         // No need to do all the work if the result cannot be saved anyway
         // (unless the output is going to be in another, smaller pixel format)
@@ -514,7 +790,7 @@ begin
 
         if not (ofDetectOnly in Options.OperationalFlags) then
         begin
-          WriteLn('Saving output (', ExpandFileName(Options.OutputFileName), ' [',
+          WriteLn(Log^, 'Saving output (', ExpandFileName(Options.OutputFileName), ' [',
             OutputImage.Width, 'x', OutputImage.Height, '/', string(OutputImage.FormatInfo.Name), ']) ...');
 
           // Make sure output folders are ready
@@ -537,35 +813,42 @@ begin
               SysUtils.DeleteFile(Options.OutputFileName);
               raise;
             end;
+            Report.OutputWritten := owSaved;
           end
           else
           begin
             // No change to image made, just copy it to the desired destination
             CopyFile(Options.InputFileName, Options.OutputFileName);
+            Report.OutputWritten := owCopied;
           end;
+          Report.OutputWidth := OutputImage.Width;
+          Report.OutputHeight := OutputImage.Height;
+          Report.OutputFormat := string(OutputImage.FormatInfo.Name);
 
-          WriteTiming('Save output file');
+          WriteTiming(tsSave);
         end;
 
-        WriteLn('Done!');
+        WriteLn(Log^, 'Done!');
       end
       else
       begin
         // Bad input, whole usage is shown only when there are no parameters at all
         ReportBadInput('Invalid parameters!', ParamCount = 0);
         if ParamCount > 0 then
-          WriteLn('Use "-h" to see all the options.');
+          WriteLn(Log^, 'Use "-h" to see all the options.');
       end;
 
     except
       on E: Exception do
       begin
-        WriteLn;
-        WriteLn(E.ClassName, ': ', E.Message);
+        WriteLn(Log^);
+        WriteLn(Log^, E.ClassName, ': ', E.Message);
+        Report.ErrorMessage := E.Message;
         ExitCode := 1;
       end;
     end;
   finally
+    WriteReports;
     Options.Free;
     InputImage.Free;
     OutputImage.Free;

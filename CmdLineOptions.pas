@@ -75,6 +75,8 @@ type
     FShowParams: Boolean;
     FShowTimings: Boolean;
     FSaveWorkImage: Boolean;
+    FJsonToStdOut: Boolean;
+    FJsonReportFile: Boolean;
     FHelpRequested: Boolean;
 
     // Others
@@ -95,6 +97,12 @@ type
     function ParseCommandLine: Boolean;
 
     function OptionsToString: string;
+    // Writes the options as members of the currently open JSON object
+    procedure WriteToJson(Json: TJsonWriter);
+    // Name of the file for JSON report (when JsonReportFile is set): output file
+    // name with added extension. It's the same in detect only mode where
+    // no output file is written.
+    function JsonReportFileName: string;
 
     // Calculates final content rectangle in pixels for given image based
     // on user input (content vs margin, units).
@@ -160,6 +168,10 @@ type
     // Save "working" thresholded image (for testing and tweaking thresholding), effectively an input
     // for skew detection.
     property SaveWorkImage: Boolean read FSaveWorkImage;
+    // Write JSON report to standard output. No other text is written there then.
+    property JsonToStdOut: Boolean read FJsonToStdOut;
+    // Write JSON report to a file next to the output file
+    property JsonReportFile: Boolean read FJsonReportFile;
     // User only wants to see the usage/help, other options are not checked then
     property HelpRequested: Boolean read FHelpRequested;
 
@@ -192,6 +204,7 @@ const
 
   SDefaultOutputFilePrefix = 'deskewed-';
   SDefaultOutputFileExt = 'png';
+  SJsonReportFileExt = '.json';
 
 var
   FloatFmtSettings: TFormatSettings;
@@ -246,6 +259,8 @@ begin
   FShowParams := False;
   FShowTimings:= False;
   FSaveWorkImage := False;
+  FJsonToStdOut := False;
+  FJsonReportFile := False;
   FHelpRequested := False;
 
   FErrorMessage := '';
@@ -408,12 +423,14 @@ begin
   end
   else if Param = '-s' then
   begin
-    if not CheckFlags('sptw', 'info') then
+    if not CheckFlags('sptwjr', 'info') then
       Exit(False);
     if ContainsText(Value, 's') then FShowDetectionStats := True;
     if ContainsText(Value, 'p') then FShowParams := True;
     if ContainsText(Value, 't') then FShowTimings := True;
     if ContainsText(Value, 'w') then FSaveWorkImage := True;
+    if ContainsText(Value, 'j') then FJsonToStdOut := True;
+    if ContainsText(Value, 'r') then FJsonReportFile := True;
   end
   else if Param = '-r' then
   begin
@@ -577,8 +594,17 @@ var
 begin
   Reset;
   Result := True;
-  I := 0;
 
+  // Where to report is found out first: errors in the other
+  // parameters must be reported the way the user asked for too.
+  for I := 0 to High(Args) - 1 do
+    if Args[I] = '-s' then
+    begin
+      if ContainsText(Args[I + 1], 'j') then FJsonToStdOut := True;
+      if ContainsText(Args[I + 1], 'r') then FJsonReportFile := True;
+    end;
+
+  I := 0;
   while I <= High(Args) do
   begin
     Param := Args[I];
@@ -783,8 +809,83 @@ begin
                                + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '')
                                + Iff(ofForceRotation in FOperationalFlags, 'force-rotation ', '') + sLineBreak +
     '  info flags          = ' + Iff(ShowParams, 'params ', '') + Iff(ShowDetectionStats, 'detection-stats ', '') +
-      Iff(ShowTimings, 'timings ', '') + Iff(SaveWorkImage, 'save-work-image ', '') + sLineBreak +
+      Iff(ShowTimings, 'timings ', '') + Iff(SaveWorkImage, 'save-work-image ', '') +
+      Iff(JsonToStdOut, 'json-stdout ', '') + Iff(JsonReportFile, 'json-file ', '') + sLineBreak +
     '  output file specs   = jpeg quality:' + CompJpegStr + ' tiff compression:' + CompTiffStr + sLineBreak;
+end;
+
+procedure TCmdLineOptions.WriteToJson(Json: TJsonWriter);
+var
+  FilterStr: string;
+begin
+  FilterStr := LowerCase(Copy(TypInfo.GetEnumName(TypeInfo(TResamplingFilter), Integer(FResamplingFilter)), 3));
+
+  Json.AddFloat('maxAngle', MaxAngle);
+  Json.AddFloat('angleStep', AngleStep);
+  Json.AddFloat('skipAngle', SkipAngle);
+
+  if ThresholdingMethod = tmExplicit then
+  begin
+    Json.AddString('thresholding', 'explicit');
+    Json.AddInt('thresholdLevel', ThresholdLevel);
+  end
+  else
+  begin
+    Json.AddString('thresholding', 'auto');
+    Json.AddNull('thresholdLevel');
+  end;
+
+  // Content area as given by the user, in the units given by the user
+  if AutoContentRect then
+    Json.AddString('contentArea', 'auto')
+  else if not IsFloatRectNull(ContentMargins) then
+    Json.AddString('contentArea', 'margins')
+  else if not IsFloatRectNull(ContentRect) then
+    Json.AddString('contentArea', 'rect')
+  else
+    Json.AddString('contentArea', 'page');
+
+  if not IsFloatRectNull(ContentMargins) then
+    Json.AddFloatRect('contentAreaValues', ContentMargins.Left, ContentMargins.Top,
+      ContentMargins.Right, ContentMargins.Bottom)
+  else if not AutoContentRect and not IsFloatRectNull(ContentRect) then
+    Json.AddFloatRect('contentAreaValues', ContentRect.Left, ContentRect.Top,
+      ContentRect.Right, ContentRect.Bottom)
+  else
+    Json.AddNull('contentAreaValues');
+  Json.AddString('contentAreaUnit', SizeUnitTokens[ContentSizeUnit]);
+
+  if DpiOverride > 0 then
+    Json.AddInt('dpiOverride', DpiOverride)
+  else
+    Json.AddNull('dpiOverride');
+
+  Json.AddString('resamplingFilter', FilterStr);
+  Json.AddString('backgroundColor', IntToHex(BackgroundColor, 8));
+
+  if ForcedOutputFormat <> ifUnknown then
+    Json.AddString('outputFormat', Imaging.GetFormatName(ForcedOutputFormat))
+  else
+    Json.AddNull('outputFormat');
+  if JpegCompressionQuality <> -1 then
+    Json.AddInt('jpegQuality', JpegCompressionQuality)
+  else
+    Json.AddNull('jpegQuality');
+  if TiffCompressionScheme >= 0 then
+    Json.AddString('tiffCompression', TiffCompressionNames[TiffCompressionScheme])
+  else
+    Json.AddNull('tiffCompression');
+
+  Json.AddBool('detectOnly', ofDetectOnly in OperationalFlags);
+  Json.AddBool('forceRotation', ofForceRotation in OperationalFlags);
+  Json.AddBool('cropToInput', ofCropToInput in OperationalFlags);
+end;
+
+function TCmdLineOptions.JsonReportFileName: string;
+begin
+  Result := '';
+  if OutputFileName <> '' then
+    Result := OutputFileName + SJsonReportFileExt;
 end;
 
 initialization

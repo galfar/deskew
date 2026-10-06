@@ -7,7 +7,8 @@ uses
   DeskewTestUtils,
   TestCmdLineArgs,
   TestImageUtils,
-  TestSkewDetection;
+  TestSkewDetection,
+  TestUtilsUnit;
 
 type
   TDeskewTestRunner = class(TTestRunner)

@@ -17,7 +17,8 @@ uses
   DeskewTestUtils in 'DeskewTestUtils.pas',
   TestCmdLineArgs in 'TestCmdLineArgs.pas',
   TestImageUtils in 'TestImageUtils.pas',
-  TestSkewDetection in 'TestSkewDetection.pas';
+  TestSkewDetection in 'TestSkewDetection.pas',
+  TestUtilsUnit in 'TestUtilsUnit.pas';
 
 begin
   try

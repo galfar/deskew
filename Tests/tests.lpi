@@ -67,6 +67,10 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
+        <Filename Value="TestUtilsUnit.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
         <Filename Value="TestSkewDetection.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>      

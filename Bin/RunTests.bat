@@ -29,6 +29,9 @@
 %DESKEW% -o TestOut/OutBlank.png ../TestImages/blank.png || goto :error
 %DESKEW% -g f -o TestOut/OutBlankForced.png ../TestImages/blank.png || goto :error
 %DESKEW% -g f -l 5 -o TestOut/OutForced5.png ../TestImages/5.png || goto :error
+%DESKEW% -s j -o TestOut/OutJson3.png ../TestImages/3.png > TestOut/OutJson3.json || goto :error
+%DESKEW% -s r -o TestOut/OutJsonFile3.png ../TestImages/3.png || goto :error
+%DESKEW% -s jr -g d -o TestOut/OutJsonDetect5.png ../TestImages/5.png > TestOut/OutJsonDetect5.json || goto :error
 
 %DESKEW% -t a -a 5 -o TestOut/Out1.tif ../TestImages/1-lzw.tif || goto :error
 %DESKEW% -b DD -c j95,tjpeg -o TestOut/Out1-lzw-to-jpeg.tif ../TestImages/1-lzw.tif || goto :error
