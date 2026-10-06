@@ -48,6 +48,9 @@ type
     // Test flags
     procedure TestOperationalFlags;
     procedure TestInfoFlags;
+    procedure TestJsonReportFlags;
+    procedure TestJsonReportFileName;
+    procedure TestParametersToJson;
 
     // Test content area
     procedure TestContentRect;
@@ -570,11 +573,176 @@ begin
   AssertFalse('Info: !params', FCmdOptions.ShowParams);
   AssertTrue('Info: timings only', FCmdOptions.ShowTimings);
   AssertFalse('Info: !work-image', FCmdOptions.SaveWorkImage);
+  AssertFalse('Info: !json', FCmdOptions.JsonToStdOut);
+  AssertFalse('Info: !json file', FCmdOptions.JsonReportFile);
 
   ParseResult := FCmdOptions.Parse(['-s', 'sq', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Unknown info flag "q"', 'unknown flag');
   ParseResult := FCmdOptions.Parse(['-s', 'd', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Unknown info flag "d"', 'operational flag as info');
+end;
+
+procedure TTestCmdLineOptions.TestJsonReportFlags;
+var
+  ParseResult: Boolean;
+begin
+  ParseResult := FCmdOptions.Parse(['in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'no flags');
+  AssertFalse('default: !json', FCmdOptions.JsonToStdOut);
+  AssertFalse('default: !json file', FCmdOptions.JsonReportFile);
+
+  ParseResult := FCmdOptions.Parse(['-s', 'j', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'j');
+  AssertTrue('j: json', FCmdOptions.JsonToStdOut);
+  AssertFalse('j: !json file', FCmdOptions.JsonReportFile);
+
+  ParseResult := FCmdOptions.Parse(['-s', 'r', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'r');
+  AssertFalse('r: !json', FCmdOptions.JsonToStdOut);
+  AssertTrue('r: json file', FCmdOptions.JsonReportFile);
+
+  ParseResult := FCmdOptions.Parse(['in.png', '-s', 'rtj']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'rtj');
+  AssertTrue('rtj: json', FCmdOptions.JsonToStdOut);
+  AssertTrue('rtj: json file', FCmdOptions.JsonReportFile);
+  AssertTrue('rtj: timings', FCmdOptions.ShowTimings);
+  AssertFalse('rtj: !detection', FCmdOptions.ShowDetectionStats);
+
+  // Flags are reset by the next parsing
+  ParseResult := FCmdOptions.Parse(['-s', 's', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 's');
+  AssertFalse('s: !json', FCmdOptions.JsonToStdOut);
+  AssertFalse('s: !json file', FCmdOptions.JsonReportFile);
+
+  // Where to report must be known also when parsing fails before it gets to "-s"
+  ParseResult := FCmdOptions.Parse(['-x', '1', '-s', 'j', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter: -x', 'error before -s');
+  AssertTrue('error before -s: json', FCmdOptions.JsonToStdOut);
+  AssertFalse('error before -s: !json file', FCmdOptions.JsonReportFile);
+
+  ParseResult := FCmdOptions.Parse(['-a', '100', 'in.png', '-s', 'jr']);
+  AssertParseFailAndErrorContains(ParseResult, 'Invalid value', 'bad angle before -s');
+  AssertTrue('bad angle before -s: json', FCmdOptions.JsonToStdOut);
+  AssertTrue('bad angle before -s: json file', FCmdOptions.JsonReportFile);
+
+  ParseResult := FCmdOptions.Parse(['-s', 'jq', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown info flag "q"', 'unknown flag with j');
+  AssertTrue('unknown flag with j: json', FCmdOptions.JsonToStdOut);
+
+  // Not a value of "-s"
+  ParseResult := FCmdOptions.Parse(['-o', 'j.png', 'r.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'file names');
+  AssertFalse('file names: !json', FCmdOptions.JsonToStdOut);
+  AssertFalse('file names: !json file', FCmdOptions.JsonReportFile);
+end;
+
+procedure TTestCmdLineOptions.TestJsonReportFileName;
+var
+  ParseResult: Boolean;
+  DefaultOutput: string;
+begin
+  ParseResult := FCmdOptions.Parse(['-s', 'r', '-o', 'out.tif', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'explicit output');
+  AssertEquals('explicit output', 'out.tif.json', FCmdOptions.JsonReportFileName);
+
+  // Output files of different formats do not share the report
+  ParseResult := FCmdOptions.Parse(['-s', 'r', '-o', 'out.png', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'explicit output 2');
+  AssertEquals('explicit output 2', 'out.png.json', FCmdOptions.JsonReportFileName);
+
+  DefaultOutput := EnsureTrailingPathDelimiter(ExtractFileDir('input.jpg')) + 'deskewed-input.png';
+  ParseResult := FCmdOptions.Parse(['-s', 'r', 'input.jpg']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'default output');
+  AssertEquals('default output', DefaultOutput + '.json', FCmdOptions.JsonReportFileName);
+
+  // The same name in detect only mode where no output image is written
+  ParseResult := FCmdOptions.Parse(['-s', 'r', '-g', 'd', 'input.jpg']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'detect only');
+  AssertEquals('detect only', DefaultOutput + '.json', FCmdOptions.JsonReportFileName);
+
+  ParseResult := FCmdOptions.Parse(['-s', 'r', '-g', 'd', '-o', 'out.tif', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'detect only, explicit output');
+  AssertEquals('detect only, explicit output', 'out.tif.json', FCmdOptions.JsonReportFileName);
+
+  // No output name is known when the parsing fails early
+  ParseResult := FCmdOptions.Parse(['-s', 'r', '-x', '1', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter', 'bad parameter');
+  AssertEquals('bad parameter', '', FCmdOptions.JsonReportFileName);
+end;
+
+procedure TTestCmdLineOptions.TestParametersToJson;
+var
+  Text: string;
+
+  function ParseToJson(const Args: array of string): string;
+  var
+    Json: TJsonWriter;
+  begin
+    AssertParseSuccesAndEmptyError(FCmdOptions.Parse(Args));
+    Json := TJsonWriter.Create;
+    try
+      Json.BeginObject;
+      FCmdOptions.WriteToJson(Json);
+      Json.EndObject;
+      Result := Json.GetText;
+    finally
+      Json.Free;
+    end;
+  end;
+
+  procedure AssertHas(const Msg, Member: string);
+  begin
+    AssertTrue(Msg + ': ' + Member + ' in ' + Text, Pos(Member, Text) > 0);
+  end;
+
+begin
+  Text := ParseToJson(['in.png']);
+  AssertHas('defaults', '"maxAngle": 10,');
+  AssertHas('defaults', '"angleStep": 0.1,');
+  AssertHas('defaults', '"skipAngle": 0.01,');
+  AssertHas('defaults', '"thresholding": "auto",');
+  AssertHas('defaults', '"thresholdLevel": null,');
+  AssertHas('defaults', '"contentArea": "page",');
+  AssertHas('defaults', '"contentAreaValues": null,');
+  AssertHas('defaults', '"contentAreaUnit": "px",');
+  AssertHas('defaults', '"dpiOverride": null,');
+  AssertHas('defaults', '"resamplingFilter": "linear",');
+  AssertHas('defaults', '"backgroundColor": "FF000000",');
+  AssertHas('defaults', '"outputFormat": null,');
+  AssertHas('defaults', '"jpegQuality": null,');
+  AssertHas('defaults', '"tiffCompression": null,');
+  AssertHas('defaults', '"detectOnly": false,');
+  AssertHas('defaults', '"forceRotation": false,');
+  AssertHas('defaults', '"cropToInput": false');
+
+  Text := ParseToJson(['-a', '25.5', '-d', '0.05', '-l', '1', '-t', '100', '-m', '5,10,mm', '-p', '300',
+    '-q', 'lanczos', '-b', '80ff0000', '-f', 'g8', '-c', 'j85,tdeflate', '-g', 'cdf', 'in.png']);
+  AssertHas('all set', '"maxAngle": 25.5,');
+  AssertHas('all set', '"angleStep": 0.05,');
+  AssertHas('all set', '"skipAngle": 1,');
+  AssertHas('all set', '"thresholding": "explicit",');
+  AssertHas('all set', '"thresholdLevel": 100,');
+  AssertHas('all set', '"contentArea": "margins",');
+  AssertHas('all set', '"contentAreaValues": [5, 10, 5, 10],');
+  AssertHas('all set', '"contentAreaUnit": "mm",');
+  AssertHas('all set', '"dpiOverride": 300,');
+  AssertHas('all set', '"resamplingFilter": "lanczos",');
+  AssertHas('all set', '"backgroundColor": "80FF0000",');
+  AssertHas('all set', '"outputFormat": "Gray8",');
+  AssertHas('all set', '"jpegQuality": 85,');
+  AssertHas('all set', '"tiffCompression": "deflate",');
+  AssertHas('all set', '"detectOnly": true,');
+  AssertHas('all set', '"forceRotation": true,');
+  AssertHas('all set', '"cropToInput": true');
+
+  Text := ParseToJson(['-r', '10,20,190.5,80,%', 'in.png']);
+  AssertHas('rect', '"contentArea": "rect",');
+  AssertHas('rect', '"contentAreaValues": [10, 20, 190.5, 80],');
+  AssertHas('rect', '"contentAreaUnit": "%",');
+
+  Text := ParseToJson(['-r', 'auto', 'in.png']);
+  AssertHas('auto', '"contentArea": "auto",');
+  AssertHas('auto', '"contentAreaValues": null,');
 end;
 
 procedure TTestCmdLineOptions.TestContentRect;

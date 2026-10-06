@@ -67,6 +67,12 @@ done
 ./$DESKEW -g f -o TestOut/OutBlankForced.png ../TestImages/blank.png
 # Skew below the skip limit but the rotation is forced
 ./$DESKEW -g f -l 5 -o TestOut/OutForced5.png ../TestImages/5.png
+# JSON report to standard output: text goes to standard error then
+./$DESKEW -s j -o TestOut/OutJson3.png ../TestImages/3.png > TestOut/OutJson3.json
+# JSON report to a file next to the output: TestOut/OutJsonFile3.png.json
+./$DESKEW -s r -o TestOut/OutJsonFile3.png ../TestImages/3.png
+# Both reports in detect only mode: the file is named after the output that would be written
+./$DESKEW -s jr -g d -o TestOut/OutJsonDetect5.png ../TestImages/5.png > TestOut/OutJsonDetect5.json
 
 if [[ $NOTIFF == 0 ]]; then
   # Binary LZW TIFF in and out, default compression (LZW)

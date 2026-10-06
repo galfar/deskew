@@ -141,6 +141,7 @@
         <DCCReference Include="TestCmdLineArgs.pas"/>
         <DCCReference Include="TestImageUtils.pas"/>
         <DCCReference Include="TestSkewDetection.pas"/>
+        <DCCReference Include="TestUtilsUnit.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
