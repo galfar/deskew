@@ -144,6 +144,7 @@ var
   BestLines: TLineArray;
   HoughAccumulator: array of Integer;
   AngleScores: array of Double;
+  SinTable, CosTable: array of Extended;
   PageWidth, PageHeight: Integer;
   ContentRect: TRect;
   Outcome: TSkewDetectionOutcome;
@@ -163,21 +164,34 @@ var
     Result := AlphaStart + StepIndex * AngleStep;
   end;
 
-  // Calculates angle and distance parameters for all lines
-  // going through point [X, Y].
-  procedure CalcLines(X, Y: Integer);
+  // Sine and cosine of all the tested angles. They are the same for
+  // every pixel so it would be a waste to calculate them again in CalcLines.
+  procedure CalcSinCosTables;
   var
-    D, Rads: Double;
-    I, DIndex, Index: Integer;
-    Sin, Cos: Extended;
+    I: Integer;
+    Rads: Double;
   begin
+    SetLength(SinTable, AlphaSteps);
+    SetLength(CosTable, AlphaSteps);
     for I := 0 to AlphaSteps - 1 do
     begin
       // Angle for current step in radians
       Rads := GetFinalAngle(I) * PI / 180;
-      SinCos(Rads, Sin, Cos);
+      SinCos(Rads, SinTable[I], CosTable[I]);
+    end;
+  end;
+
+  // Calculates angle and distance parameters for all lines
+  // going through point [X, Y].
+  procedure CalcLines(X, Y: Integer);
+  var
+    D: Double;
+    I, DIndex, Index: Integer;
+  begin
+    for I := 0 to AlphaSteps - 1 do
+    begin
       // Parameter D(distance from origin) of the line y=tg(alpha)x + d
-      D := Y * Cos - X * Sin;
+      D := Y * CosTable[I] - X * SinTable[I];
       // Calc index into accumulator for current line
       DIndex := Trunc(D - MinDist);
       Index := DIndex * AlphaSteps + I;
@@ -351,6 +365,7 @@ begin
   SetLength(AngleScores, AlphaSteps);
 
   // Calculate Hough transform
+  CalcSinCosTables;
   CalcHoughTransform;
 
   // Get the best lines with most votes
