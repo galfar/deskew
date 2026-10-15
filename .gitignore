@@ -10,6 +10,9 @@ Bin/*
 Gui/lib/*
 Gui/deskewgui.app
 
+TestImages/__extra
+Temp
+
 deskew.cfg
 
 *.identcache
@@ -25,4 +28,5 @@ deskew.cfg
 *.res
 *.stat
 *.dsv
+*.tvsconfig
 
