@@ -17,7 +17,7 @@ unit ImagingClasses;
 interface
 
 uses
-  Types, Classes, ImagingTypes, Imaging, ImagingFormats, ImagingUtility;
+  Types, Classes, ImagingTypes, Imaging;
 
 type
   { Base abstract high level class wrapper to low level Imaging structures and
@@ -37,7 +37,8 @@ type
     function GetPalette: PPalette32; {$IFDEF USE_INLINE}inline;{$ENDIF}
     function GetPaletteEntries: Integer; {$IFDEF USE_INLINE}inline;{$ENDIF}
     function GetScanline(Index: Integer): Pointer;
-    function GetPixelPointer(X, Y: Integer): Pointer; {$IFDEF USE_INLINE}inline;{$ENDIF}
+    function GetPixelPointer(X, Y: Integer): Pointer;
+    procedure RaiseNoPixelAccess;
     function GetScanlineSize: Integer; {$IFDEF USE_INLINE}inline;{$ENDIF}
     function GetFormatInfo: TImageFormatInfo; {$IFDEF USE_INLINE}inline;{$ENDIF}
     function GetValid: Boolean; {$IFDEF USE_INLINE}inline;{$ENDIF}
@@ -62,13 +63,27 @@ type
       TImageData now share some image memory (bits). So don't call FreeImage
       on TImageData afterwards since this TBaseImage would get really broken.}
     procedure MapImageData(const ImageData: TImageData);
-    { Deletes current image.}
-    procedure Clear;
+    { Frees data of the current image, it is not valid afterwards. Current image
+      of TMultiImage stays in the image array (use DeleteImage to remove it).}
+    procedure FreeImageData;
 
     { Resizes current image with optional resampling.}
     procedure Resize(NewWidth, NewHeight: Integer; Filter: TResizeFilter);
-    { Resizes current image proportionally to fit the given width and height. }
+    { Resizes current image proportionally to fit the given width and height,
+      result replaces the current image of DstImage. Nothing is done when
+      DstImage is TMultiImage with no images.}
     procedure ResizeToFit(FitWidth, FitHeight: Integer; Filter: TResizeFilter; DstImage: TBaseImage);
+
+    { Fills whole current image with the given color. Color should point
+      to the pixel in the same format as the image is in.}
+    procedure Fill(Color: Pointer);
+    { Fills given rectangle of current image with the given color. Color should
+      point to the pixel in the same format as the image is in.}
+    procedure FillRect(X, Y, Width, Height: Integer; Color: Pointer); overload;
+    { Fills given rectangle of current image with the given color. Color should
+      point to the pixel in the same format as the image is in.}
+    procedure FillRect(const ARect: TRect; Color: Pointer); overload;
+
     { Flips current image. Reverses the image along its horizontal axis the top
       becomes the bottom and vice versa.}
     procedure Flip;
@@ -82,7 +97,8 @@ type
       negative X and Y coordinates.
       Note that copying is fastest for images in the same data format
       (and slowest for images in special formats).}
-    procedure CopyTo(SrcX, SrcY, Width, Height: Integer; DstImage: TBaseImage; DstX, DstY: Integer); overload;
+    procedure CopyTo(SrcX, SrcY, Width, Height: Integer; DstImage: TBaseImage;
+      DstX, DstY: Integer); overload;
     { Copies whole image to DstImage. No blending is performed -
       alpha is simply copied to destination image. Operates also with
       negative X and Y coordinates.
@@ -94,19 +110,22 @@ type
       simply copied/resampled to destination image. Note that stretching is
       fastest for images in the same data format (and slowest for
       images in special formats).}
-    procedure StretchTo(SrcX, SrcY, SrcWidth, SrcHeight: Integer; DstImage: TBaseImage; DstX, DstY, DstWidth, DstHeight: Integer; Filter: TResizeFilter);
-    { Replaces pixels with OldPixel in the given rectangle by NewPixel.
-      OldPixel and NewPixel should point to the pixels in the same format
-      as the given image is in.}
-    procedure ReplaceColor(X, Y, Width, Height: Integer; OldColor, NewColor: Pointer);
+    procedure StretchTo(SrcX, SrcY, SrcWidth, SrcHeight: Integer; DstImage: TBaseImage;
+      DstX, DstY, DstWidth, DstHeight: Integer; Filter: TResizeFilter); overload;
+    { Stretches the contents of the source rectangle to the destination rectangle
+      with optional resampling. Same as above but source and destination passed as TRect.}
+    procedure StretchTo(const SrcRect: TRect; DstImage: TBaseImage;
+      const DstRect: TRect; Filter: TResizeFilter); overload;
     { Swaps SrcChannel and DstChannel color or alpha channels of image.
       Use ChannelRed, ChannelBlue, ChannelGreen, ChannelAlpha constants to
       identify channels.}
     procedure SwapChannels(SrcChannel, DstChannel: Integer);
 
-    { Loads current image data from file.}
+    { Loads current image data from file. Raises an exception when
+      the image cannot be loaded.}
     procedure LoadFromFile(const FileName: string); virtual;
-    { Loads current image data from stream.}
+    { Loads current image data from stream. Raises an exception when
+      the image cannot be loaded.}
     procedure LoadFromStream(Stream: TStream); virtual;
 
     { Saves current image data to file.}
@@ -151,7 +170,10 @@ type
     { Specifies the bounding rectangle of the image.}
     property BoundsRect: TRect read GetBoundsRect;
     { This event occurs when the image data size has just changed. That means
-      image width, height, or format has been changed.}
+      image width, height, or format has been changed.
+      OnPixelsChanged always occurs right after this event.
+      Only changes of the current image data are reported here, TMultiImage
+      has OnActiveImageChanged and OnImagesChanged events for the rest.}
     property OnDataSizeChanged: TNotifyEvent read FOnDataSizeChanged write FOnDataSizeChanged;
     { This event occurs when some pixels of the image have just changed.}
     property OnPixelsChanged: TNotifyEvent read FOnPixelsChanged write FOnPixelsChanged;
@@ -187,14 +209,22 @@ type
   protected
     FDataArray: TDynImageDataArray;
     FActiveImage: Integer;
-    procedure SetActiveImage(Value: Integer); {$IFDEF USE_INLINE}inline;{$ENDIF}
+    FOnActiveImageChanged: TNotifyEvent;
+    FOnImagesChanged: TNotifyEvent;
+    procedure SetActiveImage(Value: Integer);
     function GetImageCount: Integer; {$IFDEF USE_INLINE}inline;{$ENDIF}
     procedure SetImageCount(Value: Integer);
     function GetAllImagesValid: Boolean; {$IFDEF USE_INLINE}inline;{$ENDIF}
     function GetImage(Index: Integer): TImageData; {$IFDEF USE_INLINE}inline;{$ENDIF}
     procedure SetImage(Index: Integer; Value: TImageData); {$IFDEF USE_INLINE}inline;{$ENDIF}
     procedure SetPointer; override;
-    function PrepareInsert(Index, InsertCount: Integer): Boolean;
+    procedure AddFirstImage(const Image: TImageData);
+    function PrepareInsert(var Index: Integer; InsertCount: Integer): Boolean;
+    procedure SwapImages(Index1, Index2: Integer);
+    procedure ImageArrayChanged(OldActiveImage: Integer);
+    procedure DoImagesReplaced;
+    procedure DoActiveImageChanged; virtual;
+    procedure DoImagesChanged; virtual;
     procedure DoInsertImages(Index: Integer; const Images: TDynImageDataArray);
     procedure DoInsertNew(Index: Integer; AWidth, AHeight: Integer; AFormat: TImageFormat);
   public
@@ -221,6 +251,11 @@ type
     procedure AddImages(const Images: TDynImageDataArray); overload;
     { Adds existing MultiImage images at the end of the image array.}
     procedure AddImages(Images: TMultiImage); overload;
+    { Adds all images loaded from a file at the end of the image array.
+      Active image stays the same (first added image becomes active
+      if the image array was empty). Raises an exception when the images
+      cannot be loaded.}
+    procedure AddImagesFromFile(const FileName: string);
 
     { Inserts new image image at the given position in the image array. }
     procedure InsertImage(Index, AWidth, AHeight: Integer; AFormat: TImageFormat = ifDefault); overload;
@@ -242,23 +277,27 @@ type
     { Rearranges images so that the first image will become last and vice versa.}
     procedure ReverseImages;
     { Deletes all images.}
-    procedure ClearAll;
+    procedure DeleteAllImages;
 
     { Converts all images to another image data format.}
     procedure ConvertImages(Format: TImageFormat);
     { Resizes all images.}
     procedure ResizeImages(NewWidth, NewHeight: Integer; Filter: TResizeFilter);
 
-    { Overloaded loading method that will add new image to multi-image if
-      image array is empty before loading. If it's not empty the active image is replaced.}
+    { Loads the active image from file. If there are no images the loaded
+      image is added as the first one (like AddImage does).
+      Raises an exception when the image cannot be loaded.}
     procedure LoadFromFile(const FileName: string); override;
-    { Overloaded loading method that will add new image to multi-image if
-      image array is empty before loading. If it's not empty the active image is replaced.}
+    { Loads the active image from stream. If there are no images the loaded
+      image is added as the first one (like AddImage does).
+      Raises an exception when the image cannot be loaded.}
     procedure LoadFromStream(Stream: TStream); override;
 
-    { Loads whole multi image from file.}
+    { Loads whole multi image from file. Raises an exception when the images
+      cannot be loaded (multi image has no images then).}
     procedure LoadMultiFromFile(const FileName: string);
-    { Loads whole multi image from stream.}
+    { Loads whole multi image from stream. Raises an exception when the images
+      cannot be loaded (multi image has no images then).}
     procedure LoadMultiFromStream(Stream: TStream);
     { Saves whole multi image to file.}
     function SaveMultiToFile(const FileName: string): Boolean;
@@ -280,13 +319,33 @@ type
     { Array property for accessing individual images of TMultiImage. When you
       set image at given index the old image is freed and the source is cloned.}
     property Images[Index: Integer]: TImageData read GetImage write SetImage; default;
+    { This event occurs when the index of the active image has just changed.
+      That is when ActiveImage was set to a different index or when the index had
+      to be adjusted (first image was added, the last active image was deleted, ...).}
+    property OnActiveImageChanged: TNotifyEvent read FOnActiveImageChanged write FOnActiveImageChanged;
+    { This event occurs when the count or order of images has just changed:
+      images were added, inserted, deleted, exchanged, or all of them were
+      replaced (loading, assigning). Index of the active image stays the same
+      whenever possible, so a different image can become the active one
+      without OnActiveImageChanged. If the index changes too
+      OnActiveImageChanged occurs right after this event.}
+    property OnImagesChanged: TNotifyEvent read FOnImagesChanged write FOnImagesChanged;
   end;
 
 implementation
 
+uses
+  ImagingFormats,
+  ImagingUtility;
+
 const
   DefaultWidth = 16;
   DefaultHeight = 16;
+
+resourcestring
+  SErrorLoadFile = 'Failed to load images from file "%s", unknown or unsupported file format.';
+  SErrorLoadStream = 'Failed to load images from stream, unknown or unsupported file format.';
+  SErrorNoPixelAccess = 'Pixels and scanlines of image in special data format (%s) cannot be accessed.';
 
 function GetArrayFromImageData(const ImageData: TImageData): TDynImageDataArray;
 begin
@@ -343,10 +402,9 @@ begin
   if Valid then
   begin
     Info := GetFormatInfo;
-    if not Info.IsSpecial then
-      Result := ImagingFormats.GetScanLine(FPData.Bits, Info, FPData.Width, Index)
-    else
-      Result := FPData.Bits;
+    if Info.IsSpecial then
+      RaiseNoPixelAccess;
+    Result := GetScanlinePointer(FPData^, Index, Info.BytesPerPixel);
   end
   else
     Result := nil;
@@ -361,11 +419,24 @@ begin
 end;
 
 function TBaseImage.GetPixelPointer(X, Y: Integer): Pointer;
+var
+  Info: TImageFormatInfo;
 begin
   if Valid then
-    Result := @PByteArray(FPData.Bits)[(Y * FPData.Width + X) * GetFormatInfo.BytesPerPixel]
+  begin
+    Info := GetFormatInfo;
+    if Info.IsSpecial then
+      RaiseNoPixelAccess;
+    Result := @PBuffer(FPData.Bits)[(Y * PtrInt(FPData.Width) + X) * Info.BytesPerPixel];
+  end
   else
     Result := nil;
+end;
+
+procedure TBaseImage.RaiseNoPixelAccess;
+begin
+  // Images in special formats (DXT, binary, ...) have no pixels or scanlines to point to
+  raise EImagingError.CreateFmt(SErrorNoPixelAccess, [GetFormatName(FPData.Format)]);
 end;
 
 function TBaseImage.GetSize: Int64;
@@ -417,7 +488,7 @@ end;
 
 function TBaseImage.GetEmpty: Boolean;
 begin
-  Result := FPData.Size = 0;
+  Result := not Assigned(FPData) or (FPData.Size = 0);
 end;
 
 procedure TBaseImage.SetWidth(const Value: Integer);
@@ -440,6 +511,7 @@ procedure TBaseImage.DoDataSizeChanged;
 begin
   if Assigned(FOnDataSizeChanged) then
     FOnDataSizeChanged(Self);
+  // New data size always means new pixels too
   DoPixelsChanged;
 end;
 
@@ -457,18 +529,26 @@ end;
 
 procedure TBaseImage.MapImageData(const ImageData: TImageData);
 begin
-  Clear;
+  if not Assigned(FPData) then
+    Exit;
+
+  Imaging.FreeImage(FPData^);
   FPData.Width := ImageData.Width;
   FPData.Height := ImageData.Height;
   FPData.Format := ImageData.Format;
   FPData.Size := ImageData.Size;
   FPData.Bits := ImageData.Bits;
   FPData.Palette := ImageData.Palette;
+  DoDataSizeChanged;
 end;
 
-procedure TBaseImage.Clear;
+procedure TBaseImage.FreeImageData;
 begin
-  FreeImage(FPData^);
+  if Assigned(FPData) then
+  begin
+    Imaging.FreeImage(FPData^);
+    DoDataSizeChanged;
+  end;
 end;
 
 procedure TBaseImage.Resize(NewWidth, NewHeight: Integer; Filter: TResizeFilter);
@@ -480,12 +560,28 @@ end;
 procedure TBaseImage.ResizeToFit(FitWidth, FitHeight: Integer;
   Filter: TResizeFilter; DstImage: TBaseImage);
 begin
-  if Valid and Assigned(DstImage) then
+  if Valid and Assigned(DstImage) and Assigned(DstImage.FPData) then
   begin
     Imaging.ResizeImageToFit(FPData^, FitWidth, FitHeight, Filter,
       DstImage.FPData^);
     DstImage.DoDataSizeChanged;
   end;
+end;
+
+procedure TBaseImage.Fill(Color: Pointer);
+begin
+  FillRect(0, 0, GetWidth, GetHeight, Color);
+end;
+
+procedure TBaseImage.FillRect(X, Y, Width, Height: Integer; Color: Pointer);
+begin
+  if Valid and Imaging.FillRect(FPData^, X, Y, Width, Height, Color) then
+    DoPixelsChanged;
+end;
+
+procedure TBaseImage.FillRect(const ARect: TRect; Color: Pointer);
+begin
+  FillRect(ARect.Left, ARect.Top, RectWidth(ARect), RectHeight(ARect), Color);
 end;
 
 procedure TBaseImage.Flip;
@@ -501,11 +597,19 @@ begin
 end;
 
 procedure TBaseImage.Rotate(Angle: Single);
+var
+  OldWidth, OldHeight: Integer;
 begin
   if Valid then
   begin
+    OldWidth := FPData.Width;
+    OldHeight := FPData.Height;
     Imaging.RotateImage(FPData^, Angle);
-    DoPixelsChanged;
+
+    if (FPData.Width <> OldWidth) or (FPData.Height <> OldHeight) then
+      DoDataSizeChanged
+    else
+      DoPixelsChanged;
   end;
 end;
 
@@ -539,14 +643,12 @@ begin
   end;
 end;
 
-procedure TBaseImage.ReplaceColor(X, Y, Width, Height: Integer; OldColor,
-  NewColor: Pointer);
+procedure TBaseImage.StretchTo(const SrcRect: TRect; DstImage: TBaseImage;
+  const DstRect: TRect; Filter: TResizeFilter);
 begin
-  if Valid then
-  begin
-    Imaging.ReplaceColor(FPData^, X, Y, Width, Height, OldColor, NewColor);
-    DoPixelsChanged;
-  end;
+  StretchTo(SrcRect.Left, SrcRect.Top, RectWidth(SrcRect), RectHeight(SrcRect),
+            DstImage, DstRect.Left, DstRect.Top, RectWidth(DstRect),
+            RectHeight(DstRect), Filter);
 end;
 
 procedure TBaseImage.SwapChannels(SrcChannel, DstChannel: Integer);
@@ -564,15 +666,49 @@ begin
 end;
 
 procedure TBaseImage.LoadFromFile(const FileName: string);
+var
+  OldBits: Pointer;
+  Loaded: Boolean;
 begin
-  if Assigned(FPData) and Imaging.LoadImageFromFile(FileName, FPData^) then
-    DoDataSizeChanged;
+  if not Assigned(FPData) then
+    Exit;
+
+  OldBits := FPData.Bits;
+  Loaded := False;
+
+  try
+    Loaded := Imaging.LoadImageFromFile(FileName, FPData^);
+  finally
+    // Old image can be already freed when the loading fails
+    if Loaded or (FPData.Bits <> OldBits) then
+      DoDataSizeChanged;
+  end;
+
+  if not Loaded then
+    raise EImagingError.CreateFmt(SErrorLoadFile, [FileName]);
 end;
 
 procedure TBaseImage.LoadFromStream(Stream: TStream);
+var
+  OldBits: Pointer;
+  Loaded: Boolean;
 begin
-  if Assigned(FPData) and Imaging.LoadImageFromStream(Stream, FPData^) then
-    DoDataSizeChanged;
+  if not Assigned(FPData) then
+    Exit;
+
+  OldBits := FPData.Bits;
+  Loaded := False;
+
+  try
+    Loaded := Imaging.LoadImageFromStream(Stream, FPData^);
+  finally
+    // Old image can be already freed when the loading fails
+    if Loaded or (FPData.Bits <> OldBits) then
+      DoDataSizeChanged;
+  end;
+
+  if not Loaded then
+    raise EImagingError.Create(SErrorLoadStream);
 end;
 
 function TBaseImage.SaveToFile(const FileName: string): Boolean;
@@ -597,7 +733,7 @@ end;
 constructor TSingleImage.Create;
 begin
   inherited Create;
-  Clear;
+  FreeImageData;
 end;
 
 constructor TSingleImage.CreateFromParams(AWidth, AHeight: Integer; AFormat: TImageFormat);
@@ -639,7 +775,7 @@ procedure TSingleImage.Assign(Source: TPersistent);
 begin
   if Source = nil then
   begin
-    Clear;
+    FreeImageData;
   end
   else if Source is TSingleImage then
   begin
@@ -650,7 +786,7 @@ begin
     if TMultiImage(Source).Valid then
       AssignFromImageData(TMultiImage(Source).FPData^)
     else
-      Clear;
+      FreeImageData;
   end
   else
     inherited Assign(Source);
@@ -664,7 +800,7 @@ begin
     DoDataSizeChanged;
   end
   else
-    Clear;
+    FreeImageData;
 end;
 
 { TMultiImage class implementation }
@@ -683,8 +819,8 @@ begin
   SetLength(FDataArray, ImageCount);
   for I := 0 to GetImageCount - 1 do
     Imaging.NewImage(AWidth, AHeight, AFormat, FDataArray[I]);
-  if GetImageCount > 0 then
-    SetActiveImage(0);
+
+  DoImagesReplaced;
 end;
 
 constructor TMultiImage.CreateFromArray(const ADataArray: TDynImageDataArray);
@@ -709,9 +845,19 @@ begin
 end;
 
 procedure TMultiImage.SetActiveImage(Value: Integer);
+var
+  OldActive: Integer;
 begin
+  if Value = FActiveImage then
+    Exit;
+
+  OldActive := FActiveImage;
   FActiveImage := Value;
   SetPointer;
+
+  // Index out of range is adjusted and can end up the same
+  if FActiveImage <> OldActive then
+    DoActiveImageChanged;
 end;
 
 function TMultiImage.GetImageCount: Integer;
@@ -721,12 +867,17 @@ end;
 
 procedure TMultiImage.SetImageCount(Value: Integer);
 var
-  I, OldCount: Integer;
+  I, OldCount, OldActive: Integer;
 begin
-  if Value > GetImageCount then
+  OldActive := FActiveImage;
+  OldCount := GetImageCount;
+
+  if Value = OldCount then
+    Exit;
+
+  if Value > OldCount then
   begin
     // Create new empty images if array will be enlarged
-    OldCount := GetImageCount;
     SetLength(FDataArray, Value);
     for I := OldCount to Value - 1 do
       Imaging.NewImage(DefaultWidth, DefaultHeight, ifDefault, FDataArray[I]);
@@ -734,11 +885,12 @@ begin
   else
   begin
     // Free images that exceed desired count and shrink array
-    for I := Value to GetImageCount - 1 do
+    for I := Value to OldCount - 1 do
       Imaging.FreeImage(FDataArray[I]);
     SetLength(FDataArray, Value);
   end;
-  SetPointer;
+
+  ImageArrayChanged(OldActive);
 end;
 
 function TMultiImage.GetAllImagesValid: Boolean;
@@ -755,7 +907,11 @@ end;
 procedure TMultiImage.SetImage(Index: Integer; Value: TImageData);
 begin
   if (Index >= 0) and (Index < GetImageCount) then
+  begin
     Imaging.CloneImage(Value, FDataArray[Index]);
+    if Index = FActiveImage then
+      DoDataSizeChanged;
+  end;
 end;
 
 procedure TMultiImage.SetPointer;
@@ -772,7 +928,59 @@ begin
   end;
 end;
 
-function TMultiImage.PrepareInsert(Index, InsertCount: Integer): Boolean;
+procedure TMultiImage.DoActiveImageChanged;
+begin
+  if Assigned(FOnActiveImageChanged) then
+    FOnActiveImageChanged(Self);
+end;
+
+procedure TMultiImage.DoImagesChanged;
+begin
+  if Assigned(FOnImagesChanged) then
+    FOnImagesChanged(Self);
+end;
+
+procedure TMultiImage.ImageArrayChanged(OldActiveImage: Integer);
+begin
+  // Array could have been reallocated and active image index can be out of range now
+  SetPointer;
+  DoImagesChanged;
+
+  if FActiveImage <> OldActiveImage then
+    DoActiveImageChanged;
+end;
+
+procedure TMultiImage.DoImagesReplaced;
+var
+  OldActive: Integer;
+begin
+  OldActive := FActiveImage;
+  FActiveImage := 0;
+  ImageArrayChanged(OldActive);
+end;
+
+procedure TMultiImage.AddFirstImage(const Image: TImageData);
+var
+  OldActive: Integer;
+begin
+  Assert(GetImageCount = 0);
+  OldActive := FActiveImage;
+  // Image is moved to the image array, not cloned
+  SetLength(FDataArray, 1);
+  FDataArray[0] := Image;
+  ImageArrayChanged(OldActive);
+end;
+
+procedure TMultiImage.SwapImages(Index1, Index2: Integer);
+var
+  TempData: TImageData;
+begin
+  TempData := FDataArray[Index1];
+  FDataArray[Index1] := FDataArray[Index2];
+  FDataArray[Index2] := TempData;
+end;
+
+function TMultiImage.PrepareInsert(var Index: Integer; InsertCount: Integer): Boolean;
 var
   I: Integer;
   OldImageCount, MoveCount: Integer;
@@ -795,6 +1003,9 @@ begin
       for I := Index to Index + InsertCount - 1 do
         InitImage(FDataArray[I]);
     end;
+
+    // Array could have been reallocated (or was empty before)
+    SetPointer;
     Result := True;
   end
   else
@@ -803,21 +1014,32 @@ end;
 
 procedure TMultiImage.DoInsertImages(Index: Integer; const Images: TDynImageDataArray);
 var
-  I, Len: Integer;
+  I, Len, OldActive: Integer;
 begin
   Len := Length(Images);
+  OldActive := FActiveImage;
+
   if PrepareInsert(Index, Len) then
   begin
     for I := 0 to Len - 1 do
       Imaging.CloneImage(Images[I], FDataArray[Index + I]);
+
+    ImageArrayChanged(OldActive);
   end;
 end;
 
 procedure TMultiImage.DoInsertNew(Index, AWidth, AHeight: Integer;
   AFormat: TImageFormat);
+var
+  OldActive: Integer;
 begin
+  OldActive := FActiveImage;
+
   if PrepareInsert(Index, 1) then
+  begin
     Imaging.NewImage(AWidth, AHeight, AFormat, FDataArray[Index]);
+    ImageArrayChanged(OldActive);
+  end;
 end;
 
 procedure TMultiImage.Assign(Source: TPersistent);
@@ -826,7 +1048,7 @@ var
 begin
   if Source = nil then
   begin
-    ClearAll;
+    DeleteAllImages;
   end
   else if Source is TMultiImage then
   begin
@@ -857,8 +1079,8 @@ begin
     else
       Imaging.NewImage(DefaultWidth, DefaultHeight, ifDefault, FDataArray[I]);
   end;
-  if GetImageCount > 0 then
-    SetActiveImage(0);
+
+  DoImagesReplaced;
 end;
 
 function TMultiImage.AddImage(AWidth, AHeight: Integer; AFormat: TImageFormat): Integer;
@@ -894,6 +1116,27 @@ begin
   DoInsertImages(GetImageCount, Images.FDataArray);
 end;
 
+procedure TMultiImage.AddImagesFromFile(const FileName: string);
+var
+  Loaded: TDynImageDataArray;
+  I, Index, OldActive: Integer;
+begin
+  if not Imaging.LoadMultiImageFromFile(FileName, Loaded) then
+    raise EImagingError.CreateFmt(SErrorLoadFile, [FileName]);
+
+  Index := GetImageCount;
+  OldActive := FActiveImage;
+
+  if PrepareInsert(Index, Length(Loaded)) then
+  begin
+    // Loaded images are moved to the image array, not cloned
+    for I := 0 to Length(Loaded) - 1 do
+      FDataArray[Index + I] := Loaded[I];
+
+    ImageArrayChanged(OldActive);
+  end;
+end;
+
 procedure TMultiImage.InsertImage(Index, AWidth, AHeight: Integer;
   AFormat: TImageFormat);
 begin
@@ -923,24 +1166,23 @@ begin
 end;
 
 procedure TMultiImage.ExchangeImages(Index1, Index2: Integer);
-var
-  TempData: TImageData;
 begin
   if (Index1 >= 0) and (Index1 < GetImageCount) and
-     (Index2 >= 0) and (Index2 < GetImageCount) then
+     (Index2 >= 0) and (Index2 < GetImageCount) and
+     (Index1 <> Index2) then
   begin
-    TempData := FDataArray[Index1];
-    FDataArray[Index1] := FDataArray[Index2];
-    FDataArray[Index2] := TempData;
+    SwapImages(Index1, Index2);
+    DoImagesChanged;
   end;
 end;
 
 procedure TMultiImage.DeleteImage(Index: Integer);
 var
-  I: Integer;
+  I, OldActive: Integer;
 begin
   if (Index >= 0) and (Index < GetImageCount) then
   begin
+    OldActive := FActiveImage;
     // Free image at index to be deleted
     Imaging.FreeImage(FDataArray[Index]);
     if Index < GetImageCount - 1 then
@@ -951,11 +1193,11 @@ begin
     end;
     // Set new array length and update pointer to active image
     SetLength(FDataArray, GetImageCount - 1);
-    SetPointer;
+    ImageArrayChanged(OldActive);
   end;
 end;
 
-procedure TMultiImage.ClearAll;
+procedure TMultiImage.DeleteAllImages;
 begin
   ImageCount := 0;
 end;
@@ -966,6 +1208,9 @@ var
 begin
   for I := 0 to GetImageCount - 1 do
     Imaging.ConvertImage(FDataArray[I], Format);
+
+  if GetImageCount > 0 then
+    DoDataSizeChanged;
 end;
 
 procedure TMultiImage.ResizeImages(NewWidth, NewHeight: Integer;
@@ -975,40 +1220,92 @@ var
 begin
   for I := 0 to GetImageCount - 1 do
     Imaging.ResizeImage(FDataArray[I], NewWidth, NewHeight, Filter);
+
+  if GetImageCount > 0 then
+    DoDataSizeChanged;
 end;
 
 procedure TMultiImage.ReverseImages;
 var
-  I: Integer;
+  I, Count: Integer;
 begin
-  for I := 0 to GetImageCount div 2 do
-    ExchangeImages(I, GetImageCount - 1 - I);
+  Count := GetImageCount;
+  // Middle image of an odd count stays where it is
+  for I := 0 to Count div 2 - 1 do
+    SwapImages(I, Count - 1 - I);
+
+  if Count > 1 then
+    DoImagesChanged;
 end;
 
 procedure TMultiImage.LoadFromFile(const FileName: string);
+var
+  Loaded: TImageData;
 begin
-  if GetImageCount = 0 then
-    ImageCount := 1;
-  inherited LoadFromFile(FileName);
+  if GetImageCount > 0 then
+  begin
+    inherited LoadFromFile(FileName);
+    Exit;
+  end;
+
+  // There is no active image to load to
+  InitImage(Loaded);
+  if not Imaging.LoadImageFromFile(FileName, Loaded) then
+    raise EImagingError.CreateFmt(SErrorLoadFile, [FileName]);
+
+  AddFirstImage(Loaded);
 end;
 
 procedure TMultiImage.LoadFromStream(Stream: TStream);
+var
+  Loaded: TImageData;
 begin
-  if GetImageCount = 0 then
-    ImageCount := 1;
-  inherited LoadFromStream(Stream);
+  if GetImageCount > 0 then
+  begin
+    inherited LoadFromStream(Stream);
+    Exit;
+  end;
+
+  // There is no active image to load to
+  InitImage(Loaded);
+  if not Imaging.LoadImageFromStream(Stream, Loaded) then
+    raise EImagingError.Create(SErrorLoadStream);
+
+  AddFirstImage(Loaded);
 end;
 
 procedure TMultiImage.LoadMultiFromFile(const FileName: string);
+var
+  Loaded: Boolean;
 begin
-  Imaging.LoadMultiImageFromFile(FileName, FDataArray);
-  SetActiveImage(0);
+  Imaging.FreeImagesInArray(FDataArray);
+
+  try
+    Loaded := Imaging.LoadMultiImageFromFile(FileName, FDataArray);
+  finally
+    // Also when the loading fails, old images are gone
+    DoImagesReplaced;
+  end;
+
+  if not Loaded then
+    raise EImagingError.CreateFmt(SErrorLoadFile, [FileName]);
 end;
 
 procedure TMultiImage.LoadMultiFromStream(Stream: TStream);
+var
+  Loaded: Boolean;
 begin
-  Imaging.LoadMultiImageFromStream(Stream, FDataArray);
-  SetActiveImage(0);
+  Imaging.FreeImagesInArray(FDataArray);
+
+  try
+    Loaded := Imaging.LoadMultiImageFromStream(Stream, FDataArray);
+  finally
+    // Also when the loading fails, old images are gone
+    DoImagesReplaced;
+  end;
+
+  if not Loaded then
+    raise EImagingError.Create(SErrorLoadStream);
 end;
 
 function TMultiImage.SaveMultiToFile(const FileName: string): Boolean;

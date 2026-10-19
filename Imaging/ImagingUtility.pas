@@ -31,12 +31,16 @@ type
   {$IF not Defined(PUInt32)}
     PUInt32 = ^UInt32;
   {$IFEND}
+  {$IF CompilerVersion <= 18.5}
+    { In Delphi 7-2007 NativeInt is incorrectly defined to have size of 8 bytes,
+      redeclare it correctly (as ImagingTypes does).}
+    NativeInt = Integer;
+  {$IFEND}
 {$IFEND}
 
-  TByteArray = array[0..MaxInt - 1] of Byte;
-  PByteArray = ^TByteArray;
-  TWordArray = array[0..MaxInt div 2 - 1] of Word;
-  PWordArray = ^TWordArray;
+  { For indexing big memory blocks (like TImageData.Bits) rather use PBuffer
+    and other utility types declared bellow.
+    PByteArray and others are capped at ~2GB (even in Delphi 64, not limited in FPC.}
   TUInt32Array = array[0..MaxInt div 4 - 1] of UInt32;
   PUInt32Array = ^TUInt32Array;
   TInt64Array = array[0..MaxInt div 8 - 1] of Int64;
@@ -83,6 +87,17 @@ type
   PInt64Rec = ^TInt64Rec;
   TInt64RecArray = array[0..MaxInt div 8 - 1] of TInt64Rec;
   PInt64RecArray = ^TInt64RecArray;
+
+{$IFDEF HAS_POINTER_MATH}
+  PUInt32Buffer = PUInt32;
+  PInt64Buffer = PInt64;
+  PSingleBuffer = PSingle;
+{$ELSE}
+  // Delphi 2007 and earlier - no POINTERMATH support
+  PUInt32Buffer = PUInt32Array;
+  PInt64Buffer = PInt64Array;
+  PSingleBuffer = PSingleArray;
+{$ENDIF}
 
   TFloatHelper = record
     Data: Int64;
@@ -234,13 +249,38 @@ function Max(A, B: LongInt): LongInt; {$IFDEF USE_INLINE}inline;{$ENDIF}
 function MaxFloat(A, B: Single): Single; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns greater of two float numbers.}
 function MaxFloat(const A, B: Double): Double; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
-{ Returns result from multiplying Number by Numerator and then dividing by Denominator.
-  Denominator must be greater than 0.}
-function MulDiv(Number, Numerator, Denominator: Word): Word; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns true if give floats are the equal within given delta.}
 function SameFloat(A, B: Single; Delta: Single = 0.001): Boolean; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns true if give floats are the equal within given delta.}
 function SameFloat(const A, B: Double; const Delta: Double = 0.000001): Boolean; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
+
+{ Returns result from multiplying Number by Numerator and then dividing by Denominator.
+  Denominator must be greater than 0.
+  Mind the limits, this is not the MulDiv of Windows API:
+  - all parameters and the result are 16-bit, larger values are cut without
+    any error when passed in,
+  - the result is truncated, not rounded to the nearest value,
+  - the result must fit into 16 bits and Number * Numerator must be less
+    than 2^31, otherwise the result is wrong or an exception is raised
+    (depends on the compiler and its overflow checking).
+  So it is fine for things like scaling of 8-bit values by 8-bit factor.
+  For scaling of values between two ranges (channels of different bit depths,
+  samples of unusual precision) use ScaleValue. Mind the different order
+  of parameters:
+    MulDiv(Value, DstMax, SrcMax)  ->  ScaleValue(Value, SrcMax, DstMax)
+  for instance 12-bit sample to 16 bits:
+    MulDiv(Sample, 65535, 4095)    ->  ScaleValue(Sample, 4095, 65535)}
+function MulDiv(Number, Numerator, Denominator: Word): Word; {$IFDEF USE_INLINE}inline;{$ENDIF}
+{ Scales Value from range 0..SrcMax to range 0..DstMax and rounds the result
+  to the nearest value. Zero stays zero and SrcMax becomes DstMax, so the
+  largest value is kept when bit depth of samples is changed: for instance
+  ScaleValue(V, 255, 65535) for 8 to 16 bits, ScaleValue(V, 4095, 255)
+  for 12 to 8 bits. Values larger than SrcMax give DstMax.
+  SrcMax must be greater than 0. Whole 32-bit range can be used for all
+  parameters; when Value * DstMax does not fit into 63 bits the result is
+  computed in floating point and can be off by one for values in the middle
+  of the range.}
+function ScaleValue(Value, SrcMax, DstMax: UInt32): UInt32;
 
 { Switches Boolean value.}
 procedure Switch(var Value: Boolean); {$IFDEF USE_INLINE}inline;{$ENDIF}
@@ -289,23 +329,23 @@ function IsLittleEndian: Boolean; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Swaps byte order of Word value.}
 function SwapEndianWord(Value: Word): Word; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Swaps byte order of multiple Word values.}
-procedure SwapEndianWord(P: PWordArray; Count: LongInt); overload;
+procedure SwapEndianWord(P: PWord; Count: NativeInt); overload;
 { Swaps byte order of UInt32 value.}
 function SwapEndianUInt32(Value: UInt32): UInt32; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Swaps byte order of multiple UInt32 values.}
-procedure SwapEndianUInt32(P: PUInt32; Count: LongInt); overload;
+procedure SwapEndianUInt32(P: PUInt32; Count: NativeInt); overload;
 
 { Calculates CRC32 for the given data.}
-procedure CalcCrc32(var Crc: UInt32; Data: Pointer; Size: LongInt);
+procedure CalcCrc32(var Crc: UInt32; Data: Pointer; Size: NativeInt);
 { Fills given memory with given Byte value. Size is size of buffer in bytes.}
-procedure FillMemoryByte(Data: Pointer; Size: LongInt; Value: Byte);
+procedure FillMemoryByte(Data: Pointer; Size: NativeInt; Value: Byte);
 { Fills given memory with given Word value. Size is size of buffer in bytes.}
-procedure FillMemoryWord(Data: Pointer; Size: LongInt; Value: Word);
+procedure FillMemoryWord(Data: Pointer; Size: NativeInt; Value: Word);
 { Fills given memory with given UInt32 value. Size is size of buffer in bytes.}
-procedure FillMemoryUInt32(Data: Pointer; Size: LongInt; Value: UInt32);
+procedure FillMemoryUInt32(Data: Pointer; Size: NativeInt; Value: UInt32);
 { Fills given memory zeroes.}
 {$EXTERNALSYM ZeroMemory} // Conflicts with WinAPI ZeroMemory in C++ Builder
-procedure ZeroMemory(Data: Pointer; Size: Integer); {$IFDEF USE_INLINE}inline;{$ENDIF}
+procedure ZeroMemory(Data: Pointer; Size: NativeInt); {$IFDEF USE_INLINE}inline;{$ENDIF}
 
 { Returns how many mipmap levels can be created for image of given size.}
 function GetNumMipMapLevels(Width, Height: LongInt): LongInt;
@@ -367,13 +407,15 @@ procedure DebugMsg(const Msg: string; const Args: array of const);
 
 implementation
 
-uses
 {$IF Defined(MSWINDOWS)}
-  Windows;
-{$ELSEIF Defined(FPC)}
-  Dos, BaseUnix, Unix;
+uses
+   Windows;
+{$ELSEIF Defined(FPC) and Defined(UNIX)}
+uses
+   Dos, BaseUnix, Unix;
 {$ELSEIF Defined(DELPHI)}
-  Posix.SysTime;
+uses
+   Posix.SysTime;
 {$IFEND}
 
 var
@@ -430,13 +472,19 @@ begin
   Posix.SysTime.GetTimeOfDay(Time, nil);
   Result := Int64(Time.tv_sec) * 1000000 + Time.tv_usec;
 end;
-{$ELSEIF Defined(FPC)}
+{$ELSEIF Defined(FPC) and Defined(UNIX)}
 function GetTimeMicroseconds: Int64;
 var
   TimeVal: TTimeVal;
 begin
   fpGetTimeOfDay(@TimeVal, nil);
   Result := Int64(TimeVal.tv_sec) * 1000000 + TimeVal.tv_usec;
+end;
+{$ELSE}
+// Other FPC targets (e.g. WebAssembly), millisecond resolution only
+function GetTimeMicroseconds: Int64;
+begin
+  Result := Int64(GetTickCount64) * 1000;
 end;
 {$IFEND}
 
@@ -783,6 +831,14 @@ function SubString(const S: string; IdxStart, IdxEnd: Integer): string;
 begin
   Result := Copy(S, IdxStart, IdxEnd - IdxStart);
 end;
+
+{$IF Defined(DCC) and (CompilerVersion < 20.0)}
+{ CharInSet is in SysUtils only since Delphi 2009.}
+function CharInSet(C: AnsiChar; const CharSet: TSysCharSet): Boolean;
+begin
+  Result := C in CharSet;
+end;
+{$IFEND}
 
 function TrimSet(const S: string; const CharSet: TSysCharSet): string;
 var
@@ -1138,6 +1194,16 @@ begin
     Result := B;
 end;
 
+function SameFloat(A, B: Single; Delta: Single): Boolean;
+begin
+  Result := Abs(A - B) <= Delta;
+end;
+
+function SameFloat(const A, B: Double; const Delta: Double): Boolean;
+begin
+  Result := Abs(A - B) <= Delta;
+end;
+
 function MulDiv(Number, Numerator, Denominator: Word): Word;
 {$IF Defined(USE_ASM) and (not Defined(USE_INLINE))}
 asm
@@ -1150,14 +1216,27 @@ begin
 end;
 {$IFEND}
 
-function SameFloat(A, B: Single; Delta: Single): Boolean;
+function ScaleValue(Value, SrcMax, DstMax: UInt32): UInt32;
+const
+  // Typed constant makes the expression below double precision. FPC gives
+  // floating point literals the smallest type that holds them exactly and
+  // computes expressions of integers and Single values in single precision
+  // on targets without x87 FPU (like x86_64), which would lose bits here.
+  // This is intended behavior of FPC and it is not going to change
+  // (FPC issues 36415 and 37935). It can be switched off by -CF64 option or
+  // $MINFPCONSTPREC 64 directive, but the library must not depend on
+  // compiler options of its users: typed Double constant or a cast to Double
+  // gives double precision with any settings.
+  One: Double = 1.0;
 begin
-  Result := Abs(A - B) <= Delta;
-end;
+  Assert(SrcMax > 0);
 
-function SameFloat(const A, B: Double; const Delta: Double): Boolean;
-begin
-  Result := Abs(A - B) <= Delta;
+  if Value >= SrcMax then
+    Result := DstMax
+  else if (Value <= $7FFFFFFF) and (DstMax <= $7FFFFFFF) then
+    Result := (Int64(Value) * DstMax + SrcMax shr 1) div SrcMax
+  else
+    Result := Round(One * Value / SrcMax * DstMax);
 end;
 
 function IsLittleEndian: Boolean;
@@ -1180,7 +1259,8 @@ begin
 end;
 {$IFEND}
 
-procedure SwapEndianWord(P: PWordArray; Count: LongInt);
+// System.PWord: Windows unit used in implementation has its own PWord type
+procedure SwapEndianWord(P: System.PWord; Count: NativeInt);
 {$IFDEF USE_ASM}
 asm
 @Loop:
@@ -1193,14 +1273,15 @@ asm
 end;
 {$ELSE}
 var
-  I: LongInt;
+  I: NativeInt;
   Temp: Word;
 begin
   for I := 0 to Count - 1 do
   begin
-    Temp := P[I];
-    TWordRec(P[I]).Low := TWordRec(Temp).High;
-    TWordRec(P[I]).High := TWordRec(Temp).Low;
+    Temp := P^;
+    TWordRec(P^).Low := TWordRec(Temp).High;
+    TWordRec(P^).High := TWordRec(Temp).Low;
+    Inc(P);
   end;
 end;
 {$ENDIF}
@@ -1219,7 +1300,7 @@ begin
 end;
 {$IFEND}
 
-procedure SwapEndianUInt32(P: PUInt32; Count: LongInt);
+procedure SwapEndianUInt32(P: PUInt32; Count: NativeInt);
 {$IFDEF USE_ASM}
 asm
 @Loop:
@@ -1232,24 +1313,25 @@ asm
 end;
 {$ELSE}
 var
-  I: LongInt;
+  I: NativeInt;
   Temp: UInt32;
 begin
   for I := 0 to Count - 1 do
   begin
-    Temp := PUInt32Array(P)[I];
-    TUInt32Rec(PUInt32Array(P)[I]).Bytes[0] := TUInt32Rec(Temp).Bytes[3];
-    TUInt32Rec(PUInt32Array(P)[I]).Bytes[1] := TUInt32Rec(Temp).Bytes[2];
-    TUInt32Rec(PUInt32Array(P)[I]).Bytes[2] := TUInt32Rec(Temp).Bytes[1];
-    TUInt32Rec(PUInt32Array(P)[I]).Bytes[3] := TUInt32Rec(Temp).Bytes[0];
+    Temp := P^;
+    TUInt32Rec(P^).Bytes[0] := TUInt32Rec(Temp).Bytes[3];
+    TUInt32Rec(P^).Bytes[1] := TUInt32Rec(Temp).Bytes[2];
+    TUInt32Rec(P^).Bytes[2] := TUInt32Rec(Temp).Bytes[1];
+    TUInt32Rec(P^).Bytes[3] := TUInt32Rec(Temp).Bytes[0];
+    Inc(P);
   end;
 end;
 {$ENDIF}
 
-type
-  TCrcTable = array[Byte] of UInt32;
 var
-  CrcTable: TCrcTable;
+  { Tables for CRC computed 8 bytes at once (slicing-by-8): the first one
+    is the usual byte table, table K gives CRC of a byte followed by K zero bytes.}
+  CrcTables: array[0..7, Byte] of UInt32;
 
 procedure InitCrcTable;
 const
@@ -1268,24 +1350,63 @@ begin
       else
         C := C shr 1;
     end;
-    CrcTable[I] := C;
+    CrcTables[0, I] := C;
+  end;
+
+  for I := 0 to 255 do
+  begin
+    for J := 1 to 7 do
+    begin
+      C := CrcTables[J - 1, I];
+      CrcTables[J, I] := (C shr 8) xor CrcTables[0, C and $FF];
+    end;
   end;
 end;
 
-procedure CalcCrc32(var Crc: UInt32; Data: Pointer; Size: LongInt);
+procedure CalcCrc32(var Crc: UInt32; Data: Pointer; Size: NativeInt);
 var
-  I: LongInt;
+  C, Low, High: UInt32;
   B: PByte;
 begin
+  // CRC is kept in a local variable, the var parameter would be read and
+  // written in memory in every step by some compilers
+  C := Crc;
   B := Data;
-  for I := 0 to Size - 1 do
+
+  // Bytes up to the first 4-byte aligned address one by one
+  while (Size > 0) and ({$IFDEF FPC}PtrUInt{$ELSE}NativeInt{$ENDIF}(B) and 3 <> 0) do
   begin
-    Crc := (Crc shr 8) xor CrcTable[B^ xor Byte(Crc)];
+    C := (C shr 8) xor CrcTables[0, B^ xor Byte(C)];
     Inc(B);
-  end
+    Dec(Size);
+  end;
+
+  // Then 8 bytes at once
+  while Size >= 8 do
+  begin
+    Low := PUInt32(B)^ xor C;
+    Inc(B, 4);
+    High := PUInt32(B)^;
+    Inc(B, 4);
+    C := CrcTables[7, Low and $FF] xor CrcTables[6, (Low shr 8) and $FF] xor
+         CrcTables[5, (Low shr 16) and $FF] xor CrcTables[4, Low shr 24] xor
+         CrcTables[3, High and $FF] xor CrcTables[2, (High shr 8) and $FF] xor
+         CrcTables[1, (High shr 16) and $FF] xor CrcTables[0, High shr 24];
+    Dec(Size, 8);
+  end;
+
+  // The rest one by one
+  while Size > 0 do
+  begin
+    C := (C shr 8) xor CrcTables[0, B^ xor Byte(C)];
+    Inc(B);
+    Dec(Size);
+  end;
+
+  Crc := C;
 end;
 
-procedure FillMemoryByte(Data: Pointer; Size: LongInt; Value: Byte);
+procedure FillMemoryByte(Data: Pointer; Size: NativeInt; Value: Byte);
 {$IFDEF USE_ASM}
 asm
   PUSH   EDI
@@ -1311,7 +1432,7 @@ begin
 end;
 {$ENDIF}
 
-procedure FillMemoryWord(Data: Pointer; Size: LongInt; Value: Word);
+procedure FillMemoryWord(Data: Pointer; Size: NativeInt; Value: Word);
 {$IFDEF USE_ASM}
 asm
   PUSH   EDI
@@ -1343,24 +1464,33 @@ asm
 end;
 {$ELSE}
 var
-  I, V: UInt32;
+  I: NativeInt;
+  V: UInt32;
+  Item: PUInt32;
 begin
-  V := Value * $10000 + Value;
+  V := UInt32(Value) shl 16 or Value;
+  Item := Data;
+
   for I := 0 to Size div 4 - 1 do
-    PUInt32Array(Data)[I] := V;
+  begin
+    Item^ := V;
+    Inc(Item);
+  end;
+
+  // The rest that does not make whole four bytes, Item points to it
   case Size mod 4 of
-    1: PByteArray(Data)[Size - 1] := Lo(Value);
-    2: PWordArray(Data)[Size div 2] := Value;
+    1: PByteArray(Item)[0] := Lo(Value);
+    2: PWord(Item)^ := Value;
     3:
       begin
-        PWordArray(Data)[Size  div 2 - 1] := Value;
-        PByteArray(Data)[Size - 1] := Lo(Value);
+        PWord(Item)^ := Value;
+        PByteArray(Item)[2] := Lo(Value);
       end;
   end;
 end;
 {$ENDIF}
 
-procedure FillMemoryUInt32(Data: Pointer; Size: LongInt; Value: UInt32);
+procedure FillMemoryUInt32(Data: Pointer; Size: NativeInt; Value: UInt32);
 {$IFDEF USE_ASM}
 asm
   PUSH   EDI
@@ -1389,23 +1519,31 @@ asm
 end;
 {$ELSE}
 var
-  I: LongInt;
+  I: NativeInt;
+  Item: PUInt32;
 begin
+  Item := Data;
+
   for I := 0 to Size div 4 - 1 do
-    PUInt32Array(Data)[I] := Value;
+  begin
+    Item^ := Value;
+    Inc(Item);
+  end;
+
+  // The rest that does not make whole four bytes, Item points to it
   case Size mod 4 of
-    1: PByteArray(Data)[Size - 1] := TUInt32Rec(Value).Bytes[0];
-    2: PWordArray(Data)[Size div 2] := TUInt32Rec(Value).Words[0];
+    1: PByteArray(Item)[0] := TUInt32Rec(Value).Bytes[0];
+    2: PWord(Item)^ := TUInt32Rec(Value).Words[0];
     3:
       begin
-        PWordArray(Data)[Size div 2 - 1] := TUInt32Rec(Value).Words[0];
-        PByteArray(Data)[Size - 1] := TUInt32Rec(Value).Bytes[0];
+        PWord(Item)^ := TUInt32Rec(Value).Words[0];
+        PByteArray(Item)[2] := TUInt32Rec(Value).Bytes[0];
       end;
   end;
 end;
 {$ENDIF}
 
-procedure ZeroMemory(Data: Pointer; Size: Integer);
+procedure ZeroMemory(Data: Pointer; Size: NativeInt);
 begin
   FillMemoryByte(Data, Size, 0);
 end;
@@ -1567,15 +1705,16 @@ begin
   TargetWidth := TargetRect.Right - TargetRect.Left;
   TargetHeight := TargetRect.Bottom - TargetRect.Top;
 
-  if SourceWidth * TargetHeight < SourceHeight * TargetWidth then
+  // Products of two dimensions are computed in 64 bits
+  if Int64(SourceWidth) * TargetHeight < Int64(SourceHeight) * TargetWidth then
   begin
-    ScaledWidth := (SourceWidth * TargetHeight) div SourceHeight;
+    ScaledWidth := (Int64(SourceWidth) * TargetHeight) div SourceHeight;
     Result := BoundsToRect(TargetRect.Left + ((TargetWidth - ScaledWidth) div 2),
       TargetRect.Top, ScaledWidth, TargetHeight);
   end
   else
   begin
-    ScaledHeight := (SourceHeight * TargetWidth) div SourceWidth;
+    ScaledHeight := (Int64(SourceHeight) * TargetWidth) div SourceWidth;
     Result := BoundsToRect(TargetRect.Left, TargetRect.Top + ((TargetHeight - ScaledHeight) div 2),
       TargetWidth, ScaledHeight);
   end;

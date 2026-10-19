@@ -175,7 +175,7 @@ type
     BitsPerPixel: Integer;
     Pass: Integer;
     Interlace: Boolean;
-    LineIdent: Integer;
+    LineIdent: NativeInt;
     Data: Pointer;
     CurrLineData: Pointer;
   end;
@@ -336,7 +336,7 @@ var
     else
       Inc(Context.Y);
 
-    Context.CurrLineData := @PByteArray(Context.Data)[Context.Y * Context.LineIdent];
+    Context.CurrLineData := @PBuffer(Context.Data)[Context.Y * Context.LineIdent];
   end;
 
 begin
@@ -456,7 +456,7 @@ end;
 procedure TGIFFileFormat.LZWCompress(const IO: TIOFunctions; Handle: TImagingHandle; Width, Height, BitCount: Integer;
     Interlaced: Boolean; Data: Pointer);
 var
-  LineIdent: Integer;
+  LineIdent: NativeInt;
   MinCodeSize, Col: Byte;
   InitCodeSize, X, Y: Integer;
   Pass: Integer;
@@ -544,7 +544,7 @@ begin
 
     while Y < Height do
     begin
-      PData := @PByteArray(Data)[Y * LineIdent];
+      PData := @PBuffer(Data)[Y * LineIdent];
       for X := 0 to Width - 1 do
       begin
         // Only ifIndex8 support
@@ -777,23 +777,28 @@ var
   procedure CopyLZWData(Dest: TStream);
   var
     CodeSize, BlockSize: Byte;
-    InputSize: Integer;
+    ReadCount: Integer;
     Buff: array[Byte] of Byte;
   begin
-    InputSize := ImagingIO.GetInputSize(GetIO, Handle);
     // Copy codesize to stream
-    GetIO.Read(Handle, @CodeSize, 1);
+    if GetIO.Read(Handle, @CodeSize, 1) < 1 then
+      Exit;
     Dest.Write(CodeSize, 1);
     repeat
-      // Read and write data blocks, last is block term value of 0
-      GetIO.Read(Handle, @BlockSize, 1);
+      // Read and write data blocks, last is block term value of 0. Truncated
+      // input ends the data too.
+      if GetIO.Read(Handle, @BlockSize, 1) < 1 then
+        Break;
       Dest.Write(BlockSize, 1);
       if BlockSize > 0 then
       begin
-        GetIO.Read(Handle, @Buff[0], BlockSize);
-        Dest.Write(Buff[0], BlockSize);
+        ReadCount := GetIO.Read(Handle, @Buff[0], BlockSize);
+        if ReadCount > 0 then
+          Dest.Write(Buff[0], ReadCount);
+        if ReadCount < BlockSize then
+          Break;
       end;
-    until (BlockSize = 0) or (GetIO.Tell(Handle) >= InputSize);
+    until BlockSize = 0;
   end;
 
   procedure ReadFrame;
@@ -916,7 +921,7 @@ var
     // Copy all pixels from frame to log screen but ignore the transparent ones
     for Y := 0 to Frame.Height - 1 do
     begin
-      Dst := @PColor32RecArray(Image.Bits)[(Top + Y) * Image.Width + Left];
+      Dst := @PColor32RecBuffer(Image.Bits)[PtrInt(Top + Y) * Image.Width + Left];
       for X := 0 to Frame.Width - 1 do
       begin
         if (Frame.Palette[Src^].A <> 0) then
@@ -1106,8 +1111,8 @@ var
 
     for I := FFirstIdx + 1 to FLastIdx do
     begin
-      MaxWidth := Iff(Images[I].Width > MaxWidth, Images[I].Width, MaxWidth);
-      MaxHeight := Iff(Images[I].Height > MaxWidth, Images[I].Height, MaxHeight);
+      MaxWidth := Max(MaxWidth, Images[I].Width);
+      MaxHeight := Max(MaxHeight, Images[I].Height);
     end;
   end;
 
