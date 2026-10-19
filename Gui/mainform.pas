@@ -131,10 +131,9 @@ begin
   ComboFileFormat.Items.AddObject('JPEG', TObject(ffJpeg));
   ComboFileFormat.Items.AddObject('TIFF', TObject(ffTiff));
   ComboFileFormat.Items.AddObject('BMP', TObject(ffBmp));
-  ComboFileFormat.Items.AddObject('PSD', TObject(ffPsd));
   ComboFileFormat.Items.AddObject('TGA', TObject(ffTga));
-  ComboFileFormat.Items.AddObject('JNG', TObject(ffJng));
   ComboFileFormat.Items.AddObject('PPM', TObject(ffPpm));
+  ComboFileFormat.Items.AddObject('PGM', TObject(ffPgm));
   ComboFileFormat.ItemIndex := 0;
 
   ApplyOptions(Module.Options);

@@ -6,8 +6,16 @@
   Deskew specific settings here.
 }
 
-// Image file formats Deskew does not need
+{ Image file formats Deskew does not need }
+
+// Core
+{$DEFINE DONT_LINK_DDS}
+{$DEFINE DONT_LINK_JNG}
+{$DEFINE DONT_LINK_MNG}
 {$DEFINE DONT_LINK_RADHDR}
+
+// Ext
 {$DEFINE DONT_LINK_JPEG2000}
 {$DEFINE DONT_LINK_PCX}
 {$DEFINE DONT_LINK_XPM}
+{$DEFINE DONT_LINK_PSD}

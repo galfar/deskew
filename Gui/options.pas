@@ -34,10 +34,9 @@ type
     ffJpeg,
     ffTiff,
     ffBmp,
-    ffPsd,
     ffTga,
-    ffJng,
-    ffPpm
+    ffPpm,
+    ffPgm
   );
   TFileFormatSet = set of TFileFormat;
 
@@ -141,10 +140,9 @@ const
     'jpg', // ffJpeg
     'tif', // ffTiff
     'bmp', // ffBmp
-    'psd', // ffPsd
     'tga', // ffTga
-    'jng', // ffJng
-    'ppm'  // ffPpm
+    'ppm', // ffPpm
+    'pgm'  // ffPgm
   );
 
   FormatIds: array[TForcedOutputFormat] of string = (

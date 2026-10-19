@@ -122,7 +122,7 @@ var
 
 procedure WriteUsage;
 var
-  InFilter, OutFilter: string;
+  InFilter, OutFilter, Ext: string;
   I, Count: Integer;
   Fmt: TImageFileFormat;
 begin
@@ -179,11 +179,24 @@ begin
   for I := 0 to Count - 1 do
   begin
     Fmt := GetFileFormatAtIndex(I);
+    Ext := Fmt.Extensions[0];
+
+    // PAM and PFM still work but are not listed (not scan formats)
+    // and Imaging cannot leave it out without the other PNM formats
+    if SameText(Ext, 'pam') or SameText(Ext, 'pfm') then
+      Continue;
+
+    // More common monikers
+    if SameText(Ext, 'jpg') then
+      Ext := 'JPEG';
+    if SameText(Ext, 'tif') then
+      Ext := 'TIFF';
+
     // Not every format can be both loaded and saved (WebP is input only)
     if Fmt.CanLoad then
-      InFilter := InFilter + Iff(InFilter <> '', ', ', '') + Fmt.Extensions[0];
+      InFilter := InFilter + Iff(InFilter <> '', ', ', '') + Ext;
     if Fmt.CanSave then
-      OutFilter := OutFilter + Iff(OutFilter <> '', ', ', '') + Fmt.Extensions[0];
+      OutFilter := OutFilter + Iff(OutFilter <> '', ', ', '') + Ext;
   end;
 
   WriteLn(Log^);
