@@ -129,7 +129,7 @@ begin
   ComboFileFormat.Items.AddObject('Same as input', TObject(ffSameAsInput));
   ComboFileFormat.Items.AddObject('PNG', TObject(ffPng));
   ComboFileFormat.Items.AddObject('JPEG', TObject(ffJpeg));
-  ComboFileFormat.Items.AddObject('TIFF (support depends on platform)', TObject(ffTiff));
+  ComboFileFormat.Items.AddObject('TIFF', TObject(ffTiff));
   ComboFileFormat.Items.AddObject('BMP', TObject(ffBmp));
   ComboFileFormat.Items.AddObject('PSD', TObject(ffPsd));
   ComboFileFormat.Items.AddObject('TGA', TObject(ffTga));

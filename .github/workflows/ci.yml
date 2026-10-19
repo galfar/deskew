@@ -86,6 +86,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
+          # For the test build that reads and writes TIFF through libtiff (see below).
           # Just get the -dev with unversioned symlink, instead of libtiff5 vs libtiff6 in different distro versions
           sudo apt install libtiff-dev -y
 
@@ -94,9 +95,6 @@ jobs:
         shell: bash
         run: |
           brew untap aws/tap 2>/dev/null || true  # Silence the warnings on macOS runners, we don't need AWS stuff
-          # Deskew loads libtiff.dylib dynamically, also from Homebrew locations (no-op if already installed)
-          brew install libtiff
-          ls -l "$(brew --prefix)"/lib/libtiff*.dylib
 
       - name: Print info
         shell: bash
@@ -135,6 +133,17 @@ jobs:
         shell: bash
         run:  lazbuild "Tests/tests.lpi"
 
+      # Deskew reads and writes TIFF with the Pascal codec of Imaging. This extra build
+      # leaves it out (TIFF_NO_BUNDLED), so TIFF goes through the libtiff shared library
+      # and the smoke tests check that path too.
+      - name: Build Deskew CLI with libtiff
+        if: runner.os == 'Linux'
+        shell: bash
+        run:  |
+          mkdir -p Bin/libtiff Dcu/libtiff
+          fpc -B -O1 -Mdelphi -vn- -FEBin/libtiff -FUDcu/libtiff -FuImaging -FuImaging/Libs \
+            -FiImaging -Fi. -dIMAGING_USER_OPTIONS -dTIFF_NO_BUNDLED deskew.lpr
+
       - name: List Bin directory
         shell: bash
         run:  ls -lh Bin
@@ -147,6 +156,8 @@ jobs:
 
           if [ "$RUNNER_OS" == "Linux" ]; then
               ./runtests.sh
+              # TIFF through libtiff (the build fails TIFF cases when libtiff cannot be loaded)
+              ./runtests.sh libtiff/deskew
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then

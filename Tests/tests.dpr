@@ -3,7 +3,6 @@ program tests;
 uses
   SysUtils,
   Classes,
-
   ImagingUtility in '..\Imaging\ImagingUtility.pas',
   ImagingNetworkGraphics in '..\Imaging\ImagingNetworkGraphics.pas',
   Utils in '..\Utils.pas',
@@ -11,7 +10,6 @@ uses
   CmdLineOptions in '..\CmdLineOptions.pas',
   RotationDetector in '..\RotationDetector.pas',
   MainUnit in '..\MainUnit.pas',
-
   TextTestRunner,
   GUITestRunner,
   DeskewTestUtils in 'DeskewTestUtils.pas',

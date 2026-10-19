@@ -739,7 +739,7 @@ begin
 
   CompName := Metadata.MetaItems[SMetaTiffCompressionName];
 
-  // Names from "TTiffLibFileFormat.LoadData"
+  // Names from CompressionName in ImagingTiff
   if CompName = 'None' then
     FTiffCompressionScheme := TiffCompressionOptionNone
   else if CompName = 'LZW' then

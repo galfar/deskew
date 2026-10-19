@@ -3,23 +3,8 @@ set -eu
 
 # If you want to run the test with another deskew executable just pass it as
 # a parameter e.g. "runtests.sh deskew-arm"
-DESKEW=deskew
-
-# On some platforms deskew does not suport TIFFs,
-# if you want to run the tests there pass "--no-tiff" as arg
-NOTIFF=0
-NOTIFF_FLAG="--no-tiff"
-
-while (( "$#" )); do
-  if [[ $1 == $NOTIFF_FLAG ]]; then
-    NOTIFF=1
-    echo "Not running tests with TIFFs"
-  else
-    DESKEW=${1-$DESKEW}
-    echo "Using '$DESKEW' executable"
-  fi
-  shift
-done
+DESKEW=${1:-deskew}
+echo "Using '$DESKEW' executable"
 
 # Help only
 ./$DESKEW -h
@@ -74,22 +59,20 @@ done
 # Both reports in detect only mode: the file is named after the output that would be written
 ./$DESKEW -s jr -g d -o TestOut/OutJsonDetect5.png ../TestImages/5.png > TestOut/OutJsonDetect5.json
 
-if [[ $NOTIFF == 0 ]]; then
-  # Binary LZW TIFF in and out, default compression (LZW)
-  ./$DESKEW -t a -a 5 -o TestOut/Out1.tif ../TestImages/1-lzw.tif
-  # JPEG compression requested explicitly for a non-JPEG input, output must be JPEG-compressed
-  ./$DESKEW -b DD -c j95,tjpeg -o TestOut/Out1-lzw-to-jpeg.tif ../TestImages/1-lzw.tif
-  # Compression "as input": CCITT G4 input stays G4 (bilevel output)
-  ./$DESKEW -t 128 -c tinput -o TestOut/Out1-g4.tif ../TestImages/1-g4.tif
-  # Compression "as input": JPEG input stays JPEG (lossy recompression is accepted here)
-  ./$DESKEW -b DD -c tinput -o TestOut/Out-tiff-jpeg-also-jpeg.tif ../TestImages/tiff-jpeg.tif
-  # Compression "as input, lossless only": JPEG input gets LZW instead
-  ./$DESKEW -c tinput-lossless -o TestOut/Out-tiff-jpeg-to-lzw.tif ../TestImages/tiff-jpeg.tif
-  # Explicit Deflate compression and red background
-  ./$DESKEW -b FF0000 -c tdeflate -o TestOut/Out1-deflate.tif ../TestImages/1-lzw.tif
-  # Forced 1-bit output, TIFF writer picks CCITT G4 for it
-  ./$DESKEW -f b1 -o TestOut/Out1-b1.tif ../TestImages/1-lzw.tif
-fi
+# Binary LZW TIFF in and out, default compression (LZW)
+./$DESKEW -t a -a 5 -o TestOut/Out1.tif ../TestImages/1-lzw.tif
+# JPEG compression requested explicitly for a non-JPEG input, output must be JPEG-compressed
+./$DESKEW -b DD -c j95,tjpeg -o TestOut/Out1-lzw-to-jpeg.tif ../TestImages/1-lzw.tif
+# Compression "as input": CCITT G4 input stays G4 (bilevel output)
+./$DESKEW -t 128 -c tinput -o TestOut/Out1-g4.tif ../TestImages/1-g4.tif
+# Compression "as input": JPEG input stays JPEG (lossy recompression is accepted here)
+./$DESKEW -b DD -c tinput -o TestOut/Out-tiff-jpeg-also-jpeg.tif ../TestImages/tiff-jpeg.tif
+# Compression "as input, lossless only": JPEG input gets LZW instead
+./$DESKEW -c tinput-lossless -o TestOut/Out-tiff-jpeg-to-lzw.tif ../TestImages/tiff-jpeg.tif
+# Explicit Deflate compression and red background
+./$DESKEW -b FF0000 -c tdeflate -o TestOut/Out1-deflate.tif ../TestImages/1-lzw.tif
+# Forced 1-bit output, TIFF writer picks CCITT G4 for it
+./$DESKEW -f b1 -o TestOut/Out1-b1.tif ../TestImages/1-lzw.tif
 
 echo
 echo TESTS PASSED!
