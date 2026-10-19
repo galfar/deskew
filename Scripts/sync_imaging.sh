@@ -5,13 +5,20 @@
 # needs, taken from a single imaginglib commit, which is recorded in Imaging/IMAGING_SYNC.txt.
 # Do not edit files in Imaging/ by hand; Deskew-specific settings belong in ImagingUserOptions.inc.
 #
+# Layout is flatter than in imaginglib:
+#   Imaging/       core units from Source/ and the extension units Deskew links from
+#                  Extensions/ (extra file formats: TIFF, PSD, WebP)
+#   Imaging/Libs/  everything from Source/Libs/ and Extensions/Libs/: bundled JPEG and ZLib,
+#                  native Pascal TIFF (PasTiff*), WebP decoder, and the units loading 3rd party
+#                  libraries dynamically (libjpeg-turbo, zlib, libtiff, libwebp)
+#
 # Usage:
 #   sync_imaging.sh update <ref> [--repo <path>]
 #   sync_imaging.sh check [--repo <path>]
 #
 # Commands:
 #   update <ref>   Replace Imaging/ with the files from <ref> and record the commit.
-#                  <ref> is anything Git can fetch from imaginglib: a branch (develop),
+#                  <ref> is anything Git can fetch from imaginglib: a branch (e.g. master),
 #                  a tag, or a commit hash.
 #   check          Verify Imaging/ is identical to the commit recorded in IMAGING_SYNC.txt
 #                  (exit code 1 and a diff if not). Used by CI.
@@ -21,8 +28,8 @@
 #                  e.g. to try Imaging changes that are not pushed yet, or to work offline.
 #                  <ref> is then resolved in that clone (e.g. origin/develop, or a local branch).
 #
-# Updating Imaging to the latest develop:
-#   Scripts/sync_imaging.sh update develop
+# Updating Imaging to the latest master:
+#   Scripts/sync_imaging.sh update master
 #   Build and run tests, then commit Imaging/ (with IMAGING_SYNC.txt) in one commit.
 #
 set -euo pipefail
@@ -84,11 +91,20 @@ fi
 
 SRC="$TMP_DIR/src"
 OUT="$TMP_DIR/Imaging"
-mkdir -p "$SRC" "$OUT/Libs" "$OUT/LibTiff/Compiled"
+mkdir -p "$SRC" "$OUT/Libs"
+
+# Extension units Deskew links: list of extra file formats in ImagingExtFileFormats.pas
+# and the formats themselves. The other formats there are switched off with DONT_LINK_*
+# in ImagingUserOptions.inc (JPEG 2000, PCX, XPM), keep the two lists in line.
+EXT_UNITS="ImagingExtFileFormats.pas ImagingTiff.pas ImagingPsd.pas ImagingWebP.pas"
+
+EXT_PATHS=()
+for F in $EXT_UNITS; do
+  EXT_PATHS+=("Extensions/$F")
+done
 
 # Exact file contents as stored in the repository (line endings, BOMs)
-git -C "$SRC_REPO" archive "$COMMIT" Source Extensions/LibTiff \
-  Extensions/ImagingExtFileFormats.pas Extensions/ImagingTiff.pas Extensions/ImagingPsd.pas \
+git -C "$SRC_REPO" archive "$COMMIT" Source Extensions/Libs "${EXT_PATHS[@]}" \
   | tar -x -C "$SRC"
 
 # Core units Deskew does not use (keep in line with ImagingUserOptions.inc):
@@ -100,13 +116,19 @@ for F in "$SRC"/Source/*.pas "$SRC"/Source/*.inc; do
   [[ "$SKIP_CORE_UNITS" == *" $(basename "$F") "* ]] && continue
   cp "$F" "$OUT/"
 done
-cp "$SRC"/Source/Libs/* "$OUT/Libs/"
 
-# Extension formats Deskew links: TIFF and PSD
-cp "$SRC"/Extensions/ImagingExtFileFormats.pas "$SRC"/Extensions/ImagingTiff.pas \
-   "$SRC"/Extensions/ImagingPsd.pas "$OUT/"
-cp "$SRC"/Extensions/LibTiff/*.pas "$OUT/LibTiff/"
-cp "$SRC"/Extensions/LibTiff/Compiled/* "$OUT/LibTiff/Compiled/"
+for F in $EXT_UNITS; do
+  cp "$SRC/Extensions/$F" "$OUT/"
+done
+
+# Libraries of the core and of the extensions go together. File names must not clash.
+for F in "$SRC"/Source/Libs/* "$SRC"/Extensions/Libs/*; do
+  if [[ -e "$OUT/Libs/$(basename "$F")" ]]; then
+    echo "ERROR: $(basename "$F") is in both Source/Libs and Extensions/Libs" >&2
+    exit 1
+  fi
+  cp "$F" "$OUT/Libs/"
+done
 
 printf 'Synced by Scripts/sync_imaging.sh, do not edit files in this folder.\nrepo: %s\ncommit: %s\n' \
   "$REPO_URL" "$COMMIT" > "$OUT/$SYNC_FILE"
