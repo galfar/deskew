@@ -22,8 +22,8 @@ uses
 
 type
   TMemoryIORec = record
-    Data: ImagingUtility.PByteArray;
-    Position: LongInt;
+    Data: PBuffer;
+    Position: Int64;
     Size: Int64;
   end;
   PMemoryIORec = ^TMemoryIORec;
@@ -34,9 +34,17 @@ var
   StreamIO: TIOFunctions;
   MemoryIO: TIOFunctions;
 
-{ Helper function that returns size of input (from current position to the end)
-  represented by Handle (and opened and operated on by members of IOFunctions).}
+{ Helper function that returns size of the whole input represented by Handle
+  (and opened and operated on by members of IOFunctions), not only the part
+  from the current position to the end.
+  Be careful when relying on it, some input types may not be able to see the whole size. }
 function GetInputSize(const IOFunctions: TIOFunctions; Handle: TImagingHandle): Int64;
+{ Reads the rest of input from the current position to its end into Buffer
+  (Length(Buffer) is the number of bytes read). The size of input need not be
+  known, it is read in blocks of growing size. Returns False and empty Buffer
+  when the input is longer than MaxSize bytes.}
+function ReadRestOfInput(const IOFunctions: TIOFunctions; Handle: TImagingHandle;
+  out Buffer: TDynByteArray; MaxSize: NativeInt = High(NativeInt)): Boolean;
 { Helper function that initializes TMemoryIORec with given params.}
 function PrepareMemIO(Data: Pointer; const Size: Int64): TMemoryIORec;
 { Reads one text line from input (CR+LF, CR, or LF as line delimiter).}
@@ -196,7 +204,6 @@ end;
 
 function TBufferedStream.Read(var Buffer; Count: NativeInt): NativeInt;
 var
-  BufAsBytes: TByteArray absolute Buffer;
   BufIdx, BytesToGo, BytesToRead: NativeInt;
 begin
   // Calculate the actual number of bytes we can read - this depends on
@@ -222,7 +229,7 @@ begin
   if BytesToRead > BytesToGo then
     BytesToRead := BytesToGo;
   // Copy from the stream buffer to the caller's buffer
-  Move(FBuffer^[FBufPos], BufAsBytes[BufIdx], BytesToRead);
+  Move(FBuffer^[FBufPos], PBuffer(@Buffer)[BufIdx], BytesToRead);
   // Calculate the number of bytes still to read}
   Dec(BytesToGo, BytesToRead);
 
@@ -245,7 +252,7 @@ begin
     if BytesToRead > BytesToGo then
       BytesToRead := BytesToGo;
     // Copy from the stream buffer to the caller's buffer
-    Move(FBuffer^, BufAsBytes[BufIdx], BytesToRead);
+    Move(FBuffer^, PBuffer(@Buffer)[BufIdx], BytesToRead);
     // Calculate the number of bytes still to read
     Dec(BytesToGo, BytesToRead);
   end;
@@ -297,7 +304,6 @@ end;
 
 function TBufferedStream.Write(const Buffer; Count: NativeInt): NativeInt;
 var
-  BufAsBytes: TByteArray absolute Buffer;
   BufIdx, BytesToGo, BytesToWrite: NativeInt;
 begin
   // When we write to this stream we always assume that we can write the
@@ -315,7 +321,7 @@ begin
   if BytesToWrite > BytesToGo then
     BytesToWrite := BytesToGo;
   // Copy from the caller's buffer to the stream buffer
-  Move(BufAsBytes[BufIdx], FBuffer^[FBufPos], BytesToWrite);
+  Move(PBuffer(@Buffer)[BufIdx], FBuffer^[FBufPos], BytesToWrite);
   // Mark our stream buffer as requiring a save to the actual stream,
   // note that this will suffice for the rest of the routine as well: no
   // inner routine will turn off the dirty flag.
@@ -341,7 +347,7 @@ begin
     if BytesToWrite > BytesToGo then
       BytesToWrite := BytesToGo;
     // Copy from the caller's buffer to our buffer
-    Move(BufAsBytes[BufIdx], FBuffer^, BytesToWrite);
+    Move(PBuffer(@Buffer)[BufIdx], FBuffer^, BytesToWrite);
     // Calculate the number of bytes still to write
     Dec(BytesToGo, BytesToWrite);
   end;
@@ -505,7 +511,7 @@ end;
 
 function StreamSeek(Handle: TImagingHandle; Offset: Int64; Mode: TSeekMode): Int64; cdecl;
 begin
-  Result := TStream(Handle).Seek(Offset, Word(Mode));
+  Result := TStream(Handle).Seek(Offset, TSeekOrigin(Mode));
 end;
 
 function StreamTell(Handle: TImagingHandle): Int64; cdecl;
@@ -513,16 +519,51 @@ begin
   Result := TStream(Handle).Position;
 end;
 
+const
+  { Largest count passed to TStream.Read and Write at once, they take only
+    32-bit counts in FPC 3.2 and older Delphi.}
+  MaxStreamBlock = 1024 * 1024 * 1024;  // 1 GB
+
 function StreamRead(Handle: TImagingHandle; Buffer: Pointer; Count: TIOReadWriteCount):
   TIOReadWriteCount; cdecl;
+var
+  Block, Done: NativeInt;
 begin
-  Result := TStream(Handle).Read(Buffer^, Count);
+  Result := 0;
+  while Result < Count do
+  begin
+    Block := Count - Result;
+    if Block > MaxStreamBlock then
+      Block := MaxStreamBlock;
+
+    Done := TStream(Handle).Read(PBuffer(Buffer)[Result], Block);
+    if Done > 0 then
+      Inc(Result, Done);
+    // End of stream
+    if Done < Block then
+      Break;
+  end;
 end;
 
 function StreamWrite(Handle: TImagingHandle; Buffer: Pointer; Count: TIOReadWriteCount):
   TIOReadWriteCount; cdecl;
+var
+  Block, Done: NativeInt;
 begin
-  Result := TStream(Handle).Write(Buffer^, Count);
+  Result := 0;
+  while Result < Count do
+  begin
+    Block := Count - Result;
+    if Block > MaxStreamBlock then
+      Block := MaxStreamBlock;
+
+    Done := TStream(Handle).Write(PBuffer(Buffer)[Result], Block);
+    if Done > 0 then
+      Inc(Result, Done);
+    // Stream is full or failed
+    if Done < Block then
+      Break;
+  end;
 end;
 
 { Memory IO functions }
@@ -594,6 +635,50 @@ begin
   IOFunctions.Seek(Handle, 0, smFromEnd);
   Result := IOFunctions.Tell(Handle);
   IOFunctions.Seek(Handle, OldPos, smFromBeginning);
+end;
+
+function ReadRestOfInput(const IOFunctions: TIOFunctions; Handle: TImagingHandle;
+  out Buffer: TDynByteArray; MaxSize: NativeInt): Boolean;
+const
+  MinBlockSize = 64 * 1024;
+var
+  Size, NewSize, ReadCount: NativeInt;
+  Extra: Byte;
+begin
+  Buffer := nil;
+  Size := 0;
+
+  repeat
+    if Size = Length(Buffer) then
+    begin
+      if Size >= MaxSize then
+      begin
+        // Full buffer is fine only at the end of input
+        Result := IOFunctions.Read(Handle, @Extra, 1) <= 0;
+        if not Result then
+          Buffer := nil;
+        Exit;
+      end;
+
+      // Size of buffer doubles up to MaxSize
+      if Size > MaxSize div 2 then
+        NewSize := MaxSize
+      else if Size < MinBlockSize then
+        NewSize := MinBlockSize
+      else
+        NewSize := Size * 2;
+      if NewSize > MaxSize then
+        NewSize := MaxSize;
+      SetLength(Buffer, NewSize);
+    end;
+
+    ReadCount := IOFunctions.Read(Handle, @Buffer[Size], Length(Buffer) - Size);
+    if ReadCount > 0 then
+      Inc(Size, ReadCount);
+  until ReadCount <= 0;
+
+  SetLength(Buffer, Size);
+  Result := True;
 end;
 
 function PrepareMemIO(Data: Pointer; const Size: Int64): TMemoryIORec;

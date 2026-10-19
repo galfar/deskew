@@ -7,7 +7,7 @@
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at https://mozilla.org/MPL/2.0.
-} 
+}
 
 { This unit contains canvas classes for drawing and applying effects.}
 unit ImagingCanvases;
@@ -78,8 +78,6 @@ type
 
   TDynFPPixelArray = array of TColorFPRec;
 
-  THistogramArray = array[Byte] of Integer;
-
   TSelectPixelFunction = function(var Pixels: TDynFPPixelArray): TColorFPRec;
 
   { Base canvas class for drawing objects, applying effects, and other.
@@ -98,7 +96,7 @@ type
   }
   TImagingCanvas = class(TObject)
   private
-    FDataSizeOnUpdate: LongInt;
+    FDataSizeOnUpdate: Int64;
     FLineRecursion: Boolean;
     function GetPixel32(X, Y: LongInt): TColor32; virtual;
     function GetPixelFP(X, Y: LongInt): TColorFPRec; virtual;
@@ -183,7 +181,7 @@ type
       neighbors with the same color as pixel [X, Y]. With BoundaryFillMode
       set to True neighbors are recolored regardless of their old color,
       but area which will be recolored has boundary (specified by current pen color).}
-    procedure FloodFill(X, Y: Integer; BoundaryFillMode: Boolean = False);         
+    procedure FloodFill(X, Y: Integer; BoundaryFillMode: Boolean = False);
 
     { Draws contents of this canvas onto another canvas with pixel blending.
       Blending factors are chosen using TBlendingFactor parameters.
@@ -271,11 +269,6 @@ type
     { Reverses PremultiplyAlpha operation.}
     procedure UnPremultiplyAlpha;
 
-    { Calculates image histogram for each channel and also gray values. Each
-      channel has 256 values available. Channel values of data formats with higher
-      precision are scaled and rounded. Example: Red[126] specifies number of pixels
-      in image with red channel = 126.}
-    procedure GetHistogram(out Red, Green, Blue, Alpha, Gray: THistogramArray);
     { Fills image channel with given value leaving other channels intact.
       Use ChannelAlpha, ChannelRed, etc. constants from ImagingTypes as
       channel identifier.}
@@ -909,7 +902,7 @@ end;
 
 function TImagingCanvas.GetPixelPointer(X, Y: LongInt): Pointer;
 begin
-  Result := @PByteArray(FPData.Bits)[(Y * FPData.Width + X) * FFormatInfo.BytesPerPixel]
+  Result := @PBuffer(FPData.Bits)[(Y * PtrInt(FPData.Width) + X) * FFormatInfo.BytesPerPixel]
 end;
 
 procedure TImagingCanvas.TranslateFPToNative(const Color: TColorFPRec);
@@ -959,7 +952,8 @@ end;
 procedure TImagingCanvas.HorzLineInternal(X1, X2, Y: LongInt; Color: Pointer;
   Bpp: LongInt);
 var
-  I, WidthBytes: LongInt;
+  I: LongInt;
+  WidthBytes: NativeInt;
   PixelPtr: PByte;
 begin
   if (Y >= FClipRect.Top) and (Y < FClipRect.Bottom) then
@@ -967,18 +961,22 @@ begin
     SwapMin(X1, X2);
     X1 := Max(X1, FClipRect.Left);
     X2 := Min(X2, FClipRect.Right);
+    // Nothing of the line is inside the clipping rectangle
+    if X1 >= X2 then
+      Exit;
+
     PixelPtr := GetPixelPointer(X1, Y);
-    WidthBytes := (X2 - X1) * Bpp;
+    WidthBytes := NativeInt(X2 - X1) * Bpp;
     case Bpp of
       1: FillMemoryByte(PixelPtr, WidthBytes, PByte(Color)^);
       2: FillMemoryWord(PixelPtr, WidthBytes, PWord(Color)^);
       4: FillMemoryUInt32(PixelPtr, WidthBytes, PUInt32(Color)^);
     else
-      for I := X1 to X2 do
+      for I := X1 to X2 - 1 do
       begin
         ImagingFormats.CopyPixel(Color, PixelPtr, Bpp);
         Inc(PixelPtr, Bpp);
-       end;
+      end;
     end;
   end;
 end;
@@ -1161,7 +1159,7 @@ begin
     CheckBeforeBlending(SrcFactor, DestFactor, Self);
     for Y := DstRect.Top to DstRect.Bottom - 1 do
     begin
-      Line := @PByteArray(FPData.Bits)[(Y * FPData.Width + DstRect.Left) * FFormatInfo.BytesPerPixel];
+      Line := GetPixelPointer(DstRect.Left, Y);
       for X := DstRect.Left to DstRect.Right - 1 do
       begin
         PixelBlendProc(FFillColorFP, Line, @FFormatInfo, SrcFactor, DestFactor);
@@ -1179,9 +1177,11 @@ end;
 
 procedure TImagingCanvas.Ellipse(const Rect: TRect);
 var
- RadX, RadY, DeltaX, DeltaY, R, RX, RY: LongInt;
- X1, X2, Y1, Y2, Bpp, OldY: LongInt;
- Fill, Pen: TColorFPRec;
+  RadX, RadY: LongInt;
+  // Products of three radii, they do not fit into 32 bits for larger ellipses
+  DeltaX, DeltaY, R, RX, RY: Int64;
+  X1, X2, Y1, Y2, Bpp, OldY: LongInt;
+  Fill, Pen: TColorFPRec;
 begin
   // TODO: Use PenWidth
   X1 := Rect.Left;
@@ -1203,9 +1203,9 @@ begin
   Y2 := Y1;
   OldY := Y1;
 
-  DeltaX := (RadX * RadX);
-  DeltaY := (RadY * RadY);
-  R  := RadX * RadY * RadY;
+  DeltaX := Int64(RadX) * RadX;
+  DeltaY := Int64(RadY) * RadY;
+  R  := RadX * DeltaY;
   RX := R;
   RY := 0;
 
@@ -1360,8 +1360,8 @@ begin
   for Y := 0 to Height - 1 do
   begin
     // Get src and dst scanlines
-    SrcPointer := @PByteArray(FPData.Bits)[((SrcY + Y) * FPData.Width + SrcX) * SrcBpp];
-    DestPointer := @PByteArray(DestCanvas.FPData.Bits)[((DestY + Y) * DestCanvas.FPData.Width + DestX) * DestBpp];
+    SrcPointer := GetPixelPointer(SrcX, SrcY + Y);
+    DestPointer := DestCanvas.GetPixelPointer(DestX, DestY + Y);
 
     for X := 0 to Width - 1 do
     begin
@@ -1521,7 +1521,8 @@ end;
 procedure TImagingCanvas.ApplyConvolution(Kernel: PLongInt; KernelSize,
   Divisor: LongInt; Bias: Single; ClampChannels: Boolean);
 var
-  X, Y, I, J, PosY, PosX, SizeDiv2, KernelValue, WidthBytes, Bpp: LongInt;
+  X, Y, I, J, PosY, PosX, SizeDiv2, KernelValue, Bpp: LongInt;
+  WidthBytes: NativeInt;
   R, G, B, DivFloat: Single;
   Pixel: TColorFPRec;
   TempImage: TImageData;
@@ -1530,7 +1531,7 @@ begin
   SizeDiv2 := KernelSize div 2;
   DivFloat := IffFloat(Divisor > 1, 1.0 / Divisor, 1.0);
   Bpp := FFormatInfo.BytesPerPixel;
-  WidthBytes := FPData.Width * Bpp;
+  WidthBytes := NativeInt(FPData.Width) * Bpp;
 
   InitImage(TempImage);
   CloneImage(FPData^, TempImage);
@@ -1539,7 +1540,7 @@ begin
     // For every pixel in clip rect
     for Y := FClipRect.Top to FClipRect.Bottom - 1 do
     begin
-      DstPointer := @PByteArray(FPData.Bits)[Y * WidthBytes + FClipRect.Left * Bpp];
+      DstPointer := GetPixelPointer(FClipRect.Left, Y);
 
       for X := FClipRect.Left to FClipRect.Right - 1 do
       begin
@@ -1555,12 +1556,12 @@ begin
           for I := 0 to KernelSize - 1 do
           begin
             PosX := ClampInt(X + I - SizeDiv2, FClipRect.Left, FClipRect.Right - 1);
-            SrcPointer := @PByteArray(TempImage.Bits)[PosY * WidthBytes + PosX * Bpp];
+            SrcPointer := @PBuffer(TempImage.Bits)[PosY * WidthBytes + PosX * Bpp];
 
             // Get pixels from neighborhood of current pixel and add their
             // colors to accumulators weighted by filter kernel values
             Pixel := FFormatInfo.GetPixelFP(SrcPointer, @FFormatInfo, TempImage.Palette);
-            KernelValue := PUInt32Array(Kernel)[J * KernelSize + I];
+            KernelValue := LongInt(PUInt32Array(Kernel)[J * KernelSize + I]);
 
             R := R + Pixel.R * KernelValue;
             G := G + Pixel.G * KernelValue;
@@ -1601,7 +1602,8 @@ end;
 
 procedure TImagingCanvas.ApplyNonLinearFilter(FilterSize: Integer; SelectFunc: TSelectPixelFunction);
 var
-  X, Y, I, J, PosY, PosX, SizeDiv2, WidthBytes, Bpp: LongInt;
+  X, Y, I, J, PosY, PosX, SizeDiv2, Bpp: LongInt;
+  WidthBytes: NativeInt;
   Pixel: TColorFPRec;
   TempImage: TImageData;
   DstPointer, SrcPointer: PByte;
@@ -1609,7 +1611,7 @@ var
 begin
   SizeDiv2 := FilterSize div 2;
   Bpp := FFormatInfo.BytesPerPixel;
-  WidthBytes := FPData.Width * Bpp;
+  WidthBytes := NativeInt(FPData.Width) * Bpp;
   SetLength(NeighPixels, FilterSize * FilterSize);
 
   InitImage(TempImage);
@@ -1619,7 +1621,7 @@ begin
     // For every pixel in clip rect
     for Y := FClipRect.Top to FClipRect.Bottom - 1 do
     begin
-      DstPointer := @PByteArray(FPData.Bits)[Y * WidthBytes + FClipRect.Left * Bpp];
+      DstPointer := GetPixelPointer(FClipRect.Left, Y);
 
       for X := FClipRect.Left to FClipRect.Right - 1 do
       begin
@@ -1630,7 +1632,7 @@ begin
           for I := 0 to FilterSize - 1 do
           begin
             PosX := ClampInt(X + I - SizeDiv2, FClipRect.Left, FClipRect.Right - 1);
-            SrcPointer := @PByteArray(TempImage.Bits)[PosY * WidthBytes + PosX * Bpp];
+            SrcPointer := @PBuffer(TempImage.Bits)[PosY * WidthBytes + PosX * Bpp];
 
             // Get pixels from neighbourhood of current pixel and store them
             Pixel := FFormatInfo.GetPixelFP(SrcPointer, @FFormatInfo, TempImage.Palette);
@@ -1670,17 +1672,16 @@ end;
 procedure TImagingCanvas.PointTransform(Transform: TPointTransformFunction;
   Param1, Param2, Param3: Single);
 var
-  X, Y, Bpp, WidthBytes: Integer;
+  X, Y, Bpp: Integer;
   PixPointer: PByte;
   Pixel: TColorFPRec;
 begin
   Bpp := FFormatInfo.BytesPerPixel;
-  WidthBytes := FPData.Width * Bpp;
 
   // For every pixel in clip rect
   for Y := FClipRect.Top to FClipRect.Bottom - 1 do
   begin
-    PixPointer := @PByteArray(FPData.Bits)[Y * WidthBytes + FClipRect.Left * Bpp];
+    PixPointer := GetPixelPointer(FClipRect.Left, Y);
     for X := FClipRect.Left to FClipRect.Right - 1 do
     begin
       Pixel := FFormatInfo.GetPixelFP(PixPointer, @FFormatInfo, FPData.Palette);
@@ -1729,39 +1730,6 @@ begin
   PointTransform(TransformUnPremultiplyAlpha, 0, 0, 0);
 end;
 
-procedure TImagingCanvas.GetHistogram(out Red, Green, Blue, Alpha,
-  Gray: THistogramArray);
-var
-  X, Y, Bpp: Integer;
-  PixPointer: PByte;
-  Color32: TColor32Rec;
-begin
-  FillChar(Red,   SizeOf(Red), 0);
-  FillChar(Green, SizeOf(Green), 0);
-  FillChar(Blue,  SizeOf(Blue), 0);
-  FillChar(Alpha, SizeOf(Alpha), 0);
-  FillChar(Gray,  SizeOf(Gray), 0);
-
-  Bpp := FFormatInfo.BytesPerPixel;
-
-  for Y := FClipRect.Top to FClipRect.Bottom - 1 do
-  begin
-    PixPointer := @PByteArray(FPData.Bits)[Y * FPData.Width * Bpp + FClipRect.Left * Bpp];
-    for X := FClipRect.Left to FClipRect.Right - 1 do
-    begin
-      Color32 := FFormatInfo.GetPixel32(PixPointer, @FFormatInfo, FPData.Palette);
-
-      Inc(Red[Color32.R]);
-      Inc(Green[Color32.G]);
-      Inc(Blue[Color32.B]);
-      Inc(Alpha[Color32.A]);
-      Inc(Gray[Round(GrayConv.R * Color32.R + GrayConv.G * Color32.G + GrayConv.B * Color32.B)]);
-
-      Inc(PixPointer, Bpp);
-    end;
-  end;
-end;
-
 procedure TImagingCanvas.FillChannel(ChannelId: Integer; NewChannelValue: Byte);
 var
   X, Y, Bpp: Integer;
@@ -1772,7 +1740,7 @@ begin
 
   for Y := FClipRect.Top to FClipRect.Bottom - 1 do
   begin
-    PixPointer := @PByteArray(FPData.Bits)[Y * FPData.Width * Bpp + FClipRect.Left * Bpp];
+    PixPointer := GetPixelPointer(FClipRect.Left, Y);
     for X := FClipRect.Left to FClipRect.Right - 1 do
     begin
       Color32 := FFormatInfo.GetPixel32(PixPointer, @FFormatInfo, FPData.Palette);
@@ -1794,7 +1762,7 @@ begin
 
   for Y := FClipRect.Top to FClipRect.Bottom - 1 do
   begin
-    PixPointer := @PByteArray(FPData.Bits)[Y * FPData.Width * Bpp + FClipRect.Left * Bpp];
+    PixPointer := GetPixelPointer(FClipRect.Left, Y);
     for X := FClipRect.Left to FClipRect.Right - 1 do
     begin
       ColorFP := FFormatInfo.GetPixelFP(PixPointer, @FFormatInfo, FPData.Palette);
@@ -1885,7 +1853,10 @@ end;
 procedure TFastARGB32Canvas.StretchDrawAlpha(const SrcRect: TRect;
   DestCanvas: TImagingCanvas; const DestRect: TRect; Filter: TResizeFilter);
 var
-  X, Y, ScaleX, ScaleY, Yp, Xp, Weight1, Weight2, Weight3, Weight4, InvFracY, T1, T2: Integer;
+  X, Y, Weight1, Weight2, Weight3, Weight4, InvFracY, T1, T2: Integer;
+  // Positions in source are 48.16 fixed point numbers, they would overflow
+  // 32 bits for source rectangles with a side of 32768 pixels and more
+  ScaleX, ScaleY, Yp, Xp: Int64;
   FracX, FracY: Cardinal;
   SrcX, SrcY, SrcWidth, SrcHeight: LongInt;
   DestX, DestY, DestWidth, DestHeight: LongInt;
@@ -1893,7 +1864,7 @@ var
   DestPix: PColor32Rec;
   Accum: TColor32Rec;
 begin
-  if (Filter = rfBicubic) or (DestCanvas.ClassType <> Self.ClassType) then
+  if not (Filter in [rfNearest, rfBilinear]) or (DestCanvas.ClassType <> Self.ClassType) then
   begin
     inherited;
     Exit;
@@ -1910,8 +1881,11 @@ begin
   // Clip src and dst rects
   ClipStretchBounds(SrcX, SrcY, SrcWidth, SrcHeight, DestX, DestY, DestWidth, DestHeight,
       FPData.Width, FPData.Height, DestCanvas.ClipRect);
-  ScaleX := (SrcWidth shl 16) div DestWidth;
-  ScaleY := (SrcHeight shl 16) div DestHeight;
+  // Nothing left to draw after clipping
+  if (SrcWidth <= 0) or (SrcHeight <= 0) or (DestWidth <= 0) or (DestHeight <= 0) then
+    Exit;
+  ScaleX := (Int64(SrcWidth) shl 16) div DestWidth;
+  ScaleY := (Int64(SrcHeight) shl 16) div DestHeight;
 
   // Nearest and linear filtering using fixed point math
 
@@ -1921,11 +1895,11 @@ begin
     for Y := DestY to DestY + DestHeight - 1 do
     begin
       Xp := 0;
-      SrcLine := @FScanlines[SrcY + Yp shr 16, SrcX];
+      SrcLine := @FScanlines[SrcY + Integer(Yp shr 16), SrcX];
       DestPix := @TFastARGB32Canvas(DestCanvas).FScanlines[Y, DestX];
       for X := 0 to DestWidth - 1 do
       begin
-        AlphaBlendPixels(@SrcLine[Xp shr 16], DestPix);
+        AlphaBlendPixels(@SrcLine[Integer(Xp shr 16)], DestPix);
         Inc(DestPix);
         Inc(Xp, ScaleX);
       end;
@@ -1970,10 +1944,10 @@ begin
         end;
 
         T2 := Iff(T1 < SrcWidth - 1, T1 + 1, T1);
-        Weight2:= Integer((Cardinal(InvFracY) * FracX) shr 16); // cast to Card, Int can overflow here
-        Weight1:= InvFracY - Weight2;
-        Weight4:= Integer((Cardinal(FracY) * FracX) shr 16);
-        Weight3:= FracY - Weight4;
+        Weight2 := Integer((Cardinal(InvFracY) * FracX) shr 16); // cast to Card, Int can overflow here
+        Weight1 := InvFracY - Weight2;
+        Weight4 := Integer((Cardinal(FracY) * FracX) shr 16);
+        Weight3 := Integer(FracY) - Weight4;
 
         Accum.B := (SrcLine[T1].B * Weight1 + SrcLine[T2].B * Weight2 +
           SrcLine2[T1].B * Weight3 + SrcLine2[T2].B * Weight4 + $8000) shr 16;
@@ -2082,7 +2056,7 @@ finalization
     - Added FrameRect, Rectangle, Ellipse, and Line methods.
     - Removed HorzLine and VertLine from TFastARGB32Canvas - new versions
       in general canvas is now as fast as those in TFastARGB32Canvas
-      (only in case of A8R8G8B8 images of course). 
+      (only in case of A8R8G8B8 images of course).
     - Added PenWidth property, updated HorzLine and VertLine to use it.
 
   -- 0.19 Changes/Bug Fixes -----------------------------------

@@ -1,7 +1,9 @@
 unit ZLibDynLib;
 
-{$IFDEF FPC}
-  {$MODE DELPHI}
+{$I ImagingOptions.inc}
+
+{$IFNDEF HAS_DYNLIBS}
+  {$MESSAGE FATAL 'dynamic libraries are not supported on this target'}
 {$ENDIF}
 
 interface

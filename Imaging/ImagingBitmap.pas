@@ -122,7 +122,7 @@ procedure TBitmapFileFormat.Define;
 begin
   inherited;
   FName := SBitmapFormatName;
-  FFeatures := [ffLoad, ffSave];
+  FFeatures := [ffLoad, ffSave, ffHugeImages];
   FSupportedFormats := BitmapSupportedFormats;
 
   FUseRLE := BitmapDefaultRLE;
@@ -139,14 +139,16 @@ var
   BC: TBitmapCoreHeader;
   IsOS2: Boolean;
   PalRGB: PPalette24;
-  I, FPalSize, AlignedSize, StartPos, HeaderSize, AlignedWidthBytes, WidthBytes: LongInt;
+  I, FPalSize, HeaderSize, AlignedWidthBytes, WidthBytes: LongInt;
+  AlignedSize: NativeInt;
+  StartPos: Int64;
   Info: TImageFormatInfo;
   Data: Pointer;
 
   procedure LoadRGB;
   var
     I: LongInt;
-    LineBuffer: PByte;
+    LineBuffer: TDynByteArray;
   begin
     with Images[0], GetIO do
     begin
@@ -164,29 +166,26 @@ var
           Read(Handle, Data, AlignedSize)
         else
           for I := Height - 1 downto 0 do
-            Read(Handle, @PByteArray(Data)[I * AlignedWidthBytes], AlignedWidthBytes);
+            Read(Handle, @PBuffer(Data)[PtrInt(I) * AlignedWidthBytes], AlignedWidthBytes);
       end
       else
       begin
         // Images with pixels of size >= 1 Byte are read line by line and
         // copied to image bits without padding bytes
-        GetMem(LineBuffer, AlignedWidthBytes);
-        try
-          if BI.Height < 0 then
-            for I := 0 to Height - 1 do
-            begin
-              Read(Handle, LineBuffer, AlignedWidthBytes);
-              Move(LineBuffer^, PByteArray(Bits)[I * WidthBytes], WidthBytes);
-            end
-          else
-            for I := Height - 1 downto 0 do
-            begin
-              Read(Handle, LineBuffer, AlignedWidthBytes);
-              Move(LineBuffer^, PByteArray(Bits)[I * WidthBytes], WidthBytes);
-            end;
-        finally
-          FreeMemNil(LineBuffer);
-        end;
+        SetLength(LineBuffer, AlignedWidthBytes);
+
+        if BI.Height < 0 then
+          for I := 0 to Height - 1 do
+          begin
+            Read(Handle, Pointer(LineBuffer), AlignedWidthBytes);
+            Move(LineBuffer[0], PBuffer(Bits)[PtrInt(I) * WidthBytes], WidthBytes);
+          end
+        else
+          for I := Height - 1 downto 0 do
+          begin
+            Read(Handle, Pointer(LineBuffer), AlignedWidthBytes);
+            Move(LineBuffer[0], PBuffer(Bits)[PtrInt(I) * WidthBytes], WidthBytes);
+          end;
       end;
     end;
   end;
@@ -194,10 +193,11 @@ var
   procedure LoadRLE4;
   var
     RLESrc: PByteArray;
-    Row, Col, WriteRow, I: Integer;
+    Row, Col, I: Integer;
+    WriteRow: NativeInt;
     SrcPos: UInt32;
     DeltaX, DeltaY, Low, High: Byte;
-    Pixels: PByteArray;
+    Pixels: PBuffer;
     OpCode: TRLEOpcode;
     NegHeightBitmap: Boolean;
   begin
@@ -291,10 +291,11 @@ var
   procedure LoadRLE8;
   var
     RLESrc: PByteArray;
-    SrcCount, Row, Col, WriteRow: Integer;
+    SrcCount, Row, Col: Integer;
+    WriteRow: NativeInt;
     SrcPos: UInt32;
     DeltaX, DeltaY: Byte;
-    Pixels: PByteArray;
+    Pixels: PBuffer;
     OpCode: TRLEOpcode;
     NegHeightBitmap: Boolean;
   begin
@@ -309,6 +310,7 @@ var
       Col := 0; // Current column in dest image
       // Row in dest image where actual writing will be done
       WriteRow := Iff(NegHeightBitmap, Row, Height - 1 - Row);
+
       while (Row < Height) and (SrcPos < BI.SizeImage) do
       begin
         // Read RLE op-code
@@ -360,7 +362,7 @@ var
           if Col + OpCode.Count > Width then
             OpCode.Count := Width - Col;
           // Store a run of the same color value. Count is number of bytes to store
-          FillChar(Pixels [WriteRow * Width + Col], OpCode.Count, OpCode.Command);
+          FillChar(Pixels[WriteRow * Width + Col], OpCode.Count, OpCode.Command);
           Inc(Col, OpCode.Count);
         end;
       end;
@@ -370,6 +372,7 @@ var
   end;
 
 begin
+  Result := False;
   Data := nil;
   SetLength(Images, 1);
   with GetIO, Images[0] do
@@ -378,7 +381,8 @@ begin
     StartPos := Tell(Handle);
     Read(Handle, @BF, SizeOf(BF));
     Read(Handle, @BI.Size, SizeOf(BI.Size));
-    IsOS2 := BI.Size = SizeOf(TBitmapCoreHeader);
+    // OS/2 1.x version, 2.x is handled by "Windows type bitmap" paths
+    IsOS2 := (BI.Size = SizeOf(TBitmapCoreHeader));
 
     // Bitmap Info reading
     if IsOS2 then
@@ -400,13 +404,28 @@ begin
       // Windows type bitmap
       HeaderSize := Min(BI.Size - SizeOf(BI.Size), SizeOf(BI) - SizeOf(BI.Size)); // do not read more than size of BI!
       Read(Handle, @PByteArray(@BI)[SizeOf(BI.Size)], HeaderSize);
-      // SizeImage can be 0 for BI_RGB images, but it is here because of:
-      // I saved 8bit bitmap in Paint Shop Pro 8 as OS2 RLE compressed.
-      // It wrote strange 64 Byte Info header with SizeImage set to 0
-      // Some progs were able to open it, some were not.
-      if BI.SizeImage = 0 then
+      // SizeImage can be 0 for BI_RGB images, but RLE loading needs it. OS/2 2.x
+      // header (up to 64 bytes, the first 40 like Windows V3 header) can have it
+      // 0 for RLE images too (Paint Shop Pro 8 writes such files), so it is
+      // computed from the file size if that is sane.
+      if (BI.SizeImage = 0) and (BF.Size > BF.Offset) then
         BI.SizeImage := BF.Size - BF.Offset;
     end;
+
+    // Refuse compressions and bit counts that cannot be loaded (BI_JPEG, BI_PNG,
+    // OS/2 Huffman 1D and RLE24, ...)
+    case BI.Compression of
+      BI_RGB:       if not (BI.BitCount in [1, 4, 8, 16, 24, 32]) then Exit;
+      BI_RLE8:      if BI.BitCount <> 8 then Exit;
+      BI_RLE4:      if BI.BitCount <> 4 then Exit;
+      BI_BITFIELDS: if not (BI.BitCount in [16, 32]) then Exit;
+    else
+      Exit;
+    end;
+
+    // RLE data cannot be loaded without their size
+    if ((BI.Compression = BI_RLE8) or (BI.Compression = BI_RLE4)) and (BI.SizeImage = 0) then
+      Exit;
     // Bit mask reading. Only read it if there is V3 header, V4 header has
     // masks loaded already (only masks for RGB in V3).
     if (BI.Compression = BI_BITFIELDS) and (BI.Size = V3InfoHeaderSize) then
@@ -433,7 +452,7 @@ begin
     Info := GetFormatInfo(Format);
     WidthBytes := Width * Info.BytesPerPixel;
     AlignedWidthBytes := (((Width * BI.BitCount) + 31) shr 5) * 4;
-    AlignedSize := Height * LongInt(AlignedWidthBytes);
+    AlignedSize := NativeInt(Height) * AlignedWidthBytes;
 
     // Palette settings and reading
     if BI.BitCount <= 8 then
@@ -461,10 +480,11 @@ begin
       end
       else
       begin
-        // Windows type
-        FPalSize := BI.ClrUsed;
-        if FPalSize = 0 then
-          FPalSize := 1 shl BI.BitCount;
+        // Windows type, more colors than the bit count allows are not read
+        // (image data are found by offset from the header anyway)
+        FPalSize := 1 shl BI.BitCount;
+        if (BI.ClrUsed > 0) and (BI.ClrUsed < UInt32(FPalSize)) then
+          FPalSize := BI.ClrUsed;
         Read(Handle, Palette, FPalSize * SizeOf(TColor32Rec));
       end;
       for I := 0 to Info.PaletteEntries - 1 do
@@ -489,14 +509,14 @@ begin
       begin
         // Check if there is alpha channel present in A1R5GB5 images, if it is not
         // change format to X1R5G5B5
-        if not Has16BitImageAlpha(Width * Height, Bits) then
+        if not Has16BitImageAlpha(GetPixelCount(Images[0]), Bits) then
           Format := ifX1R5G5B5;
       end
       else if Format = ifA8R8G8B8 then
       begin
         // Check if there is alpha channel present in A8R8G8B8 images, if it is not
         // change format to X8R8G8B8
-        if not Has32BitImageAlpha(Width * Height, Bits) then
+        if not Has32BitImageAlpha(GetPixelCount(Images[0]), Bits) then
           Format := ifX8R8G8B8;
       end;
     end;
@@ -527,7 +547,9 @@ end;
 function TBitmapFileFormat.SaveData(Handle: TImagingHandle;
   const Images: TDynImageDataArray; Index: LongInt): Boolean;
 var
-  StartPos, EndPos, I, Pad, PadSize, WidthBytes: LongInt;
+  StartPos, EndPos, FileSize: Int64;
+  I: NativeInt;
+  Pad, PadSize, WidthBytes: LongInt;
   BF: TBitmapFileHeader;
   BI: TBitmapInfoHeader;
   Info: TImageFormatInfo;
@@ -538,9 +560,10 @@ var
   const
     BufferSize = 8 * 1024;
   var
-    X, Y, I, SrcPos: LongInt;
+    X, I, SrcPos: LongInt;
+    Y: NativeInt;
     DiffCount, SameCount: Byte;
-    Pixels: PByteArray;
+    Pixels: PBuffer;
     Buffer: array[0..BufferSize - 1] of Byte;
     BufferPos: LongInt;
 
@@ -564,7 +587,7 @@ var
       begin
         X := 0;
         SrcPos := 0;
-        Pixels := @PByteArray(Bits)[Y * Width];
+        Pixels := @PBuffer(Bits)[Y * Width];
 
         while X < Width do
         begin
@@ -657,14 +680,23 @@ begin
     BI.BitCount := Info.BytesPerPixel * 8;
     BI.XPelsPerMeter := 2835; // 72 dpi
     BI.YPelsPerMeter := 2835; // 72 dpi
-    // Set compression
-    if (Info.BytesPerPixel = 1) and FUseRLE then
+
+    // Set compression. Size of RLE8 data is a 32-bit header field, images
+    // whose data could exceed it are saved uncompressed. RLE8 takes at most
+    // 2 bytes per pixel plus end of line and end of bitmap commands.
+    if (Info.BytesPerPixel = 1) and FUseRLE and
+       (2 * (Int64(GetPixelCount(ImageToSave)) + Height + 1) <= High(UInt32)) then
+    begin
       BI.Compression := BI_RLE8
+    end
     else if (Info.HasAlphaChannel or
       ((BI.BitCount = 16) and (Format <> ifX1R5G5B5))) and (Info.BytesPerPixel = 2){V4 temp hack} then
+    begin
       BI.Compression := BI_BITFIELDS
+    end
     else
       BI.Compression := BI_RGB;
+
     // Write header (first time)
     Write(Handle, @BI, BI.Size);
 
@@ -708,7 +740,7 @@ begin
 
       for I := Height - 1 downto 0 do
       begin
-        Write(Handle, @PByteArray(Bits)[I * WidthBytes], WidthBytes);
+        Write(Handle, @PBuffer(Bits)[I * WidthBytes], WidthBytes);
         if PadSize > 0 then
           Write(Handle, @Pad, PadSize);
       end;
@@ -721,9 +753,21 @@ begin
 
     EndPos := Tell(Handle);
     Seek(Handle, StartPos, smFromBeginning);
-    // Rewrite header with new values
-    BF.Size := EndPos - StartPos;
-    BI.SizeImage := BF.Size - BF.Offset;
+    // Rewrite header with new values. Sizes are 32-bit fields: for larger
+    // files the file size is clamped and the size of image data is 0 (only
+    // uncompressed files can be that large, readers compute the size from
+    // the dimensions)
+    FileSize := EndPos - StartPos;
+    if FileSize <= High(UInt32) then
+    begin
+      BF.Size := FileSize;
+      BI.SizeImage := FileSize - BF.Offset;
+    end
+    else
+    begin
+      BF.Size := High(UInt32);
+      BI.SizeImage := 0;
+    end;
     Write(Handle, @BF, SizeOf(BF));
     Write(Handle, @BI, BI.Size);
     Seek(Handle, EndPos, smFromBeginning);

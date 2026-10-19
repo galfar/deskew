@@ -7,7 +7,7 @@
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at https://mozilla.org/MPL/2.0.
-} 
+}
 
 { This unit contains image format loader/saver for Photoshop PSD image format.}
 unit ImagingPsd;
@@ -102,7 +102,7 @@ begin
   Header.Rows := SwapEndianUInt32(Header.Rows);
   Header.Columns := SwapEndianUInt32(Header.Columns);
   Header.Mode := TPSDColorMode(SwapEndianWord(Word(Header.Mode)));
-end; 
+end;
 
 {
   TPSDFileFormat class implementation
@@ -128,9 +128,10 @@ var
   RawPal: array[0..767] of Byte;
   Compression, PackedSize: Word;
   LineSize, ChannelPixelSize, WidthBytes,
-    CurrChannel, MaxRLESize, I, Y, X: LongInt;
+    CurrChannel, MaxRLESize, I, Y: LongInt;
+  X: NativeInt;
   Info: TImageFormatInfo;
-  PackedLine, LineBuffer: PByte;
+  PackedLine, LineBuffer: TDynByteArray;
   RLELineSizes: array of Word;
   Col32: TColor32Rec;
   Col64: TColor64Rec;
@@ -286,130 +287,125 @@ begin
     ChannelPixelSize := Info.BytesPerPixel div Info.ChannelCount;
     LineSize := Width * ChannelPixelSize;
     WidthBytes := Width * Info.BytesPerPixel;
-    GetMem(LineBuffer, LineSize);
-    GetMem(PackedLine, MaxRLESize);
+    SetLength(LineBuffer, LineSize);
+    SetLength(PackedLine, MaxRLESize);
 
-    try
-      // Image color channels are stored separately in PSDs so we will load
-      // one by one and copy their data to appropriate addresses of dest image.
-      for I := 0 to Header.Channels - 1 do
+    // Image color channels are stored separately in PSDs so we will load
+    // one by one and copy their data to appropriate addresses of dest image.
+    for I := 0 to Header.Channels - 1 do
+    begin
+      // Now determine to which color channel of destination image we are going
+      // to write pixels.
+      if I <= 4 then
       begin
-        // Now determine to which color channel of destination image we are going
-        // to write pixels.
-        if I <= 4 then
+        // If PSD has alpha channel we need to switch current channel order -
+        // PSDs have alpha stored after blue channel but Imaging has alpha
+        // before red.
+        if Info.HasAlphaChannel and (Header.Mode <> cmCMYK) then
         begin
-          // If PSD has alpha channel we need to switch current channel order -
-          // PSDs have alpha stored after blue channel but Imaging has alpha
-          // before red.
-          if Info.HasAlphaChannel and (Header.Mode <> cmCMYK) then
-          begin
-            if I = Info.ChannelCount - 1 then
-              CurrChannel := I
-            else
-              CurrChannel := Info.ChannelCount - 2 - I;
-          end
+          if I = Info.ChannelCount - 1 then
+            CurrChannel := I
           else
-            CurrChannel := Info.ChannelCount - 1 - I;
+            CurrChannel := Info.ChannelCount - 2 - I;
         end
         else
-        begin
-          // No valid channel remains
-          CurrChannel := -1;
-        end;
+          CurrChannel := Info.ChannelCount - 1 - I;
+      end
+      else
+      begin
+        // No valid channel remains
+        CurrChannel := -1;
+      end;
 
-        if CurrChannel >= 0 then
+      if CurrChannel >= 0 then
+      begin
+        for Y := 0 to Height - 1 do
         begin
-          for Y := 0 to Height - 1 do
-          begin
-            if Compression = CompressionRLE then
-            begin
-              // Read RLE line and decompress it
-              PackedSize := RLELineSizes[I * Height + Y];
-              Read(Handle, PackedLine, PackedSize);
-              DecodeRLE(PackedLine, LineBuffer, PackedSize, LineSize);
-            end
-            else
-            begin
-              // Just read uncompressed line
-              Read(Handle, LineBuffer, LineSize);
-            end;
-
-            // Swap endian if needed
-            if ChannelPixelSize = 4 then
-              SwapEndianUInt32(PUInt32(LineBuffer), Width)
-            else if ChannelPixelSize = 2 then
-              SwapEndianWord(PWordArray(LineBuffer), Width);
-
-            if Info.ChannelCount > 1 then
-            begin
-              // Copy each pixel fragment to its right place in destination image
-              for X := 0 to Width - 1 do
-              begin
-                Move(PByteArray(LineBuffer)[X * ChannelPixelSize],
-                  PByteArray(Bits)[Y * WidthBytes + X * Info.BytesPerPixel + CurrChannel * ChannelPixelSize],
-                  ChannelPixelSize);
-              end;
-            end
-            else
-            begin
-              // Just copy the line
-              Move(LineBuffer^, PByteArray(Bits)[Y * LineSize], LineSize);
-            end;
-          end;
-        end
-        else
-        begin
-          // Skip current color channel, not needed for image loading - just to
-          // get stream's position to the end of PSD
           if Compression = CompressionRLE then
           begin
-            for Y := 0 to Height - 1 do
-              Seek(Handle, RLELineSizes[I * Height + Y], smFromCurrent);
+            // Read RLE line and decompress it
+            PackedSize := RLELineSizes[I * Height + Y];
+            Read(Handle, Pointer(PackedLine), PackedSize);
+            DecodeRLE(Pointer(PackedLine), Pointer(LineBuffer), PackedSize, LineSize);
           end
           else
-            Seek(Handle, LineSize * Height, smFromCurrent);
-        end;
-      end;
-
-      if Header.Mode = cmCMYK then
-      begin
-        // Convert CMYK images to RGB (alpha is ignored here). PSD stores CMYK
-        // channels in the way that first requires subtraction from max channel value
-        if ChannelPixelSize = 1 then
-        begin
-          PCol32 := Bits;
-          for X := 0 to Width * Height - 1 do
           begin
-            Col32.A := 255 - PCol32.A;
-            Col32.R := 255 - PCol32.R;
-            Col32.G := 255 - PCol32.G;
-            Col32.B := 255 - PCol32.B;
-            CMYKToRGB(Col32.A, Col32.R, Col32.G, Col32.B, PCol32.R, PCol32.G, PCol32.B);
-            PCol32.A := 255;
-            Inc(PCol32);
+            // Just read uncompressed line
+            Read(Handle, Pointer(LineBuffer), LineSize);
           end;
+
+          // Swap endian if needed
+          if ChannelPixelSize = 4 then
+            SwapEndianUInt32(PUInt32(LineBuffer), Width)
+          else if ChannelPixelSize = 2 then
+            SwapEndianWord(PWord(LineBuffer), Width);
+
+          if Info.ChannelCount > 1 then
+          begin
+            // Copy each pixel fragment to its right place in destination image
+            for X := 0 to Width - 1 do
+            begin
+              Move(LineBuffer[X * ChannelPixelSize],
+                PBuffer(Bits)[PtrInt(Y) * WidthBytes + X * Info.BytesPerPixel + CurrChannel * ChannelPixelSize],
+                ChannelPixelSize);
+            end;
+          end
+          else
+          begin
+            // Just copy the line
+            Move(LineBuffer[0], PBuffer(Bits)[PtrInt(Y) * LineSize], LineSize);
+          end;
+        end;
+      end
+      else
+      begin
+        // Skip current color channel, not needed for image loading - just to
+        // get stream's position to the end of PSD
+        if Compression = CompressionRLE then
+        begin
+          for Y := 0 to Height - 1 do
+            Seek(Handle, RLELineSizes[I * Height + Y], smFromCurrent);
         end
         else
+          Seek(Handle, Int64(LineSize) * Height, smFromCurrent);
+      end;
+    end;
+
+    if Header.Mode = cmCMYK then
+    begin
+      // Convert CMYK images to RGB (alpha is ignored here). PSD stores CMYK
+      // channels in the way that first requires subtraction from max channel value
+      if ChannelPixelSize = 1 then
+      begin
+        PCol32 := Bits;
+        for X := 0 to GetPixelCount(Images[0]) - 1 do
         begin
-          PCol64 := Bits;
-          for X := 0 to Width * Height - 1 do
-          begin
-            Col64.A := 65535 - PCol64.A;
-            Col64.R := 65535 - PCol64.R;
-            Col64.G := 65535 - PCol64.G;
-            Col64.B := 65535 - PCol64.B;
-            CMYKToRGB16(Col64.A, Col64.R, Col64.G, Col64.B, PCol64.R, PCol64.G, PCol64.B);
-            PCol64.A := 65535;
-            Inc(PCol64);
-          end;
+          Col32.A := 255 - PCol32.A;
+          Col32.R := 255 - PCol32.R;
+          Col32.G := 255 - PCol32.G;
+          Col32.B := 255 - PCol32.B;
+          CMYKToRGB(Col32.A, Col32.R, Col32.G, Col32.B, PCol32.R, PCol32.G, PCol32.B);
+          PCol32.A := 255;
+          Inc(PCol32);
+        end;
+      end
+      else
+      begin
+        PCol64 := Bits;
+        for X := 0 to GetPixelCount(Images[0]) - 1 do
+        begin
+          Col64.A := 65535 - PCol64.A;
+          Col64.R := 65535 - PCol64.R;
+          Col64.G := 65535 - PCol64.G;
+          Col64.B := 65535 - PCol64.B;
+          CMYKToRGB16(Col64.A, Col64.R, Col64.G, Col64.B, PCol64.R, PCol64.G, PCol64.B);
+          PCol64.A := 65535;
+          Inc(PCol64);
         end;
       end;
-
-      Result := True;
-    finally
-      FreeMem(LineBuffer);
-      FreeMem(PackedLine);
     end;
+
+    Result := True;
   end;
 end;
 
@@ -491,14 +487,14 @@ var
   procedure WriteChannelData(SeparateChannelStorage: Boolean);
   var
     I, X, Y, LineSize, WidthBytes, RLETableOffset, CurrentOffset, WrittenLineSize: Integer;
-    LineBuffer, RLEBuffer: PByteArray;
+    LineBuffer, RLEBuffer: TDynByteArray;
     RLELengths: array of Word;
     Compression: Word;
   begin
     LineSize := ImageToSave.Width * ChannelPixelSize;
     WidthBytes := ImageToSave.Width * Info.BytesPerPixel;
-    GetMem(LineBuffer, LineSize);
-    GetMem(RLEBuffer, LineSize * 3);
+    SetLength(LineBuffer, LineSize);
+    SetLength(RLEBuffer, LineSize * 3);
     SetLength(RLELengths, ImageToSave.Height * Info.ChannelCount);
     RLETableOffset := 0;
     // No compression for FP32, Photoshop won't open them
@@ -551,30 +547,30 @@ var
           // Copy each pixel fragment to its right place in destination image
           for X := 0 to ImageToSave.Width - 1 do
           begin
-            Move(PByteArray(ImageToSave.Bits)[Y * WidthBytes + X * Info.BytesPerPixel + CurrChannel * ChannelPixelSize],
-              PByteArray(LineBuffer)[X * ChannelPixelSize], ChannelPixelSize);
+            Move(PBuffer(ImageToSave.Bits)[PtrInt(Y) * WidthBytes + X * Info.BytesPerPixel + CurrChannel * ChannelPixelSize],
+              LineBuffer[X * ChannelPixelSize], ChannelPixelSize);
           end;
         end
         else
-          Move(PByteArray(ImageToSave.Bits)[Y * LineSize], LineBuffer^, LineSize);
+          Move(PBuffer(ImageToSave.Bits)[PtrInt(Y) * LineSize], LineBuffer[0], LineSize);
 
         // Write current channel line to file (swap endian if needed first)
         if ChannelPixelSize = 4 then
           SwapEndianUInt32(PUInt32(LineBuffer), ImageToSave.Width)
         else if ChannelPixelSize = 2 then
-          SwapEndianWord(PWordArray(LineBuffer), ImageToSave.Width);
+          SwapEndianWord(PWord(LineBuffer), ImageToSave.Width);
 
         if Compression = CompressionRLE then
         begin
           // Compress and write line
-          WrittenLineSize := PackLine(LineBuffer, RLEBuffer, LineSize);
+          WrittenLineSize := PackLine(Pointer(LineBuffer), Pointer(RLEBuffer), LineSize);
           RLELengths[ImageToSave.Height * I + Y] := SwapEndianWord(WrittenLineSize);
-          GetIO.Write(Handle, RLEBuffer, WrittenLineSize);
+          GetIO.Write(Handle, Pointer(RLEBuffer), WrittenLineSize);
         end
         else
         begin
           WrittenLineSize := LineSize;
-          GetIO.Write(Handle, LineBuffer, WrittenLineSize);
+          GetIO.Write(Handle, Pointer(LineBuffer), WrittenLineSize);
         end;
 
         if SeparateChannelStorage then
@@ -600,9 +596,6 @@ var
       GetIO.Write(Handle, @RLELengths[0], SizeOf(Word) * ImageToSave.Height * Info.ChannelCount);
       GetIO.Seek(Handle, CurrentOffset, smFromBeginning);
     end;
-
-    FreeMem(LineBuffer);
-    FreeMem(RLEBuffer);
   end;
 
 begin
@@ -772,7 +765,7 @@ initialization
     - PSDs are now saved with RLE compression.
     - Mask layer saving added to SaveData for images with alpha
       (shows proper transparency when opened in Photoshop). Can be
-      enabled/disabled using option 
+      enabled/disabled using option
     - Fixed memory leak in SaveData.
 
   -- 0.23 Changes/Bug Fixes -----------------------------------

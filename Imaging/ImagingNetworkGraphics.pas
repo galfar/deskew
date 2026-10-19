@@ -152,7 +152,7 @@ implementation
 
 uses
 {$IFNDEF DONT_LINK_JNG}
-  ImagingJpeg, ImagingIO,
+  ImagingJpegLib, ImagingIO,
 {$ENDIF}
   ImagingColors,
   ImagingCanvases;
@@ -180,6 +180,10 @@ const
 
 resourcestring
   SErrorLoadingChunk = 'Error when reading %s chunk data. File may be corrupted.';
+  SErrorChunkCrc = 'CRC of %s chunk does not match its data. File is corrupted.';
+  SErrorChunkSize = 'Size of %s chunk is invalid. File is corrupted.';
+  SErrorJngJpegData = 'JPEG data of JNG image are not grayscale or YCbCr.';
+  SErrorJngJpegSave = 'JPEG data of JNG image could not be saved.';
 
 type
   { Chunk header.}
@@ -290,6 +294,12 @@ const
   fdATChunk: TChar4 = 'fdAT';
   pHYsChunk: TChar4 = 'pHYs';
 
+  { Image data (IDAT, fdAT, JDAT, JDAA) are saved in chunks of at most this
+    size. Usual files have just one.}
+  MaxImageDataChunkSize = 16 * 1024 * 1024;
+  { Largest chunk size allowed by the specification.}
+  MaxChunkSize = $7FFFFFFF;
+
   { APNG frame dispose operations.}
   DisposeOpNone       = 0;
   DisposeOpBackground = 1;
@@ -325,6 +335,9 @@ type
     IDATMemory: TMemoryStream;
     JDATMemory: TMemoryStream;
     JDAAMemory: TMemoryStream;
+    { Set when a chunk of the image data was truncated or damaged, the following
+      chunks of the same data are not used.}
+    IDATEnded, JDATEnded, JDAAEnded: Boolean;
     constructor Create(AIndex: Integer);
     destructor Destroy; override;
     procedure AssignSharedProps(Source: TFrameInfo);
@@ -380,15 +393,6 @@ type
     procedure SetFileOptions;
   end;
 
-{$IFNDEF DONT_LINK_JNG}
-  TCustomIOJpegFileFormat = class(TJpegFileFormat)
-  protected
-    FCustomIO: TIOFunctions;
-    procedure SetJpegIO(const JpegIO: TIOFunctions); override;
-    procedure SetCustomIO(const CustomIO: TIOFunctions);
-  end;
-{$ENDIF}
-
   TAPNGAnimator = class
   public
     class procedure Animate(var Images: TDynImageDataArray; const acTL: TacTL; const SrcFrames: array of TFrameInfo);
@@ -439,22 +443,6 @@ begin
       end;
     end;
  end;
-
-{$IFNDEF DONT_LINK_JNG}
-
-{ TCustomIOJpegFileFormat class implementation }
-
-procedure TCustomIOJpegFileFormat.SetCustomIO(const CustomIO: TIOFunctions);
-begin
-  FCustomIO := CustomIO;
-end;
-
-procedure TCustomIOJpegFileFormat.SetJpegIO(const JpegIO: TIOFunctions);
-begin
-  inherited SetJpegIO(FCustomIO);
-end;
-
-{$ENDIF}
 
 { TFrameInfo class implementation }
 
@@ -575,6 +563,12 @@ var
   Chunk: TChunkHeader;
   ChunkData: Pointer;
   ChunkCrc: UInt32;
+  ChunkCrcValid: Boolean;
+
+  procedure SkipChunkData;
+  begin
+    GetIO.Seek(Handle, Int64(Chunk.DataSize) + SizeOf(ChunkCrc), smFromCurrent);
+  end;
 
   procedure ReadChunk;
   begin
@@ -582,28 +576,80 @@ var
     Chunk.DataSize := SwapEndianUInt32(Chunk.DataSize);
   end;
 
-  procedure ReadChunkData;
+  { Reads data of the current chunk and its CRC. Returns number of bytes read
+    (less than the chunk size for truncated file), ChunkCrcValid tells if CRC
+    matches the data.}
+  function ReadChunkBytes: NativeInt;
   var
-    ReadBytes: UInt32;
+    Crc: UInt32;
   begin
+    if Chunk.DataSize > MaxChunkSize then
+      RaiseImaging(SErrorChunkSize, [string(Chunk.ChunkID)]);
+
     FreeMemNil(ChunkData);
     GetMem(ChunkData, Chunk.DataSize);
-    ReadBytes := GetIO.Read(Handle, ChunkData, Chunk.DataSize);
-    GetIO.Read(Handle, @ChunkCrc, SizeOf(ChunkCrc));
-    if ReadBytes <> Chunk.DataSize then
-      RaiseImaging(SErrorLoadingChunk, [string(Chunk.ChunkID)]);
+    Result := GetIO.Read(Handle, ChunkData, Chunk.DataSize);
+    ChunkCrcValid := False;
+
+    if (Result = NativeInt(Chunk.DataSize)) and
+      (GetIO.Read(Handle, @ChunkCrc, SizeOf(ChunkCrc)) = SizeOf(ChunkCrc)) then
+    begin
+      // CRC covers chunk type and data
+      Crc := $FFFFFFFF;
+      CalcCrc32(Crc, @Chunk.ChunkID, SizeOf(Chunk.ChunkID));
+      CalcCrc32(Crc, ChunkData, Chunk.DataSize);
+      ChunkCrcValid := SwapEndianUInt32(ChunkCrc) = not Crc;
+    end;
   end;
 
-  procedure SkipChunkData;
+  { Reads data of the current chunk (other than image data). Critical chunk
+    with bad CRC is refused, ancillary one is skipped: returns False then.}
+  function ReadChunkData: Boolean;
   begin
-    GetIO.Seek(Handle, Chunk.DataSize + SizeOf(ChunkCrc), smFromCurrent);
+    if ReadChunkBytes <> NativeInt(Chunk.DataSize) then
+      RaiseImaging(SErrorLoadingChunk, [string(Chunk.ChunkID)]);
+
+    Result := ChunkCrcValid;
+    // Bit 5 of the first letter is zero for critical chunks (upper case)
+    if not Result and ((Ord(Chunk.ChunkID[0]) and $20) = 0) then
+      RaiseImaging(SErrorChunkCrc, [string(Chunk.ChunkID)]);
+  end;
+
+  { Appends data of image data chunk to Stream (SkipBytes are non-image data at the beginning).
+    Truncated chunk is used up to the end of file, chunk with bad CRC is not
+    used; nothing after them is used (Ended is set), rows of the image that
+    could not be decoded stay black.}
+  procedure AppendImageData(Stream: TMemoryStream; var Ended: Boolean; SkipBytes: Integer);
+  var
+    ReadBytes: NativeInt;
+  begin
+    if Ended then
+    begin
+      SkipChunkData;
+      Exit;
+    end;
+
+    ReadBytes := ReadChunkBytes;
+    if ReadBytes < NativeInt(Chunk.DataSize) then
+    begin
+      // Truncated file
+      if ReadBytes > SkipBytes then
+        Stream.WriteBuffer(PBuffer(ChunkData)[SkipBytes], ReadBytes - SkipBytes);
+      Ended := True;
+    end
+    else if not ChunkCrcValid then
+      Ended := True
+    else if ReadBytes > SkipBytes then
+      Stream.WriteBuffer(PBuffer(ChunkData)[SkipBytes], ReadBytes - SkipBytes);
   end;
 
   procedure StartNewPNGImage;
   var
     Frame: TFrameInfo;
   begin
-    ReadChunkData;
+    // fcTL is ancillary chunk but frames of APNG cannot be loaded without it
+    if not ReadChunkData then
+      RaiseImaging(SErrorChunkCrc, [string(Chunk.ChunkID)]);
 
     if Chunk.ChunkID = fcTLChunk then
     begin
@@ -652,27 +698,33 @@ var
   end;
 
   procedure AppendIDAT;
+  var
+    Frame: TFrameInfo;
   begin
-    ReadChunkData;
-    // Append current IDAT/fdAT chunk to storage stream
-    if Chunk.ChunkID = IDATChunk then
-      GetLastFrame.IDATMemory.Write(ChunkData^, Chunk.DataSize)
-    else if Chunk.ChunkID = fdATChunk then
-      GetLastFrame.IDATMemory.Write(PByteArray(ChunkData)[4], Chunk.DataSize - SizeOf(UInt32));
+    Frame := GetLastFrame;
+    if Frame = nil then
+      SkipChunkData
+    else if Chunk.ChunkID = IDATChunk then
+      AppendImageData(Frame.IDATMemory, Frame.IDATEnded, 0)
+    else
+      // fdAT has sequence number before the data
+      AppendImageData(Frame.IDATMemory, Frame.IDATEnded, SizeOf(UInt32));
   end;
 
   procedure AppendJDAT;
   begin
-    ReadChunkData;
-    // Append current JDAT chunk to storage stream
-    GetLastFrame.JDATMemory.Write(ChunkData^, Chunk.DataSize);
+    if GetLastFrame = nil then
+      SkipChunkData
+    else
+      AppendImageData(GetLastFrame.JDATMemory, GetLastFrame.JDATEnded, 0);
   end;
 
   procedure AppendJDAA;
   begin
-    ReadChunkData;
-    // Append current JDAA chunk to storage stream
-    GetLastFrame.JDAAMemory.Write(ChunkData^, Chunk.DataSize);
+    if GetLastFrame = nil then
+      SkipChunkData
+    else
+      AppendImageData(GetLastFrame.JDAAMemory, GetLastFrame.JDAAEnded, 0);
   end;
 
   procedure LoadPLTE;
@@ -706,7 +758,8 @@ var
 
   procedure LoadtRNS;
   begin
-    ReadChunkData;
+    if not ReadChunkData then
+      Exit;
     if GetLastFrame = nil then
     begin
       // Load global transparency
@@ -735,7 +788,8 @@ var
 
   procedure LoadbKGD;
   begin
-    ReadChunkData;
+    if not ReadChunkData then
+      Exit;
     if GetLastFrame.Background = nil then
     begin
       GetMem(GetLastFrame.Background, Chunk.DataSize);
@@ -746,15 +800,17 @@ var
 
   procedure HandleacTL;
   begin
+    if not ReadChunkData then
+      Exit;
     FileType := ngAPNG;
-    ReadChunkData;
     acTL := PacTL(ChunkData)^;
     SwapEndianUInt32(@acTL, SizeOf(acTL) div SizeOf(UInt32));
   end;
 
   procedure LoadpHYs;
   begin
-    ReadChunkData;
+    if not ReadChunkData then
+      Exit;
     with GetLastFrame do
     begin
       pHYs := PpHYs(ChunkData)^;
@@ -812,13 +868,16 @@ procedure TNGFileLoader.LoadImageFromPNGFrame(FrameWidth, FrameHeight: LongInt; 
 type
   TGetPixelFunc = function(Line: PByteArray; X: LongInt): Byte;
 var
-  LineBuffer: array[Boolean] of PByteArray;
+  LineBuffer: array[Boolean] of TDynByteArray;
+  ZeroLine: TDynByteArray;
   ActLine: Boolean;
-  Data, TotalBuffer, ZeroLine, PrevLine: Pointer;
-  BitCount, TotalPos, BytesPerPixel, I, Pass,
-  SrcDataSize, BytesPerLine, InterlaceLineBytes, InterlaceWidth: LongInt;
-  TotalSize: Integer;
+  Data, PrevLine: Pointer;
+  BitCount, BytesPerPixel, Pass, InterlaceWidth: LongInt;
+  I, SrcDataSize, BytesPerLine, InterlaceLineBytes: NativeInt;
   Info: TImageFormatInfo;
+  Inflater: TZInflater;
+  InputPos: NativeInt;
+  DataEnded: Boolean;
 
   procedure DecodeAdam7;
   const
@@ -826,7 +885,8 @@ var
     StartBit: array[1..8] of LongInt = (7, 6, 0, 4, 0, 0, 0, 0);
   var
     Src, Dst, Dst2: PByte;
-    CurBit, Col: LongInt;
+    CurBit: LongInt;
+    Col: NativeInt;
   begin
     Src := @LineBuffer[ActLine][1];
     Col := ColumnStart[Pass];
@@ -834,11 +894,11 @@ var
       case BitCount of
         1, 2, 4:
           begin
-            Dst := @PByteArray(Data)[I * BytesPerLine];
+            Dst := @PBuffer(Data)[I * BytesPerLine];
             repeat
               CurBit := StartBit[BitCount];
               repeat
-                Dst2 := @PByteArray(Dst)[(BitCount * Col) shr 3];
+                Dst2 := @PBuffer(Dst)[(BitCount * Col) shr 3];
                 Dst2^ := Dst2^ or ((Src^ shr CurBit) and BitTable[BitCount])
                   shl (StartBit[BitCount] - (Col * BitCount mod 8));
                 Inc(Col, ColumnIncrement[Pass]);
@@ -849,7 +909,7 @@ var
           end;
         else
         begin
-          Dst := @PByteArray(Data)[I * BytesPerLine + Col * BytesPerPixel];
+          Dst := @PBuffer(Data)[I * BytesPerLine + Col * BytesPerPixel];
           repeat
             CopyPixel(Src, Dst, BytesPerPixel);
             Inc(Dst, BytesPerPixel);
@@ -861,10 +921,10 @@ var
       end;
   end;
 
-  procedure FilterScanline(Filter: Byte; BytesPerPixel: LongInt; Line, PrevLine, Target: PByteArray;
-    BytesPerLine: LongInt);
+  procedure FilterScanline(Filter: Byte; BytesPerPixel: LongInt; Line, PrevLine, Target: PBuffer;
+    BytesPerLine: NativeInt);
   var
-    I: LongInt;
+    I: NativeInt;
   begin
     case Filter of
       0:
@@ -904,9 +964,9 @@ var
     end;
   end;
 
-  procedure TransformLOCOToRGB(Data: PByte; NumPixels, BytesPerPixel: LongInt);
+  procedure TransformLOCOToRGB(Data: PByte; NumPixels: NativeInt; BytesPerPixel: LongInt);
   var
-    I: LongInt;
+    I: NativeInt;
   begin
     for I := 0 to NumPixels - 1 do
     begin
@@ -930,6 +990,36 @@ var
       Result := (PaletteEntries = 2) and
         (Palette[0].R = 0) and (Palette[0].G = 0) and (Palette[0].B = 0) and
         (Palette[1].R = 255) and (Palette[1].G = 255) and (Palette[1].B = 255);
+  end;
+
+  { Fills Row with the next Size bytes of decompressed data. Returns False when
+    the data ended before (truncated or damaged file), DataEnded is set then.}
+  function ReadRow(Row: Pointer; Size: NativeInt): Boolean;
+  var
+    Done, Consumed, Produced: NativeInt;
+    More: Boolean;
+  begin
+    Done := 0;
+    try
+      while (Done < Size) and not DataEnded do
+      begin
+        More := ZInflateData(Inflater, @PBuffer(IDATStream.Memory)[InputPos],
+                             IDATStream.Size - InputPos, @PBuffer(Row)[Done],
+                             Size - Done, Consumed, Produced);
+        Inc(InputPos, Consumed);
+        Inc(Done, Produced);
+        // End of the zlib stream or no more input
+        if not More or ((Consumed = 0) and (Produced = 0)) then
+          Break;
+      end;
+    except
+      on EZlibError do
+        DataEnded := True;
+    end;
+
+    Result := Done = Size;
+    if not Result then
+      DataEnded := True;
   end;
 
 begin
@@ -989,47 +1079,46 @@ begin
   GetImageFormatInfo(Image.Format, Info);
   BytesPerPixel := (BitCount + 7) div 8;
 
-  LineBuffer[True] := nil;
-  LineBuffer[False] := nil;
-  TotalBuffer := nil;
-  ZeroLine := nil;
+  Data := nil;
   ActLine := True;
+  InputPos := 0;
+  DataEnded := False;
+  Inflater.Active := False;
 
-  // Start decoding
+  // Start decoding, compressed data are decompressed row by row. Rows after
+  // the end of truncated or damaged data stay black.
   with Image do
   try
-    BytesPerLine := (Width * BitCount + 7) div 8;
+    ZInflateBegin(Inflater);
+    BytesPerLine := (Int64(Width) * BitCount + 7) div 8;
     SrcDataSize := Height * BytesPerLine;
     GetMem(Data, SrcDataSize);
     FillChar(Data^, SrcDataSize, 0);
-    GetMem(ZeroLine, BytesPerLine);
-    FillChar(ZeroLine^, BytesPerLine, 0);
+    SetLength(ZeroLine, BytesPerLine);
 
     if IHDR.Interlacing = 1 then
     begin
       // Decode interlaced images
-      TotalPos := 0;
-      DecompressBuf(IDATStream.Memory, IDATStream.Size, 0,
-        Pointer(TotalBuffer), TotalSize);
-      GetMem(LineBuffer[True], BytesPerLine + 1);
-      GetMem(LineBuffer[False], BytesPerLine + 1);
+      SetLength(LineBuffer[True], BytesPerLine + 1);
+      SetLength(LineBuffer[False], BytesPerLine + 1);
       for Pass := 0 to 6 do
       begin
+        if DataEnded then
+          Break;
         // Prepare next interlace run
         if Width <= ColumnStart[Pass] then
           Continue;
         InterlaceWidth := (Width + ColumnIncrement[Pass] - 1 -
           ColumnStart[Pass]) div ColumnIncrement[Pass];
-        InterlaceLineBytes := (InterlaceWidth * BitCount + 7) shr 3;
+        InterlaceLineBytes := (Int64(InterlaceWidth) * BitCount + 7) shr 3;
         I := RowStart[Pass];
         FillChar(LineBuffer[True][0], BytesPerLine + 1, 0);
         FillChar(LineBuffer[False][0], BytesPerLine + 1, 0);
         while I < Height do
         begin
-          // Copy line from decompressed data to working buffer
-          Move(PByteArray(TotalBuffer)[TotalPos],
-            LineBuffer[ActLine][0], InterlaceLineBytes + 1);
-          Inc(TotalPos, InterlaceLineBytes + 1);
+          // Decompress the line to working buffer
+          if not ReadRow(Pointer(LineBuffer[ActLine]), InterlaceLineBytes + 1) then
+            Break;
           // Swap red and blue channels if necessary
           if (IHDR.ColorType in [2, 6]) then
             SwapRGB(@LineBuffer[ActLine][1], InterlaceWidth, IHDR.BitDepth, BytesPerPixel);
@@ -1048,20 +1137,20 @@ begin
     else
     begin
       // Decode non-interlaced images
-      PrevLine := ZeroLine;
-      DecompressBuf(IDATStream.Memory, IDATStream.Size, SrcDataSize + Height,
-        Pointer(TotalBuffer), TotalSize);
+      PrevLine := Pointer(ZeroLine);
+      SetLength(LineBuffer[True], BytesPerLine + 1);
       for I := 0 to Height - 1 do
       begin
+        // Decompress the line with its filter byte
+        if not ReadRow(Pointer(LineBuffer[True]), BytesPerLine + 1) then
+          Break;
         // Swap red and blue channels if necessary
         if IHDR.ColorType in [2, 6] then
-          SwapRGB(@PByteArray(TotalBuffer)[I * (BytesPerLine + 1) + 1], Width,
-           IHDR.BitDepth, BytesPerPixel);
-        // reverse-filter current scanline
-        FilterScanline(PByteArray(TotalBuffer)[I * (BytesPerLine + 1)],
-          BytesPerPixel, @PByteArray(TotalBuffer)[I * (BytesPerLine + 1) + 1],
-          PrevLine, @PByteArray(Data)[I * BytesPerLine], BytesPerLine);
-        PrevLine := @PByteArray(Data)[I * BytesPerLine];
+          SwapRGB(@LineBuffer[True][1], Width, IHDR.BitDepth, BytesPerPixel);
+        // Reverse-filter current scanline
+        FilterScanline(LineBuffer[True][0], BytesPerPixel, @LineBuffer[True][1],
+                       PrevLine, @PBuffer(Data)[I * BytesPerLine], BytesPerLine);
+        PrevLine := @PBuffer(Data)[I * BytesPerLine];
       end;
     end;
 
@@ -1082,27 +1171,26 @@ begin
         2: Convert2To8(Data, Bits, Width, Height, BytesPerLine, IHDR.ColorType = 0);
         4: Convert4To8(Data, Bits, Width, Height, BytesPerLine, IHDR.ColorType = 0);
       end;
-      FreeMem(Data);
+      FreeMemNil(Data);
     end
     else
     begin
       // If source data size is the same as size of
       // image Bits in assigned format we simply copy pointer reference
       Bits := Data;
+      Data := nil;
     end;
 
     // LOCO transformation was used too (only for color types 2 and 6)
     if (IHDR.Filter = 64) and (IHDR.ColorType in [2, 6]) then
-      TransformLOCOToRGB(Bits, Width * Height, BytesPerPixel);
+      TransformLOCOToRGB(Bits, GetPixelCount(Image), BytesPerPixel);
 
     // Images with 16 bit channels must be swapped because of PNG's big endianity
     if IHDR.BitDepth = 16 then
-      SwapEndianWord(Bits, Width * Height * BytesPerPixel div SizeOf(Word));
+      SwapEndianWord(Bits, GetPixelCount(Image) * BytesPerPixel div SizeOf(Word));
   finally
-    FreeMem(LineBuffer[True]);
-    FreeMem(LineBuffer[False]);
-    FreeMem(TotalBuffer);
-    FreeMem(ZeroLine);
+    ZInflateEnd(Inflater);
+    FreeMem(Data);
   end;
 end;
 
@@ -1114,34 +1202,39 @@ var
   AlphaImage: TImageData;
   FakeIHDR: TIHDR;
   FmtInfo: TImageFormatInfo;
-  I: LongInt;
+  I: NativeInt;
   AlphaPtr: PByte;
   GrayPtr: PWordRec;
   ColorPtr: PColor32Rec;
 
   procedure LoadJpegFromStream(Stream: TStream; var DestImage: TImageData);
   var
-    JpegFormat: TCustomIOJpegFileFormat;
     Handle: TImagingHandle;
-    DynImages: TDynImageDataArray;
+    Info: TJpegImageInfo;
+    Loaded: Boolean;
   begin
-    if JHDR.SampleDepth <> 12 then
+    if JHDR.SampleDepth = 12 then
     begin
-      JpegFormat := TCustomIOJpegFileFormat.Create;
-      JpegFormat.SetCustomIO(StreamIO);
-      Stream.Position := 0;
-      Handle := StreamIO.Open(Pointer(Stream), omReadOnly);
-      try
-        JpegFormat.LoadData(Handle, DynImages, True);
-        DestImage := DynImages[0];
-      finally
-        StreamIO.Close(Handle);
-        JpegFormat.Free;
-        SetLength(DynImages, 0);
-      end;
-    end
-    else
+      // 12-bit JPEG data are not supported, frame is left empty
       NewImage(FrameWidth, FrameHeight, ifR8G8B8, DestImage);
+      Exit;
+    end;
+
+    Stream.Position := 0;
+    Handle := StreamIO.Open(Pointer(Stream), omReadOnly);
+    try
+      Loaded := JpegLoadImage(StreamIO, Handle, DestImage, Info);
+    finally
+      StreamIO.Close(Handle);
+    end;
+
+    // JNG allows only grayscale and YCbCr JPEG data. Partially decoded
+    // (corrupted) data are kept as they are.
+    if not Loaded or (Info.ColorSpace = jcsCMYK) then
+    begin
+      FreeImage(DestImage);
+      RaiseImaging(SErrorJngJpegData);
+    end;
   end;
 
 begin
@@ -1170,7 +1263,7 @@ begin
     end;
 
     // Check if alpha channel is the same size as image
-    if (Image.Width <> AlphaImage.Width) and (Image.Height <> AlphaImage.Height) then
+    if (Image.Width <> AlphaImage.Width) or (Image.Height <> AlphaImage.Height) then
       ResizeImage(AlphaImage, Image.Width, Image.Height, rfNearest);
 
     // Check alpha channels data format
@@ -1189,7 +1282,7 @@ begin
     if Image.Format = ifA8Gray8 then
     begin
       GrayPtr := Image.Bits;
-      for I := 0 to Image.Width * Image.Height - 1 do
+      for I := 0 to GetPixelCount(Image) - 1 do
       begin
         GrayPtr.High := AlphaPtr^;
         Inc(GrayPtr);
@@ -1199,7 +1292,7 @@ begin
     else
     begin
       ColorPtr := Image.Bits;
-      for I := 0 to Image.Width * Image.Height - 1 do
+      for I := 0 to GetPixelCount(Image) - 1 do
       begin
         ColorPtr.A := AlphaPtr^;
         Inc(ColorPtr);
@@ -1218,7 +1311,7 @@ var
   FmtInfo: TImageFormatInfo;
   BackGroundColor: TColor64Rec;
   ColorKey: TColor64Rec;
-  Alphas: PByteArray;
+  Alphas: TDynByteArray;
   AlphasSize: LongInt;
   IsColorKeyPresent: Boolean;
   IsBackGroundPresent: Boolean;
@@ -1230,8 +1323,8 @@ var
     begin
       if Alphas = nil then
       begin
-        GetMem(Alphas, Frame.TransparencySize);
-        Move(Frame.Transparency^, Alphas^, Frame.TransparencySize);
+        SetLength(Alphas, Frame.TransparencySize);
+        Move(Frame.Transparency^, Pointer(Alphas)^, Frame.TransparencySize);
         AlphasSize := Frame.TransparencySize;
       end;
     end
@@ -1355,7 +1448,6 @@ var
   end;
 
 begin
-  Alphas := nil;
   IsColorKeyPresent := False;
   IsBackGroundPresent := False;
   GetImageFormatInfo(Image.Format, FmtInfo);
@@ -1376,24 +1468,28 @@ begin
   // Apply color keying
   if IsColorKeyPresent and not FmtInfo.HasAlphaChannel then
     ApplyColorKey;
-
-  FreeMemNil(Alphas);
 end;
 
 { TNGFileSaver class implementation }
 
 procedure TNGFileSaver.StoreImageToPNGFrame(const IHDR: TIHDR; Bits: Pointer;
   FmtInfo: TImageFormatInfo; IDATStream: TMemoryStream);
+const
+  // Size of buffer for compressed data, written to IDATStream when full
+  CompressedBlockSize = 256 * 1024;
 var
-  TotalBuffer, CompBuffer, ZeroLine, PrevLine: Pointer;
-  FilterLines: array[0..4] of PByteArray;
-  TotalSize, CompSize, I, BytesPerLine, BytesPerPixel: Integer;
+  PrevLine, Line: Pointer;
+  ZeroLine, Row, Compressed: TDynByteArray;
+  FilterLines: array[0..4] of TDynByteArray;
+  I, BytesPerLine: NativeInt;
+  BytesPerPixel: Integer;
   Filter: Byte;
   Adaptive: Boolean;
+  Deflater: TZDeflater;
 
-  procedure FilterScanline(Filter: Byte; BytesPerPixel: LongInt; Line, PrevLine, Target: PByteArray);
+  procedure FilterScanline(Filter: Byte; BytesPerPixel: LongInt; Line, PrevLine, Target: PBuffer);
   var
-    I: LongInt;
+    I: NativeInt;
   begin
     case Filter of
       0:
@@ -1416,11 +1512,12 @@ var
         end;
       3:
         begin
-          // Average filter
+          // Average filter, Integer casts: FPC computes difference of Byte and
+          // shifted sum of Bytes as unsigned (overflow check fails)
           for I := 0 to BytesPerPixel - 1 do
-            Target[I] := (Line[I] - PrevLine[I] shr 1) and $FF;
+            Target[I] := (Integer(Line[I]) - Integer(PrevLine[I] shr 1)) and $FF;
           for I := BytesPerPixel to BytesPerLine - 1 do
-            Target[I] := (Line[I] - (Line[I - BytesPerPixel] + PrevLine[I]) shr 1) and $FF;
+            Target[I] := (Integer(Line[I]) - Integer((Line[I - BytesPerPixel] + PrevLine[I]) shr 1)) and $FF;
         end;
       4:
         begin
@@ -1433,19 +1530,21 @@ var
     end;
   end;
 
-  procedure AdaptiveFilter(var Filter: Byte; BytesPerPixel: LongInt; Line, PrevLine, Target: PByteArray);
+  procedure AdaptiveFilter(var Filter: Byte; BytesPerPixel: LongInt; Line, PrevLine, Target: PBuffer);
   var
-    I, J, BestTest: LongInt;
-    Sums: array[0..4] of LongInt;
+    I: Integer;
+    J: NativeInt;
+    BestTest: Int64;
+    Sums: array[0..4] of Int64;
   begin
     // Compute the output scanline using all five filters,
     // and select the filter that gives the smallest sum of
     // absolute values of outputs
     FillChar(Sums, SizeOf(Sums), 0);
-    BestTest := MaxInt;
+    BestTest := High(Int64);
     for I := 0 to 4 do
     begin
-      FilterScanline(I, BytesPerPixel, Line, PrevLine, FilterLines[I]);
+      FilterScanline(I, BytesPerPixel, Line, PrevLine, Pointer(FilterLines[I]));
       for J := 0 to BytesPerLine - 1 do
         Sums[I] := Sums[I] + Abs(ShortInt(FilterLines[I][J]));
       if Sums[I] < BestTest then
@@ -1454,9 +1553,27 @@ var
         BestTest := Sums[I];
       end;
     end;
-    Move(FilterLines[Filter]^, Target^, BytesPerLine);
+    Move(FilterLines[Filter][0], Target^, BytesPerLine);
   end;
-  
+
+  { Compresses Size bytes of Data and writes the result to IDATStream. With
+    Finish set, the rest of the compressed stream is written too.}
+  procedure WriteCompressed(Data: Pointer; Size: NativeInt; Finish: Boolean);
+  var
+    Done, Consumed, Produced: NativeInt;
+    More: Boolean;
+  begin
+    Done := 0;
+    repeat
+      More := ZDeflateData(Deflater, @PBuffer(Data)[Done], Size - Done, Pointer(Compressed),
+                           Length(Compressed), Finish, Consumed, Produced);
+      Inc(Done, Consumed);
+      if Produced > 0 then
+        IDATStream.WriteBuffer(Compressed[0], Produced);
+    until (Finish and not More) or
+          (not Finish and (Done = Size) and (Produced < Length(Compressed)));
+  end;
+
 begin
   // Select precompression filter and compression level
   Adaptive := False;
@@ -1471,66 +1588,48 @@ begin
       Filter := 4
   end;
 
-  // Prepare data for compression
-  CompBuffer := nil;
-  FillChar(FilterLines, SizeOf(FilterLines), 0);
+  // Prepare buffers, scanlines are filtered and compressed one by one
   BytesPerPixel := Max(1, FmtInfo.BytesPerPixel);
   BytesPerLine := FmtInfo.GetPixelsSize(FmtInfo.Format, LongInt(IHDR.Width), 1);
-  TotalSize := (BytesPerLine + 1) * LongInt(IHDR.Height);
-  GetMem(TotalBuffer, TotalSize);
-  GetMem(ZeroLine, BytesPerLine);
-  FillChar(ZeroLine^, BytesPerLine, 0);
-  PrevLine := ZeroLine;
+  SetLength(ZeroLine, BytesPerLine);
+  SetLength(Row, BytesPerLine + 1);
+  SetLength(Compressed, CompressedBlockSize);
+  PrevLine := Pointer(ZeroLine);
 
   if Adaptive then
   begin
     for I := 0 to 4 do
-      GetMem(FilterLines[I], BytesPerLine);
+      SetLength(FilterLines[I], BytesPerLine);
   end;
 
+  Deflater.Active := False;
   try
-    // Process next scanlines
-    for I := 0 to IHDR.Height - 1 do
+    ZDeflateBegin(Deflater, CompressLevel, ZLibStrategy);
+
+    for I := 0 to NativeInt(IHDR.Height) - 1 do
     begin
-      // Filter scanline
+      // Filter scanline, the result goes after the filter byte
+      Line := @PBuffer(Bits)[I * BytesPerLine];
       if Adaptive then
-      begin
-        AdaptiveFilter(Filter, BytesPerPixel, @PByteArray(Bits)[I * BytesPerLine],
-          PrevLine, @PByteArray(TotalBuffer)[I * (BytesPerLine + 1) + 1]);
-      end
+        AdaptiveFilter(Filter, BytesPerPixel, Line, PrevLine, @Row[1])
       else
-      begin
-        FilterScanline(Filter, BytesPerPixel, @PByteArray(Bits)[I * BytesPerLine],
-          PrevLine, @PByteArray(TotalBuffer)[I * (BytesPerLine + 1) + 1]);
-      end;
-      PrevLine := @PByteArray(Bits)[I * BytesPerLine];
+        FilterScanline(Filter, BytesPerPixel, Line, PrevLine, @Row[1]);
+      PrevLine := Line;
       // Swap red and blue if necessary
       if (IHDR.ColorType in [2, 6]) and not FmtInfo.IsRBSwapped then
-      begin
-        SwapRGB(@PByteArray(TotalBuffer)[I * (BytesPerLine + 1) + 1],
-          IHDR.Width, IHDR.BitDepth, BytesPerPixel);
-      end;
+        SwapRGB(@Row[1], IHDR.Width, IHDR.BitDepth, BytesPerPixel);
       // Images with 16 bit channels must be swapped because of PNG's big endianess
       if IHDR.BitDepth = 16 then
-      begin
-        SwapEndianWord(@PByteArray(TotalBuffer)[I * (BytesPerLine + 1) + 1],
-          BytesPerLine div SizeOf(Word));
-      end;
+        SwapEndianWord(@Row[1], BytesPerLine div SizeOf(Word));
       // Set filter used for this scanline
-      PByteArray(TotalBuffer)[I * (BytesPerLine + 1)] := Filter;
+      Row[0] := Filter;
+
+      WriteCompressed(Pointer(Row), Length(Row), False);
     end;
-    // Compress IDAT data
-    CompressBuf(TotalBuffer, TotalSize, CompBuffer, CompSize,
-      CompressLevel, ZLibStrategy);
-    // Write IDAT data to stream
-    IDATStream.WriteBuffer(CompBuffer^, CompSize);
+
+    WriteCompressed(nil, 0, True);
   finally
-    FreeMem(TotalBuffer);
-    FreeMem(CompBuffer);
-    FreeMem(ZeroLine);
-    if Adaptive then
-      for I := 0 to 4 do
-        FreeMem(FilterLines[I]);
+    ZDeflateEnd(Deflater);
   end;
 end;
 
@@ -1545,33 +1644,44 @@ var
   AlphaPtr: PByte;
   GrayPtr: PWordRec;
   ColorPtr: PColor32Rec;
-  I: LongInt;
+  I: NativeInt;
   FakeIHDR: TIHDR;
 
   procedure SaveJpegToStream(Stream: TStream; const Image: TImageData);
   var
-    JpegFormat: TCustomIOJpegFileFormat;
     Handle: TImagingHandle;
-    DynImages: TDynImageDataArray;
+    Params: TJpegSaveParams;
+    XRes, YRes: Double;
+    Saved: Boolean;
   begin
-    JpegFormat := TCustomIOJpegFileFormat.Create;
-    JpegFormat.SetCustomIO(StreamIO);
+    // AddFrame and the alpha split above give only these formats
+    Assert(Image.Format in [ifGray8, ifR8G8B8]);
+
+    FillChar(Params, SizeOf(Params), 0);
+    Params.Quality := Quality;
     // Only JDAT stream can be saved progressive
-    if Stream = JDATStream then
-      JpegFormat.FProgressive := Progressive
-    else
-      JpegFormat.FProgressive := False;
-    JpegFormat.FQuality := Quality;
-    SetLength(DynImages, 1);
-    DynImages[0] := Image;
+    Params.Progressive := Progressive and (Stream = JDATStream);
+    // Default 4:2:0, an option could be added to support more subsamplings.
+    Params.ChromaSubsampling := jss420;
+
+    // JFIF density is written as JPEG file format does (pHYs chunk is what
+    // JNG readers use)
+    if FileFormat.FMetadata.GetPhysicalPixelSize(ruDpcm, XRes, YRes, True) then
+    begin
+      Params.DensityUnit := 2; // Dots per cm
+      Params.XDensity := Round(XRes);
+      Params.YDensity := Round(YRes);
+    end;
+
     Handle := StreamIO.Open(Pointer(Stream), omCreate);
     try
-      JpegFormat.SaveData(Handle, DynImages, 0);
+      Saved := JpegSaveImage(StreamIO, Handle, Image, Params);
     finally
       StreamIO.Close(Handle);
-      SetLength(DynImages, 0);
-      JpegFormat.Free;
     end;
+
+    if not Saved then
+      RaiseImaging(SErrorJngJpegSave);
   end;
 
 begin
@@ -1594,7 +1704,7 @@ begin
     if Image.Format = ifA8Gray8 then
     begin
       GrayPtr := Image.Bits;
-      for I := 0 to Image.Width * Image.Height - 1 do
+      for I := 0 to GetPixelCount(Image) - 1 do
       begin
         AlphaPtr^ := GrayPtr.High;
         Inc(GrayPtr);
@@ -1604,7 +1714,7 @@ begin
     else
     begin
       ColorPtr := Image.Bits;
-      for I := 0 to Image.Width * Image.Height - 1 do
+      for I := 0 to GetPixelCount(Image) - 1 do
       begin
         AlphaPtr^ := ColorPtr.A;
         Inc(ColorPtr);
@@ -1840,27 +1950,56 @@ var
     GetIO.Write(Handle, @ChunkCrc, SizeOf(ChunkCrc));
   end;
 
+  { Writes image data in chunks of at most MaxImageDataChunkSize.}
+  procedure WriteImageData(const ChunkID: TChar4; Data: TMemoryStream);
+  var
+    Pos, Len: NativeInt;
+  begin
+    Pos := 0;
+    repeat
+      Len := Data.Size - Pos;
+      if Len > MaxImageDataChunkSize then
+        Len := MaxImageDataChunkSize;
+      Chunk.DataSize := Len;
+      Chunk.ChunkID := ChunkID;
+      WriteChunk(Chunk, @PBuffer(Data.Memory)[Pos]);
+      Inc(Pos, Len);
+    until Pos >= Data.Size;
+  end;
+
   procedure WritefdAT(Frame: TFrameInfo);
   var
     ChunkCrc: UInt32;
     ChunkSeqNo: UInt32;
+    Data: Pointer;
+    Pos, Len: NativeInt;
   begin
-    Chunk.ChunkID := fdATChunk;
-    ChunkSeqNo := GetNextSeqNo;
-    // fdAT saves seq number UInt32 before compressed pixels
-    Chunk.DataSize := Frame.IDATMemory.Size + SizeOf(UInt32);
-    Chunk.DataSize := SwapEndianUInt32(Chunk.DataSize);
-    // Calc CRC
-    ChunkCrc := $FFFFFFFF;
-    CalcCrc32(ChunkCrc, @Chunk.ChunkID, SizeOf(Chunk.ChunkID));
-    CalcCrc32(ChunkCrc, @ChunkSeqNo, SizeOf(ChunkSeqNo));
-    CalcCrc32(ChunkCrc, Frame.IDATMemory.Memory, Frame.IDATMemory.Size);
-    ChunkCrc := SwapEndianUInt32(ChunkCrc xor $FFFFFFFF);
-    // Write out all fdAT data
-    GetIO.Write(Handle, @Chunk, SizeOf(Chunk));
-    GetIO.Write(Handle, @ChunkSeqNo, SizeOf(ChunkSeqNo));
-    GetIO.Write(Handle, Frame.IDATMemory.Memory, Frame.IDATMemory.Size);
-    GetIO.Write(Handle, @ChunkCrc, SizeOf(ChunkCrc));
+    // Data are written in chunks of limited size like IDAT, each one with
+    // its own sequence number
+    Pos := 0;
+    repeat
+      Len := Frame.IDATMemory.Size - Pos;
+      if Len > MaxImageDataChunkSize - SizeOf(UInt32) then
+        Len := MaxImageDataChunkSize - SizeOf(UInt32);
+      Data := @PBuffer(Frame.IDATMemory.Memory)[Pos];
+
+      Chunk.ChunkID := fdATChunk;
+      ChunkSeqNo := GetNextSeqNo;
+      // fdAT saves seq number UInt32 before compressed pixels
+      Chunk.DataSize := SwapEndianUInt32(UInt32(Len + SizeOf(UInt32)));
+      // Calc CRC
+      ChunkCrc := $FFFFFFFF;
+      CalcCrc32(ChunkCrc, @Chunk.ChunkID, SizeOf(Chunk.ChunkID));
+      CalcCrc32(ChunkCrc, @ChunkSeqNo, SizeOf(ChunkSeqNo));
+      CalcCrc32(ChunkCrc, Data, Len);
+      ChunkCrc := SwapEndianUInt32(ChunkCrc xor $FFFFFFFF);
+      // Write out fdAT data
+      GetIO.Write(Handle, @Chunk, SizeOf(Chunk));
+      GetIO.Write(Handle, @ChunkSeqNo, SizeOf(ChunkSeqNo));
+      GetIO.Write(Handle, Data, Len);
+      GetIO.Write(Handle, @ChunkCrc, SizeOf(ChunkCrc));
+      Inc(Pos, Len);
+    until Pos >= Frame.IDATMemory.Size;
   end;
 
   procedure WriteGlobalMetaDataChunks(Frame: TFrameInfo);
@@ -1961,25 +2100,19 @@ begin
       // Write metadata related chunks
       WriteGlobalMetaDataChunks(Frames[I]);
       // Write JNG image data
-      Chunk.DataSize := JDATMemory.Size;
-      Chunk.ChunkID := JDATChunk;
-      WriteChunk(Chunk, JDATMemory.Memory);
+      WriteImageData(JDATChunk, JDATMemory);
       // Write alpha channel if present
       if JHDR.AlphaSampleDepth > 0 then
       begin
         if JHDR.AlphaCompression = 0 then
         begin
           // Alpha is PNG compressed
-          Chunk.DataSize := IDATMemory.Size;
-          Chunk.ChunkID := IDATChunk;
-          WriteChunk(Chunk, IDATMemory.Memory);
+          WriteImageData(IDATChunk, IDATMemory);
         end
         else
         begin
           // Alpha is JNG compressed
-          Chunk.DataSize := JDAAMemory.Size;
-          Chunk.ChunkID := JDAAChunk;
-          WriteChunk(Chunk, JDAAMemory.Memory);
+          WriteImageData(JDAAChunk, JDAAMemory);
         end;
       end;
       // Write image end
@@ -1992,9 +2125,7 @@ begin
       // Regular PNG frame (single PNG image or MNG frame)
       WritePNGMainImageChunks(Frames[I]);
       // Write PNG image data
-      Chunk.DataSize := IDATMemory.Size;
-      Chunk.ChunkID := IDATChunk;
-      WriteChunk(Chunk, IDATMemory.Memory);
+      WriteImageData(IDATChunk, IDATMemory);
       // Write image end
       Chunk.DataSize := 0;
       Chunk.ChunkID := IENDChunk;
@@ -2009,11 +2140,7 @@ begin
       WriteChunk(Chunk, @fcTL);
       // Write data - IDAT for first frame and fdAT for following ones
       if I = 0 then
-      begin
-        Chunk.DataSize := IDATMemory.Size;
-        Chunk.ChunkID := IDATChunk;
-        WriteChunk(Chunk, IDATMemory.Memory);
-      end
+        WriteImageData(IDATChunk, IDATMemory)
       else
         WritefdAT(Frames[I]);
       // Write image end after last frame
@@ -2283,7 +2410,7 @@ procedure TPNGFileFormat.Define;
 begin
   inherited;
   FName := SPNGFormatName;
-  FFeatures := FFeatures + [ffMultiImage];
+  FFeatures := FFeatures + [ffMultiImage, ffHugeImages];
   FLoadAnimated := PNGDefaultLoadAnimated;
   AddMasks(SPNGMasks);
 
@@ -2434,7 +2561,7 @@ procedure TMNGFileFormat.Define;
 begin
   inherited;
   FName := SMNGFormatName;
-  FFeatures := FFeatures + [ffMultiImage];
+  FFeatures := FFeatures + [ffMultiImage, ffHugeImages];
   AddMasks(SMNGMasks);
 
   FSignature := MNGSignature;
@@ -2479,7 +2606,7 @@ begin
       begin
         // Some MNG files (with BASI-IEND streams) dont have actual pixel data
         SetLength(Images, 1);
-        NewImage(NGFileLoader.MHDR.FrameWidth, NGFileLoader.MHDR.FrameWidth, ifDefault, Images[0]);
+        NewImage(NGFileLoader.MHDR.FrameWidth, NGFileLoader.MHDR.FrameHeight, ifDefault, Images[0]);
       end;
       Result := True;
     end;
@@ -2552,6 +2679,7 @@ procedure TJNGFileFormat.Define;
 begin
   inherited;
   FName := SJNGFormatName;
+  FFeatures := FFeatures + [ffHugeImages];
   AddMasks(SJNGMasks);
 
   FSignature := JNGSignature;

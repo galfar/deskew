@@ -7,7 +7,7 @@
   This Source Code Form is subject to the terms of the Mozilla Public
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at https://mozilla.org/MPL/2.0.
-} 
+}
 
 { This unit contains image format loader/saver for Targa images.}
 unit ImagingTarga;
@@ -48,10 +48,14 @@ const
   STargaMasks      = '*.tga';
   TargaSupportedFormats: TImageFormats = [ifIndex8, ifGray8, ifA1R5G5B5,
     ifR8G8B8, ifA8R8G8B8];
-  TargaDefaultRLE = False;  
+  TargaDefaultRLE = False;
 
 const
   STargaSignature = 'TRUEVISION-XFILE';
+  // RLE data are read and written in blocks of this size
+  RleChunkSize = 1024 * 1024;
+  // Largest width and height a header can hold
+  TargaMaxDimension = 65535;
 
 type
   { Targa file header }
@@ -64,8 +68,8 @@ type
     ColorEntrySize: Byte;
     XOrg: SmallInt;
     YOrg: SmallInt;
-    Width: SmallInt;
-    Height: SmallInt;
+    Width: UInt16;
+    Height: UInt16;
     PixelSize: Byte;
     Desc: Byte;
   end;
@@ -86,7 +90,7 @@ procedure TTargaFileFormat.Define;
 begin
   inherited;
   FName := STargaFormatName;
-  FFeatures := [ffLoad, ffSave];
+  FFeatures := [ffLoad, ffSave, ffHugeImages];
   FSupportedFormats := TargaSupportedFormats;
 
   FUseRLE := TargaDefaultRLE;
@@ -102,86 +106,104 @@ var
   Foo: TTargaFooter;
   FooterFound, ExtFound: Boolean;
   I, PSize, PalSize: Integer;
-  Pal: Pointer;
+  Pal: TDynByteArray;
   FmtInfo: TImageFormatInfo;
   WordValue: Word;
 
   procedure LoadRLE;
   var
-    I: Integer;
-    CurrentPixel, CountPixels: NativeInt;
-    Bpp, Rle: Byte;
-    Dest, Src: PByte;
     Buffer: TDynByteArray;
-    BufSize: NativeInt;
-    BytesConsumedFromBuffer, SeekOffset: NativeInt;
-  begin
-    with GetIO, Images[0] do
+    BufLen, BufPos, PixelsLeft: NativeInt;
+    EndOfInput: Boolean;
+    Bpp, MaxPacketSize, PacketSize, Count, I: Integer;
+    PacketHeader: Byte;
+    Src, Dest: PByte;
+
+    procedure FillBuffer;
+    var
+      Rest, ReadCount: NativeInt;
     begin
-      // Allocates buffer large enough to hold the worst case
-      // RLE compressed data and reads then from input
-      BufSize := Width * Height * FmtInfo.BytesPerPixel;
-      BufSize := BufSize + BufSize div 2 + 1;
+      // Unread bytes are moved to the start, the rest is read from input
+      Rest := BufLen - BufPos;
+      if Rest > 0 then
+        Move(Buffer[BufPos], Buffer[0], Rest);
 
-      SetLength(Buffer, BufSize);
-      BufSize := Read(Handle, Buffer, BufSize);
+      ReadCount := GetIO.Read(Handle, @Buffer[Rest], RleChunkSize - Rest);
+      if ReadCount < 0 then
+        ReadCount := 0;
 
-      Src := @Buffer[0];
-      Dest := Bits;
+      EndOfInput := ReadCount < RleChunkSize - Rest;
+      BufLen := Rest + ReadCount;
+      BufPos := 0;
+    end;
 
-      CountPixels := Width * Height;
-      Bpp := FmtInfo.BytesPerPixel;
-      CurrentPixel := 0;
+  begin
+    // Compressed data are read in blocks, only whole packets are decoded.
+    // Pixels after the end of truncated data are left zero.
+    Bpp := FmtInfo.BytesPerPixel;
+    MaxPacketSize := 1 + 128 * Bpp;
+    SetLength(Buffer, RleChunkSize);
+    BufLen := 0;
+    BufPos := 0;
+    EndOfInput := False;
 
-      while CurrentPixel < CountPixels do
+    Dest := Images[0].Bits;
+    PixelsLeft := GetPixelCount(Images[0]);
+
+    while PixelsLeft > 0 do
+    begin
+      if (BufLen - BufPos < MaxPacketSize) and not EndOfInput then
+        FillBuffer;
+
+      if BufPos >= BufLen then
+        Break;
+
+      PacketHeader := Buffer[BufPos];
+      Count := PacketHeader and $7F + 1;
+
+      if PacketHeader and $80 <> 0 then
+        PacketSize := 1 + Bpp
+      else
+        PacketSize := 1 + Count * Bpp;
+
+      // Packet is cut by the end of input
+      if BufPos + PacketSize > BufLen then
+        Break;
+
+      // Packet must not write past the end of the image
+      if Count > PixelsLeft then
+        Count := PixelsLeft;
+
+      Src := @Buffer[BufPos + 1];
+
+      if PacketHeader and $80 <> 0 then
       begin
-        Rle := Src^;
-        Inc(Src);
-        if Rle < 128 then
+        // Run of one repeated pixel
+        for I := 0 to Count - 1 do
         begin
-          // Process uncompressed pixel
-          Rle := Rle + 1;
-          CurrentPixel := CurrentPixel + Rle;
-          for I := 0 to Rle - 1 do
-          begin
-            // Copy pixel from src to dest
-            case Bpp of
-              1: Dest^ := Src^;
-              2: PWord(Dest)^ := PWord(Src)^;
-              3: PColor24Rec(Dest)^ := PColor24Rec(Src)^;
-              4: PUInt32(Dest)^ := PUInt32(Src)^;
-            end;
-            Inc(Src, Bpp);
-            Inc(Dest, Bpp);
+          case Bpp of
+            1: Dest^ := Src^;
+            2: PWord(Dest)^ := PWord(Src)^;
+            3: PColor24Rec(Dest)^ := PColor24Rec(Src)^;
+            4: PUInt32(Dest)^ := PUInt32(Src)^;
           end;
-        end
-        else
-        begin
-          // Process compressed pixels
-          Rle := Rle - 127;
-          CurrentPixel := CurrentPixel + Rle;
-          // Copy one pixel from src to dest (many times there)
-          for I := 0 to Rle - 1 do
-          begin
-            case Bpp of
-              1: Dest^ := Src^;
-              2: PWord(Dest)^ := PWord(Src)^;
-              3: PColor24Rec(Dest)^ := PColor24Rec(Src)^;
-              4: PUInt32(Dest)^ := PUInt32(Src)^;
-            end;
-            Inc(Dest, Bpp);
-          end;
-          Inc(Src, Bpp);
+          Inc(Dest, Bpp);
         end;
+      end
+      else
+      begin
+        // Raw pixels
+        Move(Src^, Dest^, Count * Bpp);
+        Inc(Dest, Count * Bpp);
       end;
 
-      // Set position in source to the real end of compressed data
-      BytesConsumedFromBuffer := PtrUInt(Src) - PtrUInt(Buffer);
-      SeekOffset := BytesConsumedFromBuffer - BufSize;
-      Assert(SeekOffset <= 0);
-
-      Seek(Handle, SeekOffset, smFromCurrent);
+      Inc(BufPos, PacketSize);
+      Dec(PixelsLeft, Count);
     end;
+
+    // Set position in input to the end of compressed data
+    if BufLen > BufPos then
+      GetIO.Seek(Handle, -(BufLen - BufPos), smFromCurrent);
   end;
 
 begin
@@ -221,43 +243,40 @@ begin
     begin
       // Read palette
       PSize := Hdr.ColorMapLength * (Hdr.ColorEntrySize shr 3);
-      GetMem(Pal, PSize);
-      try
-        Read(Handle, Pal, PSize);
-        // Process palette
-        PalSize := Iff(Hdr.ColorMapLength > FmtInfo.PaletteEntries,
-          FmtInfo.PaletteEntries, Hdr.ColorMapLength);
-        for I := 0 to PalSize - 1 do
-          case Hdr.ColorEntrySize of
-            24:
-              with Palette[I] do
-              begin
-                A := $FF;
-                R := PPalette24(Pal)[I].R;
-                G := PPalette24(Pal)[I].G;
-                B := PPalette24(Pal)[I].B;
-              end;
-            // I've never seen tga with these palettes so they are untested
-            16:
-              with Palette[I] do
-              begin
-                A := (PWordArray(Pal)[I] and $8000) shr 12;
-                R := (PWordArray(Pal)[I] and $FC00) shr 7;
-                G := (PWordArray(Pal)[I] and $03E0) shr 2;
-                B := (PWordArray(Pal)[I] and $001F) shl 3;
-              end;
-            32:
-              with Palette[I] do
-              begin
-                A := PPalette32(Pal)[I].A;
-                R := PPalette32(Pal)[I].R;
-                G := PPalette32(Pal)[I].G;
-                B := PPalette32(Pal)[I].B;
-              end;
-          end;
-      finally
-        FreeMemNil(Pal);
-      end;
+      SetLength(Pal, PSize);
+      Read(Handle, Pointer(Pal), PSize);
+      // Process palette
+      PalSize := Iff(Hdr.ColorMapLength > FmtInfo.PaletteEntries,
+        FmtInfo.PaletteEntries, Hdr.ColorMapLength);
+
+      for I := 0 to PalSize - 1 do
+        case Hdr.ColorEntrySize of
+          24:
+            with Palette[I] do
+            begin
+              A := $FF;
+              R := PPalette24(Pal)[I].R;
+              G := PPalette24(Pal)[I].G;
+              B := PPalette24(Pal)[I].B;
+            end;
+          // I've never seen TGA with these palettes so they are untested
+          16:
+            with Palette[I] do
+            begin
+              A := (PWordArray(Pal)[I] and $8000) shr 12;
+              R := (PWordArray(Pal)[I] and $FC00) shr 7;
+              G := (PWordArray(Pal)[I] and $03E0) shr 2;
+              B := (PWordArray(Pal)[I] and $001F) shl 3;
+            end;
+          32:
+            with Palette[I] do
+            begin
+              A := PPalette32(Pal)[I].A;
+              R := PPalette32(Pal)[I].R;
+              G := PPalette32(Pal)[I].G;
+              B := PPalette32(Pal)[I].B;
+            end;
+        end;
     end;
 
     case Hdr.ImageType of
@@ -273,7 +292,7 @@ begin
     // change format to X1R5G5B5
     if Format = ifA1R5G5B5 then
     begin
-      if not Has16BitImageAlpha(Width * Height, Bits) then
+      if not Has16BitImageAlpha(GetPixelCount(Images[0]), Bits) then
         Format := ifX1R5G5B5;
     end;
 
@@ -325,8 +344,9 @@ var
 
   procedure SaveRLE;
   var
-    DestBuffer: TDynByteArray;
-    WidthBytes, Written, I, Total, DestSize: LongInt;
+    Buffer: TDynByteArray;
+    BufLen: NativeInt;
+    RowMaxSize, Written, Y: Integer;
 
     function CountDiff(Data: PByte; Bpp, PixelCount: Longint): LongInt;
     var
@@ -414,8 +434,10 @@ var
       RleBufSize := 0;
       while PixelCount > 0 do
       begin
-        DiffCount := CountDiff(Data, Bpp, PixelCount);
-        SameCount := CountSame(Data, Bpp, PixelCount);
+        // Only pixels that can get into one packet are looked at (one more
+        // for CountDiff, it ends a run of different pixels at a repeated one)
+        DiffCount := CountDiff(Data, Bpp, Min(PixelCount, MaxRun + 1));
+        SameCount := CountSame(Data, Bpp, Min(PixelCount, MaxRun));
 
         if (DiffCount > MaxRun) then
           DiffCount := MaxRun;
@@ -455,26 +477,36 @@ var
   begin
     with ImageToSave do
     begin
-      // Allocate enough space to hold the worst case compression
-      // result and then compress source's scanlines
-      WidthBytes := Width * FmtInfo.BytesPerPixel;
-      DestSize := WidthBytes * Height;
-      DestSize := DestSize + DestSize div 2 + 1;
-      SetLength(DestBuffer, DestSize);
-      Total := 0;
+      // Rows are compressed into a buffer which is written out when the next
+      // row might not fit. Compressed row is at most one packet header per
+      // pixel larger than the raw one.
+      RowMaxSize := Width * (FmtInfo.BytesPerPixel + 1);
+      SetLength(Buffer, Max(RleChunkSize, RowMaxSize));
+      BufLen := 0;
 
-      for I := 0 to Height - 1 do
+      for Y := 0 to Height - 1 do
       begin
-        RleCompressLine(@PByteArray(Bits)[I * WidthBytes], Width,
-          FmtInfo.BytesPerPixel, @DestBuffer[Total], Written);
-        Total := Total + Written;
+        if BufLen + RowMaxSize > Length(Buffer) then
+        begin
+          GetIO.Write(Handle, Pointer(Buffer), BufLen);
+          BufLen := 0;
+        end;
+
+        RleCompressLine(GetScanlinePointer(ImageToSave, Y, FmtInfo.BytesPerPixel), Width,
+                        FmtInfo.BytesPerPixel, @Buffer[BufLen], Written);
+        Inc(BufLen, Written);
       end;
-      GetIO.Write(Handle, DestBuffer, Total);
+
+      GetIO.Write(Handle, Pointer(Buffer), BufLen);
     end;
   end;
 
 begin
   Result := False;
+  // Dimensions are stored in 16 bits
+  if (Images[Index].Width > TargaMaxDimension) or (Images[Index].Height > TargaMaxDimension) then
+    Exit;
+
   if MakeCompatible(Images[Index], ImageToSave, MustBeFreed) then
   with GetIO, ImageToSave do
   try

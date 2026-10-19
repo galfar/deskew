@@ -1,4 +1,4 @@
-﻿{
+{
   Vampyre Imaging Library
   by Marek Mauder
   https://github.com/galfar/imaginglib
@@ -69,7 +69,7 @@ function DetermineStreamFormat(Stream: TStream): string;
   the memory is in one of them returns its string identifier
   (which can be used in LoadFromStream/LoadFromMem type functions).
   If memory is not in any of the supported formats empty string is returned.}
-function DetermineMemoryFormat(Data: Pointer; Size: LongInt): string;
+function DetermineMemoryFormat(Data: Pointer; Size: Int64): string;
 { Checks that an appropriate file format is supported purely from inspecting
   the given file name's extension (not contents of the file itself).
   The file need not exist.}
@@ -90,7 +90,7 @@ function LoadImageFromFile(const FileName: string; var Image: TImageData): Boole
   is not changed.}
 function LoadImageFromStream(Stream: TStream; var Image: TImageData): Boolean;
 { Loads single image from given memory location.}
-function LoadImageFromMemory(Data: Pointer; Size: LongInt; var Image: TImageData): Boolean;
+function LoadImageFromMemory(Data: Pointer; Size: Int64; var Image: TImageData): Boolean;
 { Loads multiple images from given file.}
 function LoadMultiImageFromFile(const FileName: string;
   var Images: TDynImageDataArray): Boolean;
@@ -99,7 +99,7 @@ function LoadMultiImageFromFile(const FileName: string;
 function LoadMultiImageFromStream(Stream: TStream;
   var Images: TDynImageDataArray): Boolean;
 { Loads multiple images from given memory location.}
-function LoadMultiImageFromMemory(Data: Pointer; Size: LongInt;
+function LoadMultiImageFromMemory(Data: Pointer; Size: Int64;
   var Images: TDynImageDataArray): Boolean;
 
 { Saving Functions }
@@ -113,7 +113,7 @@ function SaveImageToStream(const Ext: string; Stream: TStream;
 { Saves single image to given memory location. Memory must be allocated and its
   size is passed in Size parameter in which number of written bytes is returned.
   Ext identifies desired image file format (jpg, png, dds, ...).}
-function SaveImageToMemory(const Ext: string; Data: Pointer; var Size: LongInt;
+function SaveImageToMemory(const Ext: string; Data: Pointer; var Size: Int64;
   const Image: TImageData): Boolean;
 { Saves multiple images to given file. If format supports
   only single level images and there are multiple images to be saved,
@@ -132,7 +132,7 @@ function SaveMultiImageToStream(const Ext: string; Stream: TStream;
   its size is passed in Size parameter in which number of written bytes is returned.
   Ext identifies desired image file format (jpg, png, dds, ...).}
 function SaveMultiImageToMemory(const Ext: string; Data: Pointer;
-  var Size: LongInt; const Images: TDynImageDataArray): Boolean;
+  var Size: Int64; const Images: TDynImageDataArray): Boolean;
 
 { Manipulation Functions }
 
@@ -144,7 +144,7 @@ function ConvertImage(var Image: TImageData; DestFormat: TImageFormat): Boolean;
 { Flips given image. Reverses the image along its horizontal axis - the top
   becomes the bottom and vice versa.}
 function FlipImage(var Image: TImageData): Boolean;
-{ Mirrors given image. Reverses the image along its vertical axis � the left
+{ Mirrors given image. Reverses the image along its vertical axis - the left
   side becomes the right and vice versa.}
 function MirrorImage(var Image: TImageData): Boolean;
 { Resizes given image to new dimensions. Nearest, bilinear, or bicubic filtering
@@ -217,6 +217,7 @@ function ReplaceColor(var Image: TImageData; X, Y, Width, Height: LongInt;
 function StretchRect(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
   SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
   DstHeight: LongInt; Filter: TResizeFilter): Boolean;
+
 { Copies pixel of Image at [X, Y] to memory pointed at by Pixel. Doesn't
   work with special formats.}
 procedure GetPixelDirect(const Image: TImageData; X, Y: LongInt; Pixel: Pointer);
@@ -247,6 +248,15 @@ function GetPixel64(const Image: TImageData; X, Y: LongInt): TColor64Rec;
   channel) is translated to native format and then written to Image.
   Works for all image formats (except special) so it is not very fast.}
 procedure SetPixel64(const Image: TImageData; X, Y: LongInt; const Color: TColor64Rec);
+
+{ Returns pointer to pixel at [X, Y] of image in regular (not special) data format.
+  Coordinates are not checked.}
+function GetPixelPointer(const Image: TImageData; X, Y: Integer): Pointer; overload;
+{ Returns pointer to the first pixel of scanline Y of image in regular
+  (not special) data format. Y is not checked.
+  Both functions have overloads with BytesPerPixel parameter in ImagingTypes
+  unit: those are inlined, use them where the size of pixels is at hand.}
+function GetScanlinePointer(const Image: TImageData; Y: Integer): Pointer; overload;
 
 { Palette Functions }
 
@@ -299,6 +309,10 @@ function PopOptions: Boolean;
 function GetImageFormatInfo(Format: TImageFormat; out Info: TImageFormatInfo): Boolean;
 { Returns size in bytes of Width x Height area of pixels. Works for all formats.}
 function GetPixelsSize(Format: TImageFormat; Width, Height: LongInt): Int64;
+{ Returns number of pixels of the image (Width * Height). Use this instead
+  of multiplying the dimensions: the product of two 32 bit integers
+  overflows for images with 2^31 pixels or more.}
+function GetPixelCount(const Image: TImageData): NativeInt; {$IFDEF USE_INLINE}inline;{$ENDIF}
 
 { IO Functions }
 
@@ -331,7 +345,8 @@ procedure WriteRawImageRect(Data: Pointer; Left, Top, Width, Height: Integer;
 
 { Convenience/helper Functions }
 
-{ Resizes image proportionally to fit the given width and height. }
+{ Resizes image proportionally to fit the given width and height.
+  SrcImage and DestImage can be the same image.}
 procedure ResizeImageToFit(const SrcImage: TImageData; FitWidth, FitHeight: Integer;
   Filter: TResizeFilter; var DestImage: TImageData);
 
@@ -384,9 +399,11 @@ type
   TFileFormatFeature = (
     ffLoad,
     ffSave,
-    ffMultiImage,
-    ffProgress,
-    ffReadScanlines);
+    ffMultiImage,    // multiple images can be in the file
+    ffHugeImages,    // handles >4GB images, exact limits depend on file format
+    ffProgress,      // reports progress, unsupported now
+    ffReadScanlines  // return individual scanlines, unsupported now
+  );
 
   TFileFormatFeatures = set of TFileFormatFeature;
 
@@ -465,7 +482,7 @@ type
     function LoadFromStream(Stream: TStream; var Images: TDynImageDataArray;
       OnlyFirstLevel: Boolean = False): Boolean;
     { Loads images from memory source.}
-    function LoadFromMemory(Data: Pointer; Size: LongInt;
+    function LoadFromMemory(Data: Pointer; Size: Int64;
       var Images: TDynImageDataArray; OnlyFirstLevel: Boolean = False): Boolean;
 
     { Saves images to file. If format supports only single level images and
@@ -484,7 +501,7 @@ type
       independent images. Data must be already allocated and their size passed
       as Size parameter, number of written bytes is then returned in the same
       parameter.}
-    function SaveToMemory(Data: Pointer; var Size: LongInt;
+    function SaveToMemory(Data: Pointer; var Size: Int64;
       const Images: TDynImageDataArray; OnlyFirstLevel: Boolean = False): Boolean;
 
     { Makes Image compatible with this file format (that means it is in one
@@ -687,38 +704,37 @@ implementation
 
 uses
 {$IFNDEF DONT_LINK_FILE_FORMATS}
-{$IFNDEF DONT_LINK_BITMAP}
-  ImagingBitmap,
+  {$IFNDEF DONT_LINK_BITMAP}
+    ImagingBitmap,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_JPEG}
+    ImagingJpeg,
+  {$ENDIF}
+  {$IF not Defined(DONT_LINK_PNG) or not Defined(DONT_LINK_MNG) or not Defined(DONT_LINK_JNG)}
+    ImagingNetworkGraphics,
+  {$IFEND}
+  {$IFNDEF DONT_LINK_GIF}
+    ImagingGif,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_DDS}
+    ImagingDds,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_QOI}
+    ImagingQoi,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_TARGA}
+    ImagingTarga,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_PNM}
+    ImagingPortableMaps,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_RADHDR}
+    ImagingRadiance,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_EXT_FILE_FORMATS}
+    ImagingExtFileFormats,
+  {$ENDIF}
 {$ENDIF}
-{$IFNDEF DONT_LINK_JPEG}
-  ImagingJpeg,
-{$ENDIF}
-{$IF not Defined(DONT_LINK_PNG) or not Defined(DONT_LINK_MNG) or not Defined(DONT_LINK_JNG)}
-  ImagingNetworkGraphics,
-{$IFEND}
-{$IFNDEF DONT_LINK_GIF}
-  ImagingGif,
-{$ENDIF}
-{$IFNDEF DONT_LINK_DDS}
-  ImagingDds,
-{$ENDIF}
-{$IFNDEF DONT_LINK_QOI}
-  ImagingQoi,
-{$ENDIF}
-{$IFNDEF DONT_LINK_TARGA}
-  ImagingTarga,
-{$ENDIF}
-{$IFNDEF DONT_LINK_PNM}
-  ImagingPortableMaps,
-{$ENDIF}
-{$IFNDEF DONT_LINK_RADHDR}
-  ImagingRadiance,
-{$ENDIF}
-{$IFNDEF DONT_LINK_EXTRAS}
-  ImagingExtFileFormats,
-{$ENDIF}
-{$ENDIF}
-  //ImagingDebug,
   ImagingFormats, ImagingUtility, ImagingIO, Variants;
 
 resourcestring
@@ -817,7 +833,7 @@ var
   LoadOverrideFormat: TImageFormat = ifUnknown;
   // Variable for ImagingSaveOverrideFormat option
   SaveOverrideFormat: TImageFormat = ifUnknown;
-  // Variable for ImagingSaveOverrideFormat option
+  // Variable for ImagingMipMapFilter option
   MipMapFilter: TSamplingFilter = sfLinear;
   // Variable for ImagingBinaryThreshold option
   BinaryThreshold: Integer = 128;
@@ -1042,7 +1058,7 @@ begin
   end;
 end;
 
-function DetermineMemoryFormat(Data: Pointer; Size: LongInt): string;
+function DetermineMemoryFormat(Data: Pointer; Size: Int64): string;
 var
   I: LongInt;
   Fmt: TImageFileFormat;
@@ -1155,7 +1171,7 @@ begin
   end;
 end;
 
-function LoadImageFromMemory(Data: Pointer; Size: LongInt; var Image: TImageData): Boolean;
+function LoadImageFromMemory(Data: Pointer; Size: Int64; var Image: TImageData): Boolean;
 var
   Format: TImageFileFormat;
   IArray: TDynImageDataArray;
@@ -1210,7 +1226,7 @@ begin
   end;
 end;
 
-function LoadMultiImageFromMemory(Data: Pointer; Size: LongInt;
+function LoadMultiImageFromMemory(Data: Pointer; Size: Int64;
   var Images: TDynImageDataArray): Boolean;
 var
   Format: TImageFileFormat;
@@ -1260,7 +1276,7 @@ begin
   end;
 end;
 
-function SaveImageToMemory(const Ext: string; Data: Pointer; var Size: LongInt;
+function SaveImageToMemory(const Ext: string; Data: Pointer; var Size: Int64;
   const Image: TImageData): Boolean;
 var
   Format: TImageFileFormat;
@@ -1302,7 +1318,7 @@ begin
 end;
 
 function SaveMultiImageToMemory(const Ext: string; Data: Pointer;
-  var Size: LongInt; const Images: TDynImageDataArray): Boolean;
+  var Size: Int64; const Images: TDynImageDataArray): Boolean;
 var
   Format: TImageFileFormat;
 begin
@@ -1352,7 +1368,8 @@ function ConvertImage(var Image: TImageData; DestFormat: TImageFormat): Boolean;
 var
   NewData: Pointer;
   NewPal: PPalette32;
-  NewSize, NumPixels: Int64;
+  NewSize: Int64;
+  NumPixels: NativeInt;
   SrcInfo, DstInfo: PImageFormatInfo;
 begin
   Assert(IsImageFormatValid(DestFormat));
@@ -1388,10 +1405,12 @@ begin
 
     if (not SrcInfo.IsSpecial) and (not DstInfo.IsSpecial) then
     begin
-      NumPixels := Int64(Width) * Height;
-      NewSize := NumPixels * DstInfo.BytesPerPixel;
+      NumPixels := GetPixelCount(Image);
+      NewSize := Int64(NumPixels) * DstInfo.BytesPerPixel;
       NewData := AllocMem(NewSize);
-      NewPal := AllocMem(DstInfo.PaletteEntries * SizeOf(TColor32Rec));
+      NewPal := nil;
+      if DstInfo.PaletteEntries > 0 then
+        NewPal := AllocMem(DstInfo.PaletteEntries * SizeOf(TColor32Rec));
 
       if SrcInfo.IsIndexed then
       begin
@@ -1462,7 +1481,8 @@ end;
 
 function FlipImage(var Image: TImageData): Boolean;
 var
-  P1, P2, Buff: Pointer;
+  P1, P2: Pointer;
+  Buff: TDynByteArray;
   I: LongInt;
   WidthBytes: PtrInt;
   OldFmt: TImageFormat;
@@ -1477,19 +1497,16 @@ begin
       ConvertImage(Image, ifDefault);
 
     WidthBytes := Width * ImageFormatInfos[Format].BytesPerPixel;
-    GetMem(Buff, WidthBytes);
-    try
-      // Swap all scanlines of image
-      for I := 0 to Height div 2 - 1 do
-      begin
-        P1 := PBuffer(Bits) + I * WidthBytes;
-        P2 := PBuffer(Bits) + (Height - I - 1) * WidthBytes;
-        Move(P1^, Buff^, WidthBytes);
-        Move(P2^, P1^, WidthBytes);
-        Move(Buff^, P2^, WidthBytes);
-      end;
-    finally
-      FreeMemNil(Buff);
+    SetLength(Buff, WidthBytes);
+
+    // Swap all scanlines of image
+    for I := 0 to Height div 2 - 1 do
+    begin
+      P1 := GetScanlinePointer(Image, I);
+      P2 := GetScanlinePointer(Image, Height - I - 1);
+      Move(P1^, Buff[0], WidthBytes);
+      Move(P2^, P1^, WidthBytes);
+      Move(Buff[0], P2^, WidthBytes);
     end;
 
     if OldFmt <> Format then
@@ -1506,7 +1523,6 @@ var
   Scanline: PBuffer;
   Buff: TColorFPRec;
   Bpp, Y, X, WidthDiv2, XLeft, XRight: LongInt;
-  WidthBytes: PtrInt;
   OldFmt: TImageFormat;
 begin
   Result := False;
@@ -1519,12 +1535,11 @@ begin
 
     Bpp := ImageFormatInfos[Format].BytesPerPixel;
     WidthDiv2 := Width div 2;
-    WidthBytes := Width * Bpp;
 
     // Mirror all pixels on each scanline of image
     for Y := 0 to Height - 1 do
     begin
-      Scanline := @PBuffer(Bits)[Y * WidthBytes];
+      Scanline := GetScanlinePointer(Image, Y, Bpp);
       XLeft := 0;
       XRight := (Width - 1) * Bpp;
       for X := 0 to WidthDiv2 - 1 do
@@ -1593,7 +1608,7 @@ begin
   if TestImage(Image) and (SrcChannel <> DstChannel) then
   with Image do
   try
-    NumPixels := NativeInt(Width) * Height;
+    NumPixels := GetPixelCount(Image);
     Info := ImageFormatInfos[Format];
     Data := Bits;
 
@@ -1681,13 +1696,16 @@ function ReduceColors(var Image: TImageData; MaxColors: LongInt): Boolean;
 var
   TmpInfo: TImageFormatInfo;
   Data, Index: PWord;
-  I: LongInt;
+  I: NativeInt;
   NumPixels: Int64;
   Pal: PPalette32;
   Col:PColor32Rec;
   OldFmt: TImageFormat;
 begin
   Result := False;
+  Data := nil;
+  Pal := nil;
+
   if TestImage(Image) then
   with Image do
   try
@@ -1697,7 +1715,7 @@ begin
     FillChar(TmpInfo, SizeOf(TmpInfo), 0);
     TmpInfo.PaletteEntries := MaxColors;
     TmpInfo.BytesPerPixel := 2;
-    NumPixels := Width * Height;
+    NumPixels := GetPixelCount(Image);
     Data := AllocMem(NumPixels * TmpInfo.BytesPerPixel);
     Pal := AllocMem(MaxColors * SizeOf(TColor32Rec));
     ConvertImage(Image, ifA8R8G8B8);
@@ -1722,6 +1740,9 @@ begin
     ConvertImage(Image, OldFmt);
     Result := True;
   except
+    // Still allocated when the reduction itself has failed
+    FreeMem(Data);
+    FreeMem(Pal);
     RaiseImaging(SErrorReduceColors, [MaxColors, ImageToStr(Image)]);
   end;
 end;
@@ -1813,7 +1834,8 @@ function MapImageToPalette(var Image: TImageData; Pal: PPalette32;
   end;
 
 var
-  I, MaxEntries: LongInt;
+  I: NativeInt;
+  MaxEntries: LongInt;
   PIndex: PByte;
   PColor: PColor32Rec;
   CloneARGB: TImageData;
@@ -1843,7 +1865,7 @@ begin
     // given palette and assign its index to resulting image's pixel.
     // Procedure used here is very slow but simple and memory usage friendly
     // (contrary to other methods).
-    for I := 0 to Image.Width * Image.Height - 1 do
+    for I := 0 to GetPixelCount(Image) - 1 do
     begin
       PIndex^ := Byte(FindNearestColor(Image.Palette, MaxEntries, PColor^));
       Inc(PIndex);
@@ -1968,7 +1990,7 @@ begin
         TempImage := Images[I];
 
       // Update histogram with colors of each input image
-      ReduceColorsMedianCut(TempImage.Width * TempImage.Height, TempImage.Bits,
+      ReduceColorsMedianCut(GetPixelCount(TempImage), TempImage.Bits,
         nil, SrcInfo, nil, MaxColors, ColorReductionMask, nil, [raUpdateHistogram]);
 
       if Images[I].Bits <> TempImage.Bits then
@@ -1999,7 +2021,7 @@ begin
         NewImage(Images[I].Width, Images[I].Height, DstFormat, Target);
         // We map each input image to reduced palette and replace
         // image in array with mapped image
-        ReduceColorsMedianCut(Images[I].Width * Images[I].Height, Images[I].Bits,
+        ReduceColorsMedianCut(GetPixelCount(Images[I]), Images[I].Bits,
           Target.Bits, SrcInfo, DstInfo, MaxColors, 0, nil, [raMapImage]);
         Move(Pal^, Target.Palette^, MaxColors * SizeOf(TColor32Rec));
 
@@ -2178,7 +2200,7 @@ var
         begin
           for Y := 0 to RotImage.Height - 1 do
           begin
-            Pix := @PBuffer(Image.Bits)[(Image.Width - Y - 1) * BytesPerPixel];
+            Pix := GetPixelPointer(Image, Image.Width - Y - 1, 0, BytesPerPixel);
             for X := 0 to RotImage.Width - 1 do
             begin
               CopyPixel(Pix, RotPix, BytesPerPixel);
@@ -2189,8 +2211,7 @@ var
         end;
       180:
         begin
-          Pix := @PBuffer(Image.Bits)[((Image.Height - 1) * Image.Width +
-            (Image.Width - 1)) * BytesPerPixel];
+          Pix := GetPixelPointer(Image, Image.Width - 1, Image.Height - 1, BytesPerPixel);
           for Y := 0 to RotImage.Height - 1 do
             for X := 0 to RotImage.Width - 1 do
             begin
@@ -2203,7 +2224,7 @@ var
         begin
           for Y := 0 to RotImage.Height - 1 do
           begin
-            Pix := @PBuffer(Image.Bits)[((Image.Height - 1) * Image.Width + Y) * BytesPerPixel];
+            Pix := GetPixelPointer(Image, Y, Image.Height - 1, BytesPerPixel);
             for X := 0 to RotImage.Width - 1 do
             begin
               CopyPixel(Pix, RotPix, BytesPerPixel);
@@ -2215,6 +2236,7 @@ var
     end;
 
     FreeMemNil(Image.Bits);
+    FreeMem(RotImage.Palette);
     RotImage.Palette := Image.Palette;
     Image := RotImage;
   end;
@@ -2295,7 +2317,7 @@ begin
         begin
           for Y := 0 to RotImage.Height - 1 do
           begin
-            Pix := @PBuffer(Image.Bits)[(Image.Width - Y - 1) * BytesPerPixel];
+            Pix := GetPixelPointer(Image, Image.Width - Y - 1, 0, BytesPerPixel);
             for X := 0 to RotImage.Width - 1 do
             begin
               CopyPixel(Pix, RotPix, BytesPerPixel);
@@ -2306,8 +2328,7 @@ begin
         end;
       180:
         begin
-          Pix := @PBuffer(Image.Bits)[((Image.Height - 1) * Image.Width +
-            (Image.Width - 1)) * BytesPerPixel];
+          Pix := GetPixelPointer(Image, Image.Width - 1, Image.Height - 1, BytesPerPixel);
           for Y := 0 to RotImage.Height - 1 do
             for X := 0 to RotImage.Width - 1 do
             begin
@@ -2320,7 +2341,7 @@ begin
         begin
           for Y := 0 to RotImage.Height - 1 do
           begin
-            Pix := @PBuffer(Image.Bits)[((Image.Height - 1) * Image.Width + Y) * BytesPerPixel];
+            Pix := GetPixelPointer(Image, Y, Image.Height - 1, BytesPerPixel);
             for X := 0 to RotImage.Width - 1 do
             begin
               CopyPixel(Pix, RotPix, BytesPerPixel);
@@ -2332,6 +2353,7 @@ begin
     end;
 
     FreeMemNil(Image.Bits);
+    FreeMem(RotImage.Palette);
     RotImage.Palette := Image.Palette;
     Image := RotImage;
   except
@@ -2382,9 +2404,9 @@ begin
 
       MoveBytes := Width * Info.BytesPerPixel;
       DstWidthBytes := DstImage.Width * Info.BytesPerPixel;
-      DstPointer := @PBuffer(DstImage.Bits)[DstY * DstWidthBytes + DstX * Info.BytesPerPixel];
+      DstPointer := GetPixelPointer(DstImage, DstX, DstY, Info.BytesPerPixel);
       SrcWidthBytes := WorkImage.Width * Info.BytesPerPixel;
-      SrcPointer := @PBuffer(WorkImage.Bits)[SrcY * SrcWidthBytes + SrcX * Info.BytesPerPixel];
+      SrcPointer := GetPixelPointer(WorkImage, SrcX, SrcY, Info.BytesPerPixel);
 
       for I := 0 to Height - 1 do
       begin
@@ -2430,7 +2452,7 @@ begin
       Bpp := Info.BytesPerPixel;
       ImageWidthBytes := Image.Width * Bpp;
       RectWidthBytes := Width * Bpp;
-      LinePointer := @PBuffer(Image.Bits)[Y * ImageWidthBytes + X * Bpp];
+      LinePointer := GetPixelPointer(Image, X, Y, Bpp);
 
       for I := 0 to Height - 1 do
       begin
@@ -2483,7 +2505,7 @@ begin
       Info := ImageFormatInfos[Image.Format];
       Bpp := Info.BytesPerPixel;
       WidthBytes := Image.Width * Bpp;
-      LinePointer := @PBuffer(Image.Bits)[Y * WidthBytes + X * Bpp];
+      LinePointer := GetPixelPointer(Image, X, Y, Bpp);
 
       for I := 0 to Height - 1 do
       begin
@@ -2665,6 +2687,18 @@ begin
   Info := ImageFormatInfos[Image.Format];
   Data := @PBuffer(Image.Bits)[(Y * PtrInt(Image.Width) + X) * Info.BytesPerPixel];
   SetPixel64Generic(Data, Info, Image.Palette, Color);
+end;
+
+function GetPixelPointer(const Image: TImageData; X, Y: Integer): Pointer;
+begin
+  Assert(not ImageFormatInfos[Image.Format].IsSpecial);
+  Result := GetPixelPointer(Image, X, Y, ImageFormatInfos[Image.Format].BytesPerPixel);
+end;
+
+function GetScanlinePointer(const Image: TImageData; Y: Integer): Pointer;
+begin
+  Assert(not ImageFormatInfos[Image.Format].IsSpecial);
+  Result := GetScanlinePointer(Image, Y, ImageFormatInfos[Image.Format].BytesPerPixel);
 end;
 
 { Palette Functions }
@@ -2864,6 +2898,11 @@ begin
     Result := ImageFormatInfos[Format].GetPixelsSize(Format, Width, Height)
   else
     Result := 0;
+end;
+
+function GetPixelCount(const Image: TImageData): NativeInt;
+begin
+  Result := NativeInt(Image.Width) * Image.Height;
 end;
 
 { IO Functions }
@@ -3108,6 +3147,7 @@ procedure ResizeImageToFit(const SrcImage: TImageData; FitWidth, FitHeight: Inte
   Filter: TResizeFilter; var DestImage: TImageData);
 var
   CurSize, FitSize, DestSize: TSize;
+  WorkImage: TImageData;
 begin
   if not TestImage(SrcImage) then
     raise EImagingError.Create(SErrorInvalidInputImage);
@@ -3118,12 +3158,23 @@ begin
   CurSize.CY := SrcImage.Height;
   DestSize := ImagingUtility.ScaleSizeToFit(CurSize, FitSize);
 
-  NewImage(Max(DestSize.CX, 1), Max(DestSize.CY, 1), SrcImage.Format, DestImage);
-  if SrcImage.Palette <> nil then
-    CopyPalette(SrcImage.Palette, DestImage.Palette, 0, 0, ImageFormatInfos[SrcImage.Format].PaletteEntries);
+  // Resized to a work image as the source and destination can be the same image
+  InitImage(WorkImage);
 
-  StretchRect(SrcImage, 0, 0, CurSize.CX, CurSize.CY, DestImage, 0, 0,
-    DestSize.CX, DestSize.CY, Filter);
+  try
+    NewImage(Max(DestSize.CX, 1), Max(DestSize.CY, 1), SrcImage.Format, WorkImage);
+    if SrcImage.Palette <> nil then
+      CopyPalette(SrcImage.Palette, WorkImage.Palette, 0, 0, ImageFormatInfos[SrcImage.Format].PaletteEntries);
+
+    StretchRect(SrcImage, 0, 0, CurSize.CX, CurSize.CY, WorkImage, 0, 0,
+      DestSize.CX, DestSize.CY, Filter);
+  except
+    FreeImage(WorkImage);
+    raise;
+  end;
+
+  FreeImage(DestImage);
+  DestImage := WorkImage;
 end;
 
 { Color constructor functions }
@@ -3736,7 +3787,7 @@ begin
   end;
 end;
 
-function TImageFileFormat.LoadFromMemory(Data: Pointer; Size: LongInt; var
+function TImageFileFormat.LoadFromMemory(Data: Pointer; Size: Int64; var
   Images: TDynImageDataArray; OnlyFirstLevel: Boolean): Boolean;
 var
   Handle: TImagingHandle;
@@ -3865,7 +3916,7 @@ begin
   end;
 end;
 
-function TImageFileFormat.SaveToMemory(Data: Pointer; var Size: LongInt;
+function TImageFileFormat.SaveToMemory(Data: Pointer; var Size: Int64;
   const Images: TDynImageDataArray; OnlyFirstLevel: Boolean): Boolean;
 var
   Handle: TImagingHandle;

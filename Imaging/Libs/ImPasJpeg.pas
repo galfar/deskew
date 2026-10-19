@@ -45,7 +45,9 @@ unit ImPasJpeg;
   Undefining some of these symbols will produce a smaller but less capable
   library. }
 
-{ Arithmetic coding is unsupported for legal reasons.  Complaints to IBM. }
+{ Arithmetic coding is not implemented: the original library (libjpeg 6b)
+  left it out for legal reasons (patents, expired since) and the coder
+  was never added to this translation. }
 
 { Capability options common to encoder and decoder: }
 
@@ -518,7 +520,7 @@ const
 
 { For maintenance convenience, list is alphabetical by message code name }
   { JERR_ARITH_NOTIMPL }
-	 'Sorry, there are legal restrictions on arithmetic coding',
+	 'Sorry, arithmetic coding is not implemented',
   { JERR_BAD_ALIGN_TYPE } 'ALIGN_TYPE is wrong, please fix',
   { JERR_BAD_ALLOC_CHUNK } 'MAX_ALLOC_CHUNK is wrong, please fix',
   { JERR_BAD_BUFFER_MODE } 'Bogus buffer control mode',
@@ -11627,7 +11629,6 @@ var
   ci, tbl : int;
   compptr : jpeg_component_info_ptr;
 begin
-  tbl := 0;
   entropy := jcphuff_phuff_entropy_ptr (cinfo^.entropy);
 
   entropy^.cinfo := cinfo;
@@ -12403,7 +12404,6 @@ var
   htblptr : ^JHUFF_TBL_PTR;
   did : array[0..NUM_HUFF_TBLS-1] of boolean;
 begin
-  tbl := 0;
   entropy := jcphuff_phuff_entropy_ptr (cinfo^.entropy);
 
   { Flush out buffered data (all we care about is counting the EOB symbol) }
@@ -15633,7 +15633,7 @@ begin
     scanptr := fill_a_scan(scanptr, 2, 1, 63, 1, 0);
     scanptr := fill_a_scan(scanptr, 1, 1, 63, 1, 0);
     { Luma bottom bit comes last since it's usually largest scan }
-    scanptr := fill_a_scan(scanptr, 0, 1, 63, 1, 0);
+    fill_a_scan(scanptr, 0, 1, 63, 1, 0);
   end
   else
   begin
@@ -15646,7 +15646,7 @@ begin
     scanptr := fill_scans(scanptr, ncomps, 1, 63, 2, 1);
     { Successive approximation final pass }
     scanptr := fill_dc_scans(scanptr, ncomps, 1, 0);
-    scanptr := fill_scans(scanptr, ncomps, 1, 63, 1, 0);
+    fill_scans(scanptr, ncomps, 1, 63, 1, 0);
   end;
 end;
 
@@ -17137,7 +17137,7 @@ begin
   begin
     { Start of APP14 does not match "Adobe", or too short }
     {$IFDEF DEBUG}
-    TRACEMS1(j_common_ptr(cinfo), 1, JTRC_APP14, int (datalen + remaining));
+    TRACEMS1(j_common_ptr(cinfo), 1, JTRC_APP14, int(datalen) + remaining);
     {$ENDIF}
   end;
 end;
@@ -17441,7 +17441,7 @@ begin
   else
     {$IFDEF DEBUG}
     TRACEMS2(j_common_ptr(cinfo), 1, JTRC_MISC_MARKER, cinfo^.unread_marker,
-	     int(data_length + length));
+	     int(data_length) + length);
     {$ENDIF}
   end;
 
@@ -19904,8 +19904,10 @@ begin
     entropy^.saved := state;
   end;
 
-  { Account for restart interval (no-op if not using restarts) }
-  Dec(entropy^.restarts_to_go);
+  { Account for restart interval (no-op if not using restarts).
+    Counter is unsigned and stays 0 without restarts, C code lets it wrap. }
+  if entropy^.restarts_to_go > 0 then
+    Dec(entropy^.restarts_to_go);
 
   decode_mcu_DC_first := TRUE;
 end;
@@ -20098,8 +20100,10 @@ begin
     entropy^.saved.EOBRUN := EOBRUN; { only part of saved state we care about }
   end;
 
-  { Account for restart interval (no-op if not using restarts) }
-  Dec(entropy^.restarts_to_go);
+  { Account for restart interval (no-op if not using restarts).
+    Counter is unsigned and stays 0 without restarts, C code lets it wrap. }
+  if entropy^.restarts_to_go > 0 then
+    Dec(entropy^.restarts_to_go);
 
   decode_mcu_AC_first := TRUE;
 end;
@@ -20181,8 +20185,10 @@ begin
   entropy^.bitstate.get_buffer := get_buffer;
   entropy^.bitstate.bits_left := bits_left;
 
-  { Account for restart interval (no-op if not using restarts) }
-  Dec(entropy^.restarts_to_go);
+  { Account for restart interval (no-op if not using restarts).
+    Counter is unsigned and stays 0 without restarts, C code lets it wrap. }
+  if entropy^.restarts_to_go > 0 then
+    Dec(entropy^.restarts_to_go);
 
   decode_mcu_DC_refine := TRUE;
 end;
@@ -20454,8 +20460,10 @@ begin
     entropy^.saved.EOBRUN := EOBRUN; { only part of saved state we care about }
   end;
 
-  { Account for restart interval (no-op if not using restarts) }
-  Dec(entropy^.restarts_to_go);
+  { Account for restart interval (no-op if not using restarts).
+    Counter is unsigned and stays 0 without restarts, C code lets it wrap. }
+  if entropy^.restarts_to_go > 0 then
+    Dec(entropy^.restarts_to_go);
 
   decode_mcu_AC_refine := TRUE;
   exit;

@@ -9,20 +9,46 @@
 {*******************************************************}
 
 {
-  Modified for 
+  Modified for
   Vampyre Imaging Library
-  by Marek Mauder 
-  http://imaginglib.sourceforge.net
+  by Marek Mauder
+  https://github.com/galfar/imaginglib
+  https://imaginglib.sourceforge.io
+}
 
-  You can choose which pascal zlib implementation will be
-  used. IMPASZLIB and FPCPASZLIB are translations of zlib
-  to pascal so they don't need any *.obj files.
-  The others are interfaces to *.obj files (Windows) or
-  *.so libraries (Linux).
-    Default implementation is IMPASZLIB because it can be compiled
-  by all supported compilers and works on all supported platforms.
-    FPCPASZLIB is useful for Lazarus applications. FPC's zlib is linked
-  to exe by default so there is no need to link additional (and almost identical) IMPASZLIB.
+{ All zlib (de)compression in Imaging goes through this unit. It selects
+  the zlib implementation (backend) at compile time and provides buffer to
+  buffer functions and compression streams, so the rest of
+  the library doesn't depend on which zlib is in use.
+
+  Backends:
+
+  ZLIB_USE_BUNDLED - ImPasZLib unit, Pascal translation of zlib 1.1.2 bundled with
+                     Imaging. Compiles everywhere (Delphi 7+, FPC) and needs no
+                     external files, but it is the slowest one.
+  ZLIB_USE_FPC     - paszlib package of Free Pascal (Pascal translation as well).
+                     It is usually linked to FPC and Lazarus programs anyway so
+                     there is no need to add another, almost identical, copy.
+  ZLIB_USE_DELPHI  - ZLib unit of Delphi RTL: recent zlib compiled from C sources
+                     and linked statically, can be 2x faster than ZLIB_USE_BUNDLED.
+  ZLIB_USE_DYNLIB  - zlib shared library bound by ZLibDynLib unit: zlib1.dll,
+                     libz.so.1, or libz.1.dylib (zlib-ng in compat mode works too).
+                     The library is loaded at program start and it must be
+                     present, there is no fallback to another backend at run time.
+
+  Selection:
+
+  By default the backend is chosen automatically:
+    - Free Pascal: ZLIB_USE_FPC
+    - Delphi XE3 and newer: ZLIB_USE_DELPHI
+    - older Delphi: ZLIB_USE_BUNDLED
+
+  Define ZLIB_USE_BUNDLED or ZLIB_USE_DYNLIB to override the automatic choice
+  (ZLIB_USE_BUNDLED wins when both are defined). The defines are listed in
+  ImagingOptions.inc, set them there, in project options, or in
+  ImagingUserOptions.inc.
+  ZLIB_USE_FPC and ZLIB_USE_DELPHI are set by the automatic choice and are not
+  meant to be defined by hand.
 }
 
 unit ImagingZLib;
@@ -31,44 +57,42 @@ unit ImagingZLib;
 
 interface
 
-{ $DEFINE IMPASZLIB}
-{ $DEFINE ZLIB_DYNLIB}
+{$IFNDEF HAS_DYNLIBS}
+  {$UNDEF ZLIB_USE_DYNLIB}
+{$ENDIF}
 
-{ $DEFINE FPCPASZLIB}
-{ $DEFINE DELPHIZLIB}
-
-{$IF not Defined(IMPASZLIB) and not Defined(ZLIB_DYNLIB)}
+{$IF not Defined(ZLIB_USE_BUNDLED) and not Defined(ZLIB_USE_DYNLIB)}
   {$DEFINE NO_USER_ZLIB}
 {$IFEND}
 
 
 {$IF Defined(FPC) and Defined(NO_USER_ZLIB)}
   { Automatically use FPC's PasZLib when compiling with FPC.}
-  {$DEFINE FPCPASZLIB}
+  {$DEFINE ZLIB_USE_FPC}
 {$IFEND}
 
 {$IF Defined(DELPHI) and (CompilerVersion > 23) and Defined(NO_USER_ZLIB)}
   { Automatically use Delphi's ZLib when compiling with Delphi (recent versions include
-    recentish ZLib compiled to objects, can be 2x faster than IMPASZLIB).
+    recentish ZLib compiled to objects, can be 2x faster than ZLIB_USE_BUNDLED).
     Needs Delphi XE2+ for deflateInit2 etc.}
-  {$DEFINE DELPHIZLIB}
+  {$DEFINE ZLIB_USE_DELPHI}
 {$IFEND}
 
-{$IF not Defined(FPCPASZLIB) and not Defined(DELPHIZLIB) and not Defined(ZLIB_DYNLIB)}
-  {$DEFINE IMPASZLIB}  // Fallback
+{$IF not Defined(ZLIB_USE_FPC) and not Defined(ZLIB_USE_DELPHI) and not Defined(ZLIB_USE_DYNLIB)}
+  {$DEFINE ZLIB_USE_BUNDLED}  // Fallback
 {$IFEND}
 
 uses
-{$IF Defined(IMPASZLIB)}
+{$IF Defined(ZLIB_USE_BUNDLED)}
   { Use paszlib modified by me for Delphi and FPC. Fall-back solution. }
   ImPasZLib,
-{$ELSEIF Defined(FPCPASZLIB)}
+{$ELSEIF Defined(ZLIB_USE_FPC)}
   { Use FPC's paszlib }
   zbase, paszlib,
-{$ELSEIF Defined(DELPHIZLIB)}
+{$ELSEIF Defined(ZLIB_USE_DELPHI)}
   { Use ZLib unit shipped with Delphi }
   ZLib,
-{$ELSEIF Defined(ZLIB_DYNLIB)}
+{$ELSEIF Defined(ZLIB_USE_DYNLIB)}
   { Use zlib dll/so/dylib. Can also use zlib-ng compat. }
   ZLibDynLib,
 {$IFEND}
@@ -84,8 +108,8 @@ type
        InBytes = number of bytes in InBuf
   Out: OutBuf = ptr to newly allocated buffer containing decompressed data
        OutBytes = number of bytes in OutBuf   }
-  procedure CompressBuf(const InBuf: Pointer; InBytes: Integer;
-    var OutBuf: Pointer; var OutBytes: Integer;
+  procedure CompressBuf(const InBuf: Pointer; InBytes: NativeInt;
+    var OutBuf: Pointer; var OutBytes: NativeInt;
     CompressLevel: Integer = Z_DEFAULT_COMPRESSION;
     CompressStrategy: Integer = Z_DEFAULT_STRATEGY);
 
@@ -95,18 +119,68 @@ type
          OutEstimate = zero, or est. size of the decompressed data
     Out: OutBuf = ptr to newly allocated buffer containing decompressed data
          OutBytes = number of bytes in OutBuf   }
-  procedure DecompressBuf(const InBuf: Pointer; InBytes: Integer;
-    OutEstimate: Integer; var OutBuf: Pointer; var OutBytes: Integer);
+  procedure DecompressBuf(const InBuf: Pointer; InBytes: NativeInt;
+    OutEstimate: NativeInt; var OutBuf: Pointer; var OutBytes: NativeInt);
+
+type
+  { State of decompression of one zlib stream, see ZInflateBegin.}
+  TZInflater = record
+    Stream: TZStreamRec;
+    Active: Boolean;
+    Finished: Boolean;
+  end;
+
+  { State of compression of one zlib stream, see ZDeflateBegin.}
+  TZDeflater = record
+    Stream: TZStreamRec;
+    Active: Boolean;
+    Finished: Boolean;
+  end;
+
+const
+  { The largest number of bytes given to zlib in one call, its byte counts
+    are 32-bit. Larger inputs and outputs are passed in more calls.}
+  MaxZLibBlock = 1 shl 30;  // 1 GB
+
+{ Starts decompression of a zlib stream. Data are passed in by ZInflateData,
+  ZInflateEnd must be called at the end (also when an exception is raised).}
+procedure ZInflateBegin(var Inflater: TZInflater);
+{ Decompresses data from Input to Output. Consumed and Produced return
+  the numbers of bytes read from Input and written to Output. Returns False
+  when the end of the zlib stream has been reached (data after it are not
+  read), True when more input or output space is needed. Raises
+  EDecompressionError for damaged data.}
+function ZInflateData(var Inflater: TZInflater; Input: Pointer; InputSize: NativeInt;
+  Output: Pointer; OutputSize: NativeInt; out Consumed, Produced: NativeInt): Boolean;
+{ Releases memory used by decompression.}
+procedure ZInflateEnd(var Inflater: TZInflater);
+
+{ Starts compression to a zlib stream with given level (0..9 or
+  Z_DEFAULT_COMPRESSION) and strategy (Z_DEFAULT_STRATEGY, ...). Data are
+  passed in by ZDeflateData, ZDeflateEnd must be called at the end (also when
+  an exception is raised).}
+procedure ZDeflateBegin(var Deflater: TZDeflater; Level, Strategy: Integer);
+{ Compresses data from Input to Output. Consumed and Produced return
+  the numbers of bytes read from Input and written to Output. With Finish set
+  the rest of the stream is written out after the input (call it again with
+  more output space while it returns True). Returns False when the whole
+  stream has been written.}
+function ZDeflateData(var Deflater: TZDeflater; Input: Pointer; InputSize: NativeInt;
+  Output: Pointer; OutputSize: NativeInt; Finish: Boolean; out Consumed, Produced: NativeInt): Boolean;
+{ Releases memory used by compression.}
+procedure ZDeflateEnd(var Deflater: TZDeflater);
 
 type
   { Abstract ancestor class }
   TCustomZLibStream = class(TStream)
   private
     FStrm: TStream;
-    FStrmPos: Integer;
+    FStrmPos: Int64;
     FOnProgress: TNotifyEvent;
-    FZRec: TZStreamRec;
     FBuffer: array [Word] of Byte;
+    // Numbers of uncompressed and compressed bytes processed so far, zlib's
+    // own counters are 32-bit
+    FTotalIn, FTotalOut: Int64;
   protected
     procedure Progress(Sender: TObject); dynamic;
     property OnProgress: TNotifyEvent read FOnProgress write FOnProgress;
@@ -142,13 +216,16 @@ type
 
   TCompressionStream = class(TCustomZlibStream)
   private
+    FDeflater: TZDeflater;
+    FOutLen: Integer; // Compressed bytes in FBuffer
     function GetCompressionRate: Single;
+    procedure FlushBuffer;
   public
     constructor Create(CompressionLevel: TCompressionLevel; Dest: TStream);
     destructor Destroy; override;
     function Read(var Buffer; Count: Longint): Longint; override;
     function Write(const Buffer; Count: Longint): Longint; override;
-    function Seek(Offset: Longint; Origin: Word): Longint; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     property CompressionRate: Single read GetCompressionRate;
     property OnProgress;
   end;
@@ -172,12 +249,16 @@ type
   large chunk of data from the decompression stream in a single call.}
 
   TDecompressionStream = class(TCustomZlibStream)
+  private
+    FInflater: TZInflater;
+    FStrmStart: Int64;        // Position of compressed data in source stream
+    FBufPos, FBufLen: Integer; // Unread compressed data in FBuffer
   public
     constructor Create(Source: TStream);
     destructor Destroy; override;
     function Read(var Buffer; Count: Longint): Longint; override;
     function Write(const Buffer; Count: Longint): Longint; override;
-    function Seek(Offset: Longint; Origin: Word): Longint; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     property OnProgress;
   end;
 
@@ -186,6 +267,20 @@ type
   ECompressionError = class(EZlibError);
   EDecompressionError = class(EZlibError);
 
+type
+  { zlib implementation compiled in, see Backends above.}
+  TZLibBackend = (
+    zbBundled,  // ImPasZLib
+    zbFpc,      // paszlib package of Free Pascal
+    zbDelphi,   // ZLib unit of Delphi RTL
+    zbDynLib    // zlib shared library
+  );
+
+{ Returns zlib implementation in use (chosen at compile time).}
+function ZLibBackend: TZLibBackend;
+{ Returns version of zlib reported by the backend, e.g. '1.3.1'.}
+function GetZLibVersion: string;
+
 implementation
 
 const
@@ -193,12 +288,12 @@ const
   // parts supported since forever.
   MinZLibVersion = '1.1.2';
 
-{$IF not Defined(IMPASZLIB) and not Defined(FPCPASZLIB)}
+{$IF not Defined(ZLIB_USE_BUNDLED) and not Defined(ZLIB_USE_FPC)}
   // Use Pascal mem allocation when using compiled C libs
   {$DEFINE USE_PASCAL_ALLOC}
 {$IFEND}
 
-{$IF Defined(DELPHIZLIB) or Defined(ZLIB_DYNLIB)}
+{$IF Defined(ZLIB_USE_DELPHI) or Defined(ZLIB_USE_DYNLIB)}
 const
   DEF_MEM_LEVEL = 9;
   MAX_WBITS = 15;
@@ -241,100 +336,273 @@ begin
     raise EDecompressionError.Create('zlib: ' + ZErrorMessages[2 - code]);
 end;
 
-procedure CompressBuf(const InBuf: Pointer; InBytes: Integer;
-  var OutBuf: Pointer; var OutBytes: Integer;
+{ Streaming interface }
+
+function MinSize(A, B: NativeInt): NativeInt; {$IFDEF USE_INLINE}inline;{$ENDIF}
+begin
+  if A < B then
+    Result := A
+  else
+    Result := B;
+end;
+
+procedure ZInflateBegin(var Inflater: TZInflater);
+begin
+  FillChar(Inflater, SizeOf(Inflater), 0);
+{$IFDEF USE_PASCAL_ALLOC}
+  Inflater.Stream.zalloc := @zlibAllocMem;
+  Inflater.Stream.zfree := @zlibFreeMem;
+{$ENDIF}
+  DCheck(inflateInit_(Inflater.Stream, MinZLibVersion, SizeOf(Inflater.Stream)));
+  Inflater.Active := True;
+end;
+
+function ZInflateData(var Inflater: TZInflater; Input: Pointer; InputSize: NativeInt;
+  Output: Pointer; OutputSize: NativeInt; out Consumed, Produced: NativeInt): Boolean;
+var
+  InBlock, OutBlock, Used, Made: NativeInt;
+  Code: Integer;
+  NoOutput: Byte;
+begin
+  Consumed := 0;
+  Produced := 0;
+  if Inflater.Finished then
+  begin
+    Result := False;
+    Exit;
+  end;
+  // zlib needs valid output pointer even when there is no room in it
+  if Output = nil then
+    Output := @NoOutput;
+
+  // Input and output are passed in blocks, zlib counts are 32-bit. inflate is
+  // called at least once, the end of stream (checksum) can be read also when
+  // the output is full.
+  repeat
+    InBlock := MinSize(InputSize - Consumed, MaxZLibBlock);
+    OutBlock := MinSize(OutputSize - Produced, MaxZLibBlock);
+    Inflater.Stream.next_in := Pointer(@PBuffer(Input)[Consumed]);
+    Inflater.Stream.avail_in := InBlock;
+    Inflater.Stream.next_out := Pointer(@PBuffer(Output)[Produced]);
+    Inflater.Stream.avail_out := OutBlock;
+
+    Code := inflate(Inflater.Stream, Z_NO_FLUSH);
+    Used := InBlock - NativeInt(Inflater.Stream.avail_in);
+    Made := OutBlock - NativeInt(Inflater.Stream.avail_out);
+    Inc(Consumed, Used);
+    Inc(Produced, Made);
+
+    if Code = Z_STREAM_END then
+    begin
+      Inflater.Finished := True;
+      Break;
+    end
+    else if Code = Z_BUF_ERROR then
+      Break // No progress possible: more input or output space is needed
+    else
+      DCheck(Code);
+
+    if (Used = 0) and (Made = 0) then
+      Break;
+  until Produced >= OutputSize;
+
+  Result := not Inflater.Finished;
+end;
+
+procedure ZInflateEnd(var Inflater: TZInflater);
+begin
+  if Inflater.Active then
+  begin
+    Inflater.Active := False;
+    inflateEnd(Inflater.Stream);
+  end;
+end;
+
+procedure ZDeflateBegin(var Deflater: TZDeflater; Level, Strategy: Integer);
+begin
+  FillChar(Deflater, SizeOf(Deflater), 0);
+{$IFDEF USE_PASCAL_ALLOC}
+  Deflater.Stream.zalloc := @zlibAllocMem;
+  Deflater.Stream.zfree := @zlibFreeMem;
+{$ENDIF}
+  CCheck(deflateInit2_(Deflater.Stream, Level, Z_DEFLATED, MAX_WBITS,
+    DEF_MEM_LEVEL, Strategy, MinZLibVersion, SizeOf(Deflater.Stream)));
+  Deflater.Active := True;
+end;
+
+function ZDeflateData(var Deflater: TZDeflater; Input: Pointer; InputSize: NativeInt;
+  Output: Pointer; OutputSize: NativeInt; Finish: Boolean; out Consumed, Produced: NativeInt): Boolean;
+var
+  InBlock, OutBlock, Used, Made: NativeInt;
+  Flush, Code: Integer;
+  NoOutput: Byte;
+begin
+  Consumed := 0;
+  Produced := 0;
+  // zlib needs valid output pointer even when there is no room in it
+  if Output = nil then
+    Output := @NoOutput;
+
+  // Input and output are passed in blocks, zlib counts are 32-bit
+  while not Deflater.Finished and (Produced < OutputSize) do
+  begin
+    InBlock := MinSize(InputSize - Consumed, MaxZLibBlock);
+    OutBlock := MinSize(OutputSize - Produced, MaxZLibBlock);
+    // Stream can be finished only together with the last block of input
+    if Finish and (Consumed + InBlock = InputSize) then
+      Flush := Z_FINISH
+    else
+      Flush := Z_NO_FLUSH;
+
+    Deflater.Stream.next_in := Pointer(@PBuffer(Input)[Consumed]);
+    Deflater.Stream.avail_in := InBlock;
+    Deflater.Stream.next_out := Pointer(@PBuffer(Output)[Produced]);
+    Deflater.Stream.avail_out := OutBlock;
+
+    Code := deflate(Deflater.Stream, Flush);
+    Used := InBlock - NativeInt(Deflater.Stream.avail_in);
+    Made := OutBlock - NativeInt(Deflater.Stream.avail_out);
+    Inc(Consumed, Used);
+    Inc(Produced, Made);
+
+    if Code = Z_STREAM_END then
+      Deflater.Finished := True
+    else if Code = Z_BUF_ERROR then
+      Break // No progress possible: input is used and nothing more to write now
+    else
+      CCheck(Code);
+
+    if (Used = 0) and (Made = 0) then
+      Break;
+    // Without Finish only the given input is processed
+    if not Finish and (Consumed = InputSize) and (Deflater.Stream.avail_out > 0) then
+      Break;
+  end;
+
+  Result := not Deflater.Finished;
+end;
+
+procedure ZDeflateEnd(var Deflater: TZDeflater);
+begin
+  if Deflater.Active then
+  begin
+    Deflater.Active := False;
+    deflateEnd(Deflater.Stream);
+  end;
+end;
+
+{ Buffer functions }
+
+procedure CompressBuf(const InBuf: Pointer; InBytes: NativeInt;
+  var OutBuf: Pointer; var OutBytes: NativeInt;
   CompressLevel, CompressStrategy: Integer);
 var
-  ZStream: TZStreamRec;
+  Deflater: TZDeflater;
+  InPos, OutPos, Consumed, Produced: NativeInt;
 begin
-  FillChar(ZStream, sizeof(ZStream), 0);
-{$IFDEF USE_PASCAL_ALLOC}
-  ZStream.zalloc := @zlibAllocMem;
-  ZStream.zfree := @zlibFreeMem;
-{$ENDIF}
-  // Estimates ~1.1 * InBytes as initial compressed size: usually much slower,
-  // if incompressible the deflate() loop will increase the buffer size incrementaly.
-  // With newer ZLib we could use deflateBound() to get rid of the loop.
-
+  // Estimates ~1.1 * InBytes as initial compressed size, grows the buffer when
+  // the data are incompressible
   OutBytes := ((InBytes + (InBytes div 10) + 12) + 255) and not 255;
   GetMem(OutBuf, OutBytes);
+  InPos := 0;
+  OutPos := 0;
 
   try
-    ZStream.next_in := InBuf;
-    ZStream.avail_in := InBytes;
-    ZStream.next_out := OutBuf;
-    ZStream.avail_out := OutBytes;
-
-    CCheck(deflateInit2_(ZStream, CompressLevel, Z_DEFLATED, MAX_WBITS,
-      DEF_MEM_LEVEL, CompressStrategy, MinZLibVersion, SizeOf(z_stream)));
-
+    ZDeflateBegin(Deflater, CompressLevel, CompressStrategy);
     try
-      while CCheck(deflate(ZStream, Z_FINISH)) <> Z_STREAM_END do
+      while ZDeflateData(Deflater, @PBuffer(InBuf)[InPos], InBytes - InPos,
+                        @PBuffer(OutBuf)[OutPos], OutBytes - OutPos, True, Consumed, Produced) do
       begin
-        Inc(OutBytes, 256);
-        ReallocMem(OutBuf, OutBytes);
-        ZStream.next_out := Pointer(PtrUInt(OutBuf) + ZStream.total_out);
-        ZStream.avail_out := 256;
+        Inc(InPos, Consumed);
+        Inc(OutPos, Produced);
+        if OutPos = OutBytes then
+        begin
+          OutBytes := OutBytes + OutBytes div 4 + 256;
+          ReallocMem(OutBuf, OutBytes);
+        end;
       end;
+      Inc(OutPos, Produced);
     finally
-      CCheck(deflateEnd(ZStream));
+      ZDeflateEnd(Deflater);
     end;
-    ReallocMem(OutBuf, ZStream.total_out);
-    OutBytes := ZStream.total_out;
+
+    ReallocMem(OutBuf, OutPos);
+    OutBytes := OutPos;
   except
-    zlibFreeMem(nil, OutBuf);
+    FreeMem(OutBuf);
+    OutBuf := nil;
     raise
   end;
 end;
 
-procedure DecompressBuf(const InBuf: Pointer; InBytes: Integer;
-  OutEstimate: Integer; var OutBuf: Pointer; var OutBytes: Integer);
+procedure DecompressBuf(const InBuf: Pointer; InBytes: NativeInt;
+  OutEstimate: NativeInt; var OutBuf: Pointer; var OutBytes: NativeInt);
 var
-  ZStream: TZStreamRec;
-  BufInc: Integer;
+  Inflater: TZInflater;
+  InPos, OutPos, Consumed, Produced: NativeInt;
 begin
-  FillChar(ZStream, sizeof(ZStream), 0);
-{$IFDEF USE_PASCAL_ALLOC}
-  ZStream.zalloc := @zlibAllocMem;
-  ZStream.zfree := @zlibFreeMem;
-{$ENDIF}
-  BufInc := (InBytes + 255) and not 255;
-
-  // Use the estimate if possible to avoid the reallocation loop.
-  if OutEstimate = 0 then
-    OutBytes := BufInc
+  // Use the estimate if possible to avoid the reallocation loop
+  if OutEstimate > 0 then
+    OutBytes := OutEstimate
   else
-    OutBytes := OutEstimate;
-
+    OutBytes := (InBytes + 255) and not 255;
   GetMem(OutBuf, OutBytes);
-  try
-    ZStream.next_in := InBuf;
-    ZStream.avail_in := InBytes;
-    ZStream.next_out := OutBuf;
-    ZStream.avail_out := OutBytes;
+  InPos := 0;
+  OutPos := 0;
 
-    DCheck(inflateInit_(ZStream, MinZLibVersion, sizeof(ZStream)));
+  try
+    ZInflateBegin(Inflater);
     try
-      while DCheck(inflate(ZStream, Z_NO_FLUSH)) <> Z_STREAM_END do
+      while ZInflateData(Inflater, @PBuffer(InBuf)[InPos], InBytes - InPos,
+                        @PBuffer(OutBuf)[OutPos], OutBytes - OutPos, Consumed, Produced) do
       begin
-        Inc(OutBytes, BufInc);
-        ReallocMem(OutBuf, OutBytes);
-        ZStream.next_out := Pointer(PtrUInt(OutBuf) + ZStream.total_out);
-        ZStream.avail_out := BufInc;
+        Inc(InPos, Consumed);
+        Inc(OutPos, Produced);
+        if OutPos = OutBytes then
+        begin
+          OutBytes := OutBytes + OutBytes div 2 + 256;
+          ReallocMem(OutBuf, OutBytes);
+        end
+        else if (Consumed = 0) and (Produced = 0) then
+          raise EDecompressionError.Create('zlib: unexpected end of data');
       end;
+      Inc(OutPos, Produced);
     finally
-      DCheck(inflateEnd(ZStream));
+      ZInflateEnd(Inflater);
     end;
 
-    if OutBytes <> ZStream.total_out then
+    if OutPos <> OutBytes then
     begin
-      ReallocMem(OutBuf, ZStream.total_out);
-      OutBytes := ZStream.total_out;
+      ReallocMem(OutBuf, OutPos);
+      OutBytes := OutPos;
     end;
   except
-    zlibFreeMem(nil, OutBuf);
+    FreeMem(OutBuf);
+    OutBuf := nil;
     raise
   end;
+end;
+
+function ZLibBackend: TZLibBackend;
+begin
+{$IF Defined(ZLIB_USE_BUNDLED)}
+  Result := zbBundled;
+{$ELSEIF Defined(ZLIB_USE_FPC)}
+  Result := zbFpc;
+{$ELSEIF Defined(ZLIB_USE_DELPHI)}
+  Result := zbDelphi;
+{$ELSE}
+  Result := zbDynLib;
+{$IFEND}
+end;
+
+function GetZLibVersion: string;
+begin
+{$IF Defined(ZLIB_USE_FPC)}
+  Result := string(paszlib.zlibVersion);
+{$ELSE}
+  Result := string(AnsiString(zlibVersion));
+{$IFEND}
 end;
 
 { TCustomZLibStream }
@@ -344,10 +612,6 @@ begin
   inherited Create;
   FStrm := Strm;
   FStrmPos := Strm.Position;
-{$IFDEF USE_PASCAL_ALLOC}
-  FZRec.zalloc := @zlibAllocMem;
-  FZRec.zfree := @zlibFreeMem;
-{$ENDIF}
 end;
 
 procedure TCustomZLibStream.Progress(Sender: TObject);
@@ -364,72 +628,90 @@ const
     (Z_NO_COMPRESSION, Z_BEST_SPEED, Z_DEFAULT_COMPRESSION, Z_BEST_COMPRESSION);
 begin
   inherited Create(Dest);
-  FZRec.next_out := @FBuffer;
-  FZRec.avail_out := sizeof(FBuffer);
-  CCheck(deflateInit_(FZRec, Levels[CompressionLevel], MinZLibVersion, sizeof(FZRec)));
+  // Strategy 0 is Z_DEFAULT_STRATEGY
+  ZDeflateBegin(FDeflater, Levels[CompressionLevel], 0);
 end;
 
 destructor TCompressionStream.Destroy;
+var
+  Consumed, Produced: NativeInt;
 begin
-  FZRec.next_in := nil;
-  FZRec.avail_in := 0;
   try
-    if FStrm.Position <> FStrmPos then FStrm.Position := FStrmPos;
-    while (CCheck(deflate(FZRec, Z_FINISH)) <> Z_STREAM_END)
-      and (FZRec.avail_out = 0) do
+    if FDeflater.Active then
     begin
-      FStrm.WriteBuffer(FBuffer, sizeof(FBuffer));
-      FZRec.next_out := @FBuffer;
-      FZRec.avail_out := sizeof(FBuffer);
+      // Write the rest of the compressed stream
+      if FStrm.Position <> FStrmPos then FStrm.Position := FStrmPos;
+      while ZDeflateData(FDeflater, nil, 0, @FBuffer[FOutLen], SizeOf(FBuffer) - FOutLen,
+                         True, Consumed, Produced) do
+      begin
+        Inc(FOutLen, Produced);
+        if FOutLen < SizeOf(FBuffer) then
+          raise ECompressionError.Create('zlib: no progress');
+        FlushBuffer;
+      end;
+      Inc(FOutLen, Produced);
+      if FOutLen > 0 then
+        FlushBuffer;
     end;
-    if FZRec.avail_out < sizeof(FBuffer) then
-      FStrm.WriteBuffer(FBuffer, sizeof(FBuffer) - FZRec.avail_out);
   finally
-    deflateEnd(FZRec);
+    ZDeflateEnd(FDeflater);
   end;
   inherited Destroy;
 end;
 
+procedure TCompressionStream.FlushBuffer;
+begin
+  FStrm.WriteBuffer(FBuffer, FOutLen);
+  Inc(FTotalOut, FOutLen);
+  FOutLen := 0;
+  FStrmPos := FStrm.Position;
+  Progress(Self);
+end;
+
 function TCompressionStream.Read(var Buffer; Count: Longint): Longint;
 begin
-  Result := 0;
+  // FPC warns about unset result, Delphi hints that the value is never used
+  {$IFDEF FPC}Result := 0;{$ENDIF}
   raise ECompressionError.Create('Invalid stream operation');
 end;
 
 function TCompressionStream.Write(const Buffer; Count: Longint): Longint;
+var
+  Done, Consumed, Produced: NativeInt;
 begin
-  FZRec.next_in := @Buffer;
-  FZRec.avail_in := Count;
   if FStrm.Position <> FStrmPos then FStrm.Position := FStrmPos;
-  while (FZRec.avail_in > 0) do
+  Done := 0;
+  while Done < Count do
   begin
-    CCheck(deflate(FZRec, 0));
-    if FZRec.avail_out = 0 then
-    begin
-      FStrm.WriteBuffer(FBuffer, sizeof(FBuffer));
-      FZRec.next_out := @FBuffer;
-      FZRec.avail_out := sizeof(FBuffer);
-      FStrmPos := FStrm.Position;
-      Progress(Self);
-    end;
+    ZDeflateData(FDeflater, @PBuffer(@Buffer)[Done], Count - Done, @FBuffer[FOutLen],
+                 SizeOf(FBuffer) - FOutLen, False, Consumed, Produced);
+    Inc(Done, Consumed);
+    Inc(FOutLen, Produced);
+    // Compressed data are written out when the buffer is full
+    if FOutLen = SizeOf(FBuffer) then
+      FlushBuffer
+    else if (Consumed = 0) and (Produced = 0) then
+      raise ECompressionError.Create('zlib: no progress');
   end;
+  Inc(FTotalIn, Count);
   Result := Count;
 end;
 
-function TCompressionStream.Seek(Offset: Longint; Origin: Word): Longint;
+function TCompressionStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
-  if (Offset = 0) and (Origin = soFromCurrent) then
-    Result := FZRec.total_in
+  // Only the position (number of bytes written) can be read
+  if (Offset = 0) and (Origin = soCurrent) then
+    Result := FTotalIn
   else
     raise ECompressionError.Create('Invalid stream operation');
 end;
 
 function TCompressionStream.GetCompressionRate: Single;
 begin
-  if FZRec.total_in = 0 then
+  if FTotalIn = 0 then
     Result := 0
   else
-    Result := (1.0 - (FZRec.total_out / FZRec.total_in)) * 100.0;
+    Result := (1.0 - ((FTotalOut + FOutLen) / FTotalIn)) * 100.0;
 end;
 
 { TDecompressionStream }
@@ -437,74 +719,96 @@ end;
 constructor TDecompressionStream.Create(Source: TStream);
 begin
   inherited Create(Source);
-  FZRec.next_in := @FBuffer;
-  FZRec.avail_in := 0;
-  DCheck(inflateInit_(FZRec, MinZLibVersion, sizeof(FZRec)));
+  FStrmStart := FStrmPos;
+  ZInflateBegin(FInflater);
 end;
 
 destructor TDecompressionStream.Destroy;
 begin
-  inflateEnd(FZRec);
+  ZInflateEnd(FInflater);
   inherited Destroy;
 end;
 
 function TDecompressionStream.Read(var Buffer; Count: Longint): Longint;
+var
+  Done, Consumed, Produced: NativeInt;
 begin
-  FZRec.next_out := @Buffer;
-  FZRec.avail_out := Count;
   if FStrm.Position <> FStrmPos then FStrm.Position := FStrmPos;
-  while (FZRec.avail_out > 0) do
+  Done := 0;
+
+  // Reads until Count bytes are decompressed, the end of zlib stream (data after
+  // it are not used) or the end of source stream
+  while (Done < Count) and not FInflater.Finished do
   begin
-    if FZRec.avail_in = 0 then
+    if FBufPos = FBufLen then
     begin
-      FZRec.avail_in := FStrm.Read(FBuffer, sizeof(FBuffer));
-      if FZRec.avail_in = 0 then
-        begin
-          Result := Count - Integer(FZRec.avail_out);
-          Exit;
-        end;
-      FZRec.next_in := @FBuffer;
+      FBufLen := FStrm.Read(FBuffer, SizeOf(FBuffer));
+      FBufPos := 0;
       FStrmPos := FStrm.Position;
+      if FBufLen <= 0 then
+      begin
+        FBufLen := 0;
+        Break;
+      end;
       Progress(Self);
     end;
-    CCheck(inflate(FZRec, 0));
+
+    ZInflateData(FInflater, @FBuffer[FBufPos], FBufLen - FBufPos, @PBuffer(@Buffer)[Done],
+                 Count - Done, Consumed, Produced);
+    Inc(FBufPos, Consumed);
+    Inc(Done, Produced);
+    if (Consumed = 0) and (Produced = 0) and not FInflater.Finished and (FBufPos < FBufLen) then
+      raise EDecompressionError.Create('zlib: no progress');
   end;
-  Result := Count;
+
+  Inc(FTotalOut, Done);
+  Result := Done;
 end;
 
 function TDecompressionStream.Write(const Buffer; Count: Longint): Longint;
 begin
-  Result := 0;
+  // FPC warns about unset result, Delphi hints that the value is never used
+  {$IFDEF FPC}Result := 0;{$ENDIF}
   raise EDecompressionError.Create('Invalid stream operation');
 end;
 
-function TDecompressionStream.Seek(Offset: Longint; Origin: Word): Longint;
+function TDecompressionStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 var
-  I: Integer;
+  Skip: Int64;
+  Len: Integer;
   Buf: array [0..4095] of Byte;
 begin
-  if (Offset = 0) and (Origin = soFromBeginning) then
+  if (Offset = 0) and (Origin = soBeginning) then
   begin
-    DCheck(inflateReset(FZRec));
-    FZRec.next_in := @FBuffer;
-    FZRec.avail_in := 0;
-    FStrm.Position := 0;
-    FStrmPos := 0;
+    // Start decompression again from the beginning of compressed data
+    ZInflateEnd(FInflater);
+    ZInflateBegin(FInflater);
+    FBufPos := 0;
+    FBufLen := 0;
+    FStrm.Position := FStrmStart;
+    FStrmPos := FStrmStart;
+    FTotalOut := 0;
   end
-  else if ((Offset >= 0) and (Origin = soFromCurrent)) or
-          (((Offset - Integer(FZRec.total_out)) > 0) and (Origin = soFromBeginning)) then
+  else if ((Offset >= 0) and (Origin = soCurrent)) or
+          ((Offset >= FTotalOut) and (Origin = soBeginning)) then
   begin
-    if Origin = soFromBeginning then Dec(Offset, FZRec.total_out);
-    if Offset > 0 then
+    // Forward seek decompresses and skips data
+    Skip := Offset;
+    if Origin = soBeginning then
+      Skip := Offset - FTotalOut;
+    while Skip > 0 do
     begin
-      for I := 1 to Offset div sizeof(Buf) do
-        ReadBuffer(Buf, sizeof(Buf));
-      ReadBuffer(Buf, Offset mod sizeof(Buf));
+      Len := SizeOf(Buf);
+      if Len > Skip then
+        Len := Skip;
+      ReadBuffer(Buf, Len);
+      Dec(Skip, Len);
     end;
   end
   else
     raise EDecompressionError.Create('Invalid stream operation');
-  Result := FZRec.total_out;
+
+  Result := FTotalOut;
 end;
 
 end.

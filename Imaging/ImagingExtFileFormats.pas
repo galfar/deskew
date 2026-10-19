@@ -18,15 +18,13 @@ unit ImagingExtFileFormats;
 
 {$I ImagingOptions.inc}
 
-{.$DEFINE DONT_LINK_JPEG2000}    // link support for JPEG2000 images
-{.$DEFINE DONT_LINK_TIFF}        // link support for TIFF images
-{.$DEFINE DONT_LINK_PSD}         // link support for PSD images
-{.$DEFINE DONT_LINK_PCX}         // link support for PCX images
-{.$DEFINE DONT_LINK_XPM}         // link support for XPM images
+{ Which file formats are linked is set by DONT_LINK_* and LINK_ALL_FILE_FORMATS
+  defines (the latter adds less common formats that are left out by default).
+  They are listed in ImagingOptions.inc, set them there, in project options,
+  or in ImagingUserOptions.inc.
 
-{$IFNDEF FULL_FEATURE_SET}
-  {$DEFINE DONT_LINK_ELDER}     // link support for Elder Imagery images
-{$ENDIF}
+  Look at "uses" section in this unit's implementation to how the defines
+  are used. }
 
 interface
 
@@ -66,6 +64,16 @@ const
     - IfSafer(1) also uses BigTIFF when compression makes the final file size uncertain.
     - Always(2) always writes BigTIFF files. }
   ImagingTiffBigTiffWriteMode        = 67;
+  { Controls the horizontal predictor (differences of neighboring samples
+    are compressed instead of the samples) of LZW and Deflate compressed
+    TIFFs. It makes photos, color scans and elevation data much smaller but
+    document scans and images with few colors larger. Values:
+    - Auto(0) decides for each image: a sample of its rows (about 256 KB from
+      the top, middle and bottom) is compressed with and without it.
+    - On(1) always uses it, Off(2) never.
+    It is never used for palette images, floating point and 1-bit data.
+    Default is Auto. }
+  ImagingTiffPredictor               = 68;
 
   { If enabled image data is saved as layer of PSD file. This is required
     to get proper transparency when opened in Photoshop for images with
@@ -75,58 +83,40 @@ const
     Default value is True (1). }
   ImagingPSDSaveAsLayer              = 70;
 
+  { Quality of lossy compression used when saving WebP images. It is number
+    in range 0..100, higher value means larger file with better quality.
+    Default value is 80. }
+  ImagingWebPQuality                 = 75;
+  { Specifies whether WebP images are saved using lossless compression,
+    can be 0 or 1. Default value is 0. }
+  ImagingWebPLossless                = 76;
+
 implementation
 
 uses
 {$IFNDEF DONT_LINK_FILE_FORMATS}
-{$IFNDEF DONT_LINK_JPEG2000}
-  ImagingJpeg2000,
+  {$IFNDEF DONT_LINK_TIFF}
+    ImagingTiff,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_WEBP}
+    ImagingWebP,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_JPEG2000}
+    ImagingJpeg2000,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_PSD}
+    ImagingPsd,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_PCX}
+    ImagingPcx,
+  {$ENDIF}
+  {$IFNDEF DONT_LINK_XPM}
+    ImagingXpm,
+  {$ENDIF}
+  {$IFDEF LINK_ALL_FILE_FORMATS}
+    ElderImagery,
+  {$ENDIF}
 {$ENDIF}
-{$IFNDEF DONT_LINK_TIFF}
-  ImagingTiff,
-{$ENDIF}
-{$IFNDEF DONT_LINK_PSD}
-  ImagingPsd,
-{$ENDIF}
-{$IFNDEF DONT_LINK_PCX}
-  ImagingPcx,
-{$ENDIF}
-{$IFNDEF DONT_LINK_XPM}
-  ImagingXpm,
-{$ENDIF}
-{$IFNDEF DONT_LINK_ELDER}
-  ElderImagery,
-{$ENDIF}
-{$ENDIF}
-  Imaging;
-
-{
-  File Notes:
-
- -- TODOS -----------------------------------------------------
-    - nothing now
-
-  -- 0.26.5 Changes/Bug Fixes ---------------------------------
-    - Added Group 4 Fax encoding as compression for TIFF files.
-    - Added ImagingTiffJpegQuality option.
-
-  -- 0.26.3 Changes/Bug Fixes ---------------------------------
-    - Allowed JPEG2000 for Mac OS X x86
-
-  -- 0.26.1 Changes/Bug Fixes ---------------------------------
-    - ElderImagery formats are disabled by default, TIFF enabled.
-    - Changed _LINK_ symbols according to changes in ImagingOptions.inc.
-
-  -- 0.24.1 Changes/Bug Fixes ---------------------------------
-    - Allowed JPEG2000 for x86_64 CPUS in Linux
-
-  -- 0.23 Changes/Bug Fixes -----------------------------------
-    - Better IF conditional to disable JPEG2000 on unsupported platforms.
-    - Added PSD and TIFF related stuff.
-
-  -- 0.21 Changes/Bug Fixes -----------------------------------
-    - Created with initial stuff.
-
-}
+  ImagingTypes;
 
 end.

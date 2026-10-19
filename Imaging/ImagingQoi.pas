@@ -99,7 +99,7 @@ procedure TQoiFileFormat.Define;
 begin
   inherited Define;
   FName := SQOIFormatName;
-  FFeatures := [ffLoad, ffSave];
+  FFeatures := [ffLoad, ffSave, ffHugeImages];
   FSupportedFormats := QOISupportedFormats;
   AddMasks(SQOIMasks);
 end;
@@ -308,7 +308,7 @@ begin
     RunLength := 0;
 
     SrcPtr := ImageToSave.Bits;
-    NumPixels := NativeInt(ImageToSave.Width) * ImageToSave.Height;
+    NumPixels := GetPixelCount(ImageToSave);
 
     for PixelIndex := 0 to NumPixels - 1 do
     begin
