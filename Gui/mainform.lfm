@@ -9,13 +9,13 @@ object FormMain: TFormMain
   ClientWidth = 530
   Constraints.MinHeight = 560
   Constraints.MinWidth = 520
-  OnCreate = FormCreate
-  OnDestroy = FormDestroy
-  OnDropFiles = FormDropFiles
   Position = poWorkAreaCenter
   SessionProperties = 'Position'
   ShowHint = True
-  LCLVersion = '3.4.0.0'
+  LCLVersion = '4.8.0.0'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnDropFiles = FormDropFiles
   object Notebook: TNotebook
     Left = 8
     Height = 645
