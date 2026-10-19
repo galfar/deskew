@@ -33,7 +33,7 @@
       <Unit>
         <Filename Value="tests.lpr"/>
         <IsPartOfProject Value="True"/>
-      </Unit>      
+      </Unit>
       <Unit>
         <Filename Value="..\CmdLineOptions.pas"/>
         <IsPartOfProject Value="True"/>
@@ -56,7 +56,7 @@
       </Unit>
       <Unit>
         <Filename Value="DeskewTestUtils.pas"/>
-        <IsPartOfProject Value="True"/>        
+        <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="TestCmdLineArgs.pas"/>
@@ -73,7 +73,7 @@
       <Unit>
         <Filename Value="TestSkewDetection.pas"/>
         <IsPartOfProject Value="True"/>
-      </Unit>      
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -84,8 +84,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..;..\Imaging"/>
-      <Libraries Value="..\Imaging\LibTiff\Compiled"/>
-      <OtherUnitFiles Value="..;..\Imaging;..\Imaging\Libs;..\Imaging\LibTiff"/>
+      <OtherUnitFiles Value="..;..\Imaging;..\Imaging\Libs"/>
       <UnitOutputDirectory Value="..\Dcu\tests\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
@@ -112,11 +111,7 @@
         <ShowNotes Value="False"/>
         <ShowHints Value="False"/>
       </Verbosity>
-      <CustomOptions Value="-dFPCPASJPEG
--dIMAGING_USER_OPTIONS"/>
-      <OtherDefines Count="1">
-        <Define0 Value="FPCPASJPEG"/>
-      </OtherDefines>
+      <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>      
     </Other>
   </CompilerOptions>
   <Debugging>

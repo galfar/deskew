@@ -30,8 +30,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
-            <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -74,8 +73,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
-            <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -116,8 +114,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
-            <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -158,8 +155,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
-            <Libraries Value="Imaging\LibTiff\Compiled"/>
-            <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
+            <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
             <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -233,8 +229,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
-      <Libraries Value="Imaging\LibTiff\Compiled"/>
-      <OtherUnitFiles Value="Imaging;Imaging\Libs;Imaging\LibTiff"/>
+      <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
       <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

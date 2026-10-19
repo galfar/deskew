@@ -179,10 +179,11 @@ begin
   for I := 0 to Count - 1 do
   begin
     Fmt := GetFileFormatAtIndex(I);
+    // Not every format can be both loaded and saved (WebP is input only)
     if Fmt.CanLoad then
-      InFilter := InFilter + Fmt.Extensions[0] + Iff(I < Count - 1, ', ', '');
+      InFilter := InFilter + Iff(InFilter <> '', ', ', '') + Fmt.Extensions[0];
     if Fmt.CanSave then
-      OutFilter := OutFilter + Fmt.Extensions[0] + Iff(I < Count - 1, ', ', '');
+      OutFilter := OutFilter + Iff(OutFilter <> '', ', ', '') + Fmt.Extensions[0];
   end;
 
   WriteLn(Log^);
@@ -502,7 +503,7 @@ var
     end;
 
     // Special handling for TIFF compression
-    if Imaging.FindImageFileFormatByName(Options.OutputFileName) is TBaseTiffFileFormat then
+    if Imaging.FindImageFileFormatByName(Options.OutputFileName) is TTiffFileFormat then
     begin
       if Options.TiffCompressionScheme in [TiffCompressionOptionAsInput, TiffCompressionOptionAsInputLossless] then
       begin
