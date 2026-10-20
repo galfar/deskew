@@ -102,11 +102,6 @@ type
     property EffectiveExecutablePath: string read GetEffectiveExecutablePath;
   end;
 
-implementation
-
-uses
-  ImagingUtility, Utils, TypInfo, LazFileUtils;
-
 // From ImagingTiff.pas
 const
   TiffCompressionOptionNone        = 0;
@@ -118,6 +113,11 @@ const
   // From CmdLineOptions.pas
   TiffCompressionOptionAsInput         = 6;
   TiffCompressionOptionAsInputLossless = 7;
+
+implementation
+
+uses
+  ImagingUtility, Utils, TypInfo, LazFileUtils;
 
 const
   DefaultBackgroundColor = $FFFFFFFF; // white
