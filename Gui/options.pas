@@ -54,6 +54,7 @@ type
     FFiles: TStrings;
     function GetEffectiveExecutablePath: string;
     function GetOutputFilePath(const InputFilePath: string): string;
+    function GetOutputFolder(const InputFilePath: string): string;
   public
     // Basic options
     DefaultOutputFileOptions: Boolean;
@@ -80,6 +81,7 @@ type
     ThresholdingAuto: Boolean;
     ThresholdLevel: Integer;
     PrintParams: Boolean;
+    SaveWorkImage: Boolean;
     ExtraCmdLineArgs: string;
     DefaultExecutable: Boolean;
     CustomExecutablePath: string;
@@ -225,6 +227,22 @@ begin
   end;
 end;
 
+function TOptions.GetOutputFolder(const InputFilePath: string): string;
+begin
+  Result := '';
+  if not DefaultOutputFileOptions then
+    Result := OutputFolder;
+  if Result = '' then
+  begin
+    // No output folder is specified, use the same as input
+    Result := ExtractFilePath(InputFilePath);
+    if Result = '' then
+      Result := '.';
+  end;
+  // Trailing delimiter tells the command line tool it is a folder even when it does not exist yet
+  Result := IncludeTrailingPathDelimiter(Result);
+end;
+
 procedure TOptions.ToCmdLineParameters(AParams: TStrings; AFileIndex: Integer);
 
   function FloatToStrFmt(const F: Double): string;
@@ -282,11 +300,18 @@ procedure TOptions.ToCmdLineParameters(AParams: TStrings; AFileIndex: Integer);
     end;
   end;
 
+var
+  InfoFlags: string;
 begin
   Assert(AFileIndex < FFiles.Count);
 
   AParams.Clear;
-  AParams.AddStrings(['-o', GetOutputFilePath(FFiles[AFileIndex])]);
+  // No output image in detect only mode, just the folder for JSON report
+  // and work image (named after the input file there)
+  if DetectOnly then
+    AParams.AddStrings(['-o', GetOutputFolder(FFiles[AFileIndex])])
+  else
+    AParams.AddStrings(['-o', GetOutputFilePath(FFiles[AFileIndex])]);
 
   if BackgroundColor <> $FF000000 then
     AParams.AddStrings(['-b', IntToHex(BackgroundColor, 8)]);
@@ -315,8 +340,13 @@ begin
     AParams.AddStrings(['-c', FileParamsToString]);
   if not ThresholdingAuto then
     AParams.AddStrings(['-t', IntToStr(ThresholdLevel)]);
+  InfoFlags := '';
   if PrintParams then
-    AParams.AddStrings(['-s', 'p']);
+    InfoFlags := InfoFlags + 'p';
+  if SaveWorkImage then
+    InfoFlags := InfoFlags + 'w';
+  if InfoFlags <> '' then
+    AParams.AddStrings(['-s', InfoFlags]);
 
   if ExtraCmdLineArgs <> '' then
     AddExtraCmdLineArgs;
@@ -385,6 +415,7 @@ begin
   JpegCompressionQuality := DefaultJpegCompressionQuality;
   TiffCompressionScheme := DefaultTiffCompressionScheme;
   PrintParams := DefaultPrintParams;
+  SaveWorkImage := False;
   ExtraCmdLineArgs := '';
   DefaultExecutable := True;
   CustomExecutablePath := '';
@@ -414,6 +445,7 @@ begin
   Ini.WriteInteger(IniSectionOptions, 'JpegCompressionQuality', JpegCompressionQuality);
   Ini.WriteInteger(IniSectionOptions, 'TiffCompressionScheme', TiffCompressionScheme);
   Ini.WriteNiceBool(IniSectionOptions, 'PrintParams', PrintParams);
+  Ini.WriteNiceBool(IniSectionOptions, 'SaveWorkImage', SaveWorkImage);
   Ini.WriteString(IniSectionOptions, 'ExtraCmdLineArgs', ExtraCmdLineArgs);
   Ini.WriteNiceBool(IniSectionOptions, 'DefaultExecutable', DefaultExecutable);
   Ini.WriteString(IniSectionOptions, 'CustomExecutablePath', CustomExecutablePath);
@@ -468,6 +500,7 @@ begin
   if (TiffCompressionScheme < Low(TiffCompressionSchemeNames)) or (TiffCompressionScheme > High(TiffCompressionSchemeNames)) then
     TiffCompressionScheme := DefaultTiffCompressionScheme;
   PrintParams := Ini.ReadNiceBool(IniSectionOptions, 'PrintParams', DefaultPrintParams);
+  SaveWorkImage := Ini.ReadNiceBool(IniSectionOptions, 'SaveWorkImage', False);
   ExtraCmdLineArgs := Ini.ReadString(IniSectionOptions, 'ExtraCmdLineArgs', '');
   DefaultExecutable := Ini.ReadNiceBool(IniSectionOptions, 'DefaultExecutable', True);
   CustomExecutablePath := Ini.ReadString(IniSectionOptions, 'CustomExecutablePath', '');

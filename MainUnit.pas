@@ -85,6 +85,8 @@ type
     OutputWritten: TOutputWritten;
     OutputWidth, OutputHeight: Integer;
     OutputFormat: string;
+    // Full path of the work image when it was saved (-s w)
+    WorkImageFile: string;
     // In microseconds, negative for steps that did not run
     Timings: array[TTimedStep] of Int64;
     ErrorMessage: string;
@@ -131,7 +133,8 @@ begin
   WriteLn(Log^);
   WriteLn(Log^, '  Options:');
   WriteLn(Log^, '    -o output:     Output image file name (default: deskewed-<input name>.png');
-  WriteLn(Log^, '                   next to the input file)');
+  WriteLn(Log^, '                   next to the input file). In detect only mode (-g d) it can be');
+  WriteLn(Log^, '                   a directory for the JSON report and work image');
   WriteLn(Log^, '    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
   WriteLn(Log^, '    -q filter:     Resampling filter used for rotations (default: linear,');
   WriteLn(Log^, '                   values: nearest|linear|cubic|lanczos)');
@@ -159,7 +162,8 @@ begin
   WriteLn(Log^, '                   or smaller than the skip angle (-l)');
   WriteLn(Log^, '    -s info:       Info dump (any combination of):');
   WriteLn(Log^, '                   s - skew detection stats, p - program parameters, t - timings,');
-  WriteLn(Log^, '                   w - save work/thresholded image,');
+  WriteLn(Log^, '                   w - save work image to <output file name>.work.png: thresholded,');
+  WriteLn(Log^, '                       detection area framed red, found content green,');
   WriteLn(Log^, '                   j - JSON report to standard output (and nothing else there),');
   WriteLn(Log^, '                   r - JSON report to file <output file name>.json');
   WriteLn(Log^, '    -c specs:      Output file format specs (compression etc.). Several specs');
@@ -356,6 +360,11 @@ begin
       end;
       Json.EndObject;
 
+      if Report.WorkImageFile <> '' then
+        Json.AddString('workImageFile', Report.WorkImageFile)
+      else
+        Json.AddNull('workImageFile');
+
       Json.BeginObject('timingsMs');
       for Step := Low(TTimedStep) to High(TTimedStep) do
         if Report.Timings[Step] >= 0 then
@@ -457,6 +466,28 @@ var
     WriteLn(Log^, '  sharpness:          ', Stats.Sharpness:16:3);
     WriteLn(Log^, '  confidence:         ', Stats.Confidence:16:3);
     WriteLn(Log^, '  outcome:            ', SDetectionOutcomes[Stats.Outcome]:16);
+  end;
+
+  procedure SaveWorkImage;
+  const
+    DetectionAreaColor = $FFFF0000;
+    ContentAreaColor = $FF00C000;
+  var
+    Thickness: Integer;
+  begin
+    // We can reuse InputImage here, no longer needed. What the detection saw
+    // (thresholded) with frames inside the detection area and around the content.
+    BinarizeImage(InputImage.ImageDataPointer^, Threshold, @ContentRect);
+    InputImage.Format := ifR8G8B8;
+    Thickness := Max(2, Max(InputImage.Width, InputImage.Height) div 500);
+    DrawRectFrame(InputImage.ImageDataPointer^, ContentRect, Thickness, DetectionAreaColor, False);
+    if HasContent then
+      DrawRectFrame(InputImage.ImageDataPointer^, FoundContentRect, Thickness, ContentAreaColor, True);
+
+    WriteLn(Log^, 'Saving work image (', Options.WorkImageFileName, ') ...');
+    EnsureOutputLocation(Options.WorkImageFileName);
+    InputImage.SaveToFile(Options.WorkImageFileName);
+    Report.WorkImageFile := ExpandFileName(Options.WorkImageFileName);
   end;
 
   procedure EnsurePixelFormatForRotation;
@@ -636,11 +667,7 @@ begin
     WriteLn(Log^, 'Skew angle is not reliable: ', SDetectionOutcomeReasons[Stats.Outcome], '.');
 
   if Options.SaveWorkImage then
-  begin
-    // We can reuse InputImage here, no longer needed
-    BinarizeImage(InputImage.ImageDataPointer^, Threshold, @ContentRect);
-    InputImage.SaveToFile(ExtractFilePath(Options.OutputFileName) + 'work-image.png');
-  end;
+    SaveWorkImage;
 
   if ofDetectOnly in Options.OperationalFlags then
     Exit;
@@ -753,7 +780,7 @@ begin
           ReportBadInput('Input file format not supported: ' + Options.InputFileName);
           Exit;
         end;
-        if not IsFileFormatSupported(Options.OutputFileName) then
+        if (Options.OutputDir = '') and not IsFileFormatSupported(Options.OutputFileName) then
         begin
           ReportBadInput('Output file format not supported: ' + Options.OutputFileName);
           Exit;

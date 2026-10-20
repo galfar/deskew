@@ -38,11 +38,12 @@ echo "Using '$DESKEW' executable"
 ./$DESKEW -f rgba32 -b 40ff00ff -o TestOut/Outa6.png ../TestImages/6.png
 # Forced 8-bit grayscale output with gray background, timings
 ./$DESKEW -f g8 -b 77 -s t -o TestOut/Outg6.png ../TestImages/6.png
-# Detect only: prints skew angle, writes no output
-./$DESKEW -g d ../TestImages/5.png
+# Detect only: prints skew angle within margined area, no output image, work image
+# saved to TestOut/5.work.png (output given as a directory)
+./$DESKEW -g d -m 5,2,% -s w -o TestOut/ ../TestImages/5.png
 # Skew below the skip limit: deskewing is skipped and the input is copied as is
 ./$DESKEW -a 5 -l 2 -o TestOut/OutlF1550.jpg ../TestImages/F1550.jpg
-# Coarse angle step, margins in millimeters with DPI given by the user, thresholded work image saved
+# Coarse angle step, margins in millimeters with DPI given by the user, work image saved
 ./$DESKEW -d 0.5 -p 300 -m 10,mm -s w -o TestOut/Outdp3.png ../TestImages/3.png
 # Skew detection only inside automatically found content area, detection stats
 ./$DESKEW -r auto -s s -o TestOut/Outra3.png ../TestImages/3.png
@@ -58,6 +59,8 @@ echo "Using '$DESKEW' executable"
 ./$DESKEW -s r -o TestOut/OutJsonFile3.png ../TestImages/3.png
 # Both reports in detect only mode: the file is named after the output that would be written
 ./$DESKEW -s jr -g d -o TestOut/OutJsonDetect5.png ../TestImages/5.png > TestOut/OutJsonDetect5.json
+# Report and work image into a new directory in detect only mode: TestOut/Reports/3.png.json, 3.work.png
+./$DESKEW -s rw -g d -o TestOut/Reports/ ../TestImages/3.png
 
 # Binary LZW TIFF in and out, default compression (LZW)
 ./$DESKEW -t a -a 5 -o TestOut/Out1.tif ../TestImages/1-lzw.tif

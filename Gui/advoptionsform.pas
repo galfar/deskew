@@ -136,6 +136,7 @@ begin
   CheckDetectOnly.Checked := AOptions.DetectOnly;
   CheckForceRotation.Checked := AOptions.ForceRotation;
   CheckPrintParams.Checked := AOptions.PrintParams;
+  CheckSaveWorkImage.Checked := AOptions.SaveWorkImage;
   EdExtraCmdArgs.Text := AOptions.ExtraCmdLineArgs;
 
   CheckDefaultExecutable.Checked := AOptions.DefaultExecutable;
@@ -158,6 +159,7 @@ begin
   AOptions.DetectOnly := CheckDetectOnly.Checked;
   AOptions.ForceRotation := CheckForceRotation.Checked;
   AOptions.PrintParams := CheckPrintParams.Checked;
+  AOptions.SaveWorkImage := CheckSaveWorkImage.Checked;
   AOptions.ExtraCmdLineArgs := EdExtraCmdArgs.Text;
 
   AOptions.OutputFileParamsEnabled := [ ];
