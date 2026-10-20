@@ -74,7 +74,10 @@ type
     procedure Test_Rotate180Degrees_Gray8_Nearest;
     procedure Test_FitTrue_Dimensions_Gray8;
     procedure Test_BackgroundColor_Gray8_Linear;
-    procedure Test_Rotate90Degrees_FitTrue_RGB24_Nearest;
+    procedure Test_SmallAngles_FitFalse_Gray8_Nearest;
+    procedure Test_Rotate45Degrees_FitTrue_AllFormatsAndFilters;
+    procedure Test_FlatAreaKeepsValue_AllFilters;
+    procedure Test_GradientSubpixelAccuracy_AllFilters;
   end;
 
 implementation
@@ -393,7 +396,7 @@ begin
     AImage.FillRect(Rect(0, HalfH, HalfW, H), @C8_GRAY3);  // Bottom-Left
     AImage.FillRect(Rect(HalfW, HalfH, W, H), @C8_GRAY4);  // Bottom-Right
   end
-  else if AImage.Format = ifR8G8B8 then
+  else if AImage.Format in [ifR8G8B8, ifA8R8G8B8] then
   begin
     AImage.FillRect(Rect(0, 0, HalfW, HalfH), @C32_RED);     // Top-Left: Red
     AImage.FillRect(Rect(HalfW, 0, W, HalfH), @C32_GREEN);   // Top-Right: Green
@@ -601,42 +604,229 @@ begin
   end;
 end;
 
-procedure TTestImageRotation.Test_Rotate90Degrees_FitTrue_RGB24_Nearest;
-var
-  ExpectedW, ExpectedH: Integer;
-  PixelValue: TColor24Rec;
-  ExpectedColor_OrigTL, ExpectedColor_OrigTR, ExpectedColor_OrigBL, ExpectedColor_OrigBR: TColor24Rec;
+procedure TTestImageRotation.Test_SmallAngles_FitFalse_Gray8_Nearest;
 begin
-  FOrigImage.CreateFromParams(IMG_WIDTH, IMG_HEIGHT, ifR8G8B8);
+  // With Fit=False the image keeps its size and the rotated content gets clipped.
+  // Whether a corner shows background or the image depends on the angle: corner
+  // pixels whose source position rounds to a pixel inside the image keep the image.
+  // Positions below are for 50x100 image.
   CreateQuadrantPattern(FOrigImage);
+
+  // 1 degree: top-left and bottom-right corners still map inside the source
+  // (to (1,0) and (48,99)), the other two are outside.
   FTestImage.Assign(FOrigImage);
+  RotateImage(FTestImage.ImageDataPointer^, 1.0, pcWhite, rfNearest, False);
+  AssertEquals('1 deg: size', IMG_WIDTH, FTestImage.Width);
+  AssertEquals('1 deg: Top-Left (image)', C8_GRAY1, FTestImage.GetPixelByte(0, 0));
+  AssertEquals('1 deg: Top-Right (background)', C8_WHITE, FTestImage.GetPixelByte(IMG_WIDTH - 1, 0));
+  AssertEquals('1 deg: Bottom-Left (background)', C8_WHITE, FTestImage.GetPixelByte(0, IMG_HEIGHT - 1));
+  AssertEquals('1 deg: Bottom-Right (image)', C8_GRAY4, FTestImage.GetPixelByte(IMG_WIDTH - 1, IMG_HEIGHT - 1));
 
-  RotateImage(FTestImage.ImageDataPointer^, 45.0, pcBlack, rfLinear, True);
+  // -1 degree: the other diagonal
+  FTestImage.Assign(FOrigImage);
+  RotateImage(FTestImage.ImageDataPointer^, -1.0, pcWhite, rfNearest, False);
+  AssertEquals('-1 deg: Top-Left (background)', C8_WHITE, FTestImage.GetPixelByte(0, 0));
+  AssertEquals('-1 deg: Top-Right (image)', C8_GRAY2, FTestImage.GetPixelByte(IMG_WIDTH - 1, 0));
+  AssertEquals('-1 deg: Bottom-Left (image)', C8_GRAY3, FTestImage.GetPixelByte(0, IMG_HEIGHT - 1));
+  AssertEquals('-1 deg: Bottom-Right (background)', C8_WHITE, FTestImage.GetPixelByte(IMG_WIDTH - 1, IMG_HEIGHT - 1));
 
-  CalcRotatedImageSize(IMG_WIDTH, IMG_HEIGHT, 45, rfLinear,
-                       ExpectedW, ExpectedH);
+  // 0.3 degree: corners move by less than half a pixel, no background anywhere
+  FTestImage.Assign(FOrigImage);
+  RotateImage(FTestImage.ImageDataPointer^, 0.3, pcWhite, rfNearest, False);
+  AssertEquals('0.3 deg: Top-Left', C8_GRAY1, FTestImage.GetPixelByte(0, 0));
+  AssertEquals('0.3 deg: Top-Right', C8_GRAY2, FTestImage.GetPixelByte(IMG_WIDTH - 1, 0));
+  AssertEquals('0.3 deg: Bottom-Left', C8_GRAY3, FTestImage.GetPixelByte(0, IMG_HEIGHT - 1));
+  AssertEquals('0.3 deg: Bottom-Right', C8_GRAY4, FTestImage.GetPixelByte(IMG_WIDTH - 1, IMG_HEIGHT - 1));
 
-  AssertEquals('Width after rotation (Fit=True, RGB24)', ExpectedW, FTestImage.Width);
-  AssertEquals('Height after rotation (Fit=True, RGB24)', ExpectedH, FTestImage.Height);
+  // Same 1 degree with Fit=True: the image is enlarged, corners are always background
+  FTestImage.Assign(FOrigImage);
+  RotateImage(FTestImage.ImageDataPointer^, 1.0, pcWhite, rfNearest, True);
+  AssertEquals('1 deg fit: Top-Left', C8_WHITE, FTestImage.GetPixelByte(0, 0));
+  AssertEquals('1 deg fit: Top-Right', C8_WHITE, FTestImage.GetPixelByte(FTestImage.Width - 1, 0));
+  AssertEquals('1 deg fit: Bottom-Left', C8_WHITE, FTestImage.GetPixelByte(0, FTestImage.Height - 1));
+  AssertEquals('1 deg fit: Bottom-Right', C8_WHITE, FTestImage.GetPixelByte(FTestImage.Width - 1, FTestImage.Height - 1));
+end;
 
-  // From CreateQuadrantPattern for RGB24:
-  ExpectedColor_OrigTL := TColor32Rec(C32_RED).Color24Rec;
-  ExpectedColor_OrigTR := TColor32Rec(C32_GREEN).Color24Rec;
-  ExpectedColor_OrigBL := TColor32Rec(C32_BLUE).Color24Rec;
-  ExpectedColor_OrigBR := TColor32Rec(C32_YELLOW).Color24Rec;
+procedure TTestImageRotation.Test_Rotate45Degrees_FitTrue_AllFormatsAndFilters;
+const
+  Formats: array[0..2] of TImageFormat = (ifGray8, ifR8G8B8, ifA8R8G8B8);
+  FilterNames: array[TResamplingFilter] of string = ('nearest', 'linear', 'cubic', 'lanczos');
+var
+  I: Integer;
+  Filter: TResamplingFilter;
+  ExpectedW, ExpectedH: Integer;
+  Name: string;
+  Background, OrigTL, OrigTR, OrigBL, OrigBR: TColor32Rec;
+begin
+  Background := C32(pcBlack);
 
-  // Original Top-Left (Red) should be new Bottom-Left
-  PixelValue := PColor24Rec(FTestImage.PixelPointer[ExpectedW div 4, ExpectedH div 2])^;
-  AssertEquals('Orig Top-Left [Red] at new pos', ExpectedColor_OrigTL, PixelValue);
-  // Original Top-Right (Green) should be new Top-Left
-  PixelValue := PColor24Rec(FTestImage.PixelPointer[ExpectedW div 2, ExpectedH div 4])^;
-  AssertEquals('Orig Top-Right [Green] at new pos', ExpectedColor_OrigTR, PixelValue);
-  // Original Bottom-Left (Blue) should be new Bottom-Right
-  PixelValue := PColor24Rec(FTestImage.PixelPointer[ExpectedW div 2, ExpectedH div 4 * 3])^;
-  AssertEquals('Orig Bottom-Left [Blue] at new pos', ExpectedColor_OrigBL, PixelValue);
-  // Original Bottom-Right (White) should be new Top-Right
-  PixelValue := PColor24Rec(FTestImage.PixelPointer[ExpectedW div 4 * 3, ExpectedH div 2])^;
-  AssertEquals('Orig Bottom-Right [Yellow] at new pos', ExpectedColor_OrigBR, PixelValue);
+  for I := Low(Formats) to High(Formats) do
+  begin
+    FOrigImage.RecreateImageData(IMG_WIDTH, IMG_HEIGHT, Formats[I]);
+    CreateQuadrantPattern(FOrigImage);
+    // Expected colors read from the source quadrants, so they are in the format of the image
+    OrigTL := FOrigImage.GetPixelColor32(0, 0);
+    OrigTR := FOrigImage.GetPixelColor32(IMG_WIDTH - 1, 0);
+    OrigBL := FOrigImage.GetPixelColor32(0, IMG_HEIGHT - 1);
+    OrigBR := FOrigImage.GetPixelColor32(IMG_WIDTH - 1, IMG_HEIGHT - 1);
+
+    for Filter := Low(TResamplingFilter) to High(TResamplingFilter) do
+    begin
+      Name := string(Imaging.GetFormatName(Formats[I])) + ' ' + FilterNames[Filter];
+      FTestImage.Assign(FOrigImage);
+      RotateImage(FTestImage.ImageDataPointer^, 45.0, pcBlack, Filter, True);
+
+      CalcRotatedImageSize(IMG_WIDTH, IMG_HEIGHT, 45, Filter, ExpectedW, ExpectedH);
+      AssertEquals(Name + ': width', ExpectedW, FTestImage.Width);
+      AssertEquals(Name + ': height', ExpectedH, FTestImage.Height);
+      AssertTrue(Name + ': format', FTestImage.Format = Formats[I]);
+
+      // Rotated counterclockwise by 45 degrees: the quadrants end up on the axes,
+      // e.g. original top-left is now on the left, top-right on the top.
+      AssertEquals(Name + ': orig Top-Left at left', OrigTL,
+        FTestImage.GetPixelColor32(ExpectedW div 4, ExpectedH div 2));
+      AssertEquals(Name + ': orig Top-Right at top', OrigTR,
+        FTestImage.GetPixelColor32(ExpectedW div 2, ExpectedH div 4));
+      AssertEquals(Name + ': orig Bottom-Left at bottom', OrigBL,
+        FTestImage.GetPixelColor32(ExpectedW div 2, ExpectedH div 4 * 3));
+      AssertEquals(Name + ': orig Bottom-Right at right', OrigBR,
+        FTestImage.GetPixelColor32(ExpectedW div 4 * 3, ExpectedH div 2));
+
+      AssertEquals(Name + ': Top-Left corner background', Background, FTestImage.GetPixelColor32(0, 0));
+      AssertEquals(Name + ': Top-Right corner background', Background, FTestImage.GetPixelColor32(ExpectedW - 1, 0));
+      AssertEquals(Name + ': Bottom-Left corner background', Background, FTestImage.GetPixelColor32(0, ExpectedH - 1));
+      AssertEquals(Name + ': Bottom-Right corner background', Background,
+        FTestImage.GetPixelColor32(ExpectedW - 1, ExpectedH - 1));
+    end;
+  end;
+end;
+
+procedure TTestImageRotation.Test_FlatAreaKeepsValue_AllFilters;
+const
+  Angles: array[0..3] of Double = (1.0, 3.7, 10.0, 45.0);
+  Values: array[0..1] of Byte = (255, 128);
+  FilterNames: array[TResamplingFilter] of string = ('nearest', 'linear', 'cubic', 'lanczos');
+var
+  Filter: TResamplingFilter;
+  I, J, X, Y, Wrong: Integer;
+  Value: Byte;
+begin
+  // Weights of the interpolation must add up to 1: a flat area (white paper)
+  // keeps its exact value. Lanczos weights used to sum to as little as 0.989
+  // and white 255 came out as 252..255 depending on the sub-pixel position.
+  for Filter := Low(TResamplingFilter) to High(TResamplingFilter) do
+    for I := Low(Angles) to High(Angles) do
+      for J := Low(Values) to High(Values) do
+      begin
+        Value := Values[J];
+        FTestImage.RecreateImageData(IMG_WIDTH, IMG_HEIGHT, ifGray8);
+        FTestImage.Fill(Value);
+        RotateImage(FTestImage.ImageDataPointer^, Angles[I], pcBlack, Filter, False);
+
+        // Middle third is far from the edges for all the angles
+        Wrong := 0;
+        for Y := IMG_HEIGHT div 3 to IMG_HEIGHT * 2 div 3 do
+          for X := IMG_WIDTH div 3 to IMG_WIDTH * 2 div 3 do
+            if FTestImage.GetPixelByte(X, Y) <> Value then
+              Inc(Wrong);
+
+        AssertEquals(Format('%s, %.1f deg, value %d: changed pixels', [FilterNames[Filter], Angles[I], Value]),
+          0, Wrong);
+      end;
+end;
+
+procedure TTestImageRotation.Test_GradientSubpixelAccuracy_AllFilters;
+const
+  GradW = 120;
+  GradH = 90;
+  Formats: array[0..2] of TImageFormat = (ifGray8, ifR8G8B8, ifA8R8G8B8);
+  Angles: array[0..5] of Double = (0.5, 3.7, 30.0, 89.5, 200.0, -7.25);
+  FilterNames: array[TResamplingFilter] of string = ('nearest', 'linear', 'cubic', 'lanczos');
+  // Distance from the source edges where the filter kernel still sees the background
+  Margins: array[TResamplingFilter] of Double = (1.0, 1.5, 2.5, 3.5);
+  // Rounding of source and result pixels gives up to 1, Lanczos is not exact for linear gradient
+  MaxErrors: array[TResamplingFilter] of Double = (0.0, 1.0, 1.0, 1.25);
+
+  function Gradient(X, Y: Double): Double;
+  begin
+    Result := 20 + 1.0 * X + 0.8 * Y;
+  end;
+
+var
+  F, I, X, Y: Integer;
+  Filter: TResamplingFilter;
+  Fit: Boolean;
+  Pixel: TColor32Rec;
+  Name: string;
+  CosA, SinA, SrcX, SrcY, DstX, DstY, Expected, Err, MaxErr: Double;
+begin
+  // A linear gradient is reproduced by all the filters (up to rounding), so every
+  // pixel of the rotated image can be checked against the gradient value at its
+  // exact source position. Any shift, wrong direction or wrong weighting shows up.
+  // Positions: centers of pixels, rotation counterclockwise around the image center.
+  for F := Low(Formats) to High(Formats) do
+  begin
+    FOrigImage.RecreateImageData(GradW, GradH, Formats[F]);
+    for Y := 0 to GradH - 1 do
+      for X := 0 to GradW - 1 do
+      begin
+        Pixel.B := Round(Gradient(X, Y));
+        Pixel.G := 255 - Pixel.B;
+        Pixel.R := Pixel.B div 2;
+        Pixel.A := 255;
+        if Formats[F] = ifGray8 then
+          PByte(FOrigImage.PixelPointer[X, Y])^ := Pixel.B
+        else
+          SetPixel32(FOrigImage.ImageDataPointer^, X, Y, Pixel);
+      end;
+
+    for Filter := Low(TResamplingFilter) to High(TResamplingFilter) do
+      for I := Low(Angles) to High(Angles) do
+        for Fit := False to True do
+        begin
+          Name := Format('%s %s %.2f deg fit=%s', [string(Imaging.GetFormatName(Formats[F])),
+            FilterNames[Filter], Angles[I], SysUtils.BoolToStr(Fit, True)]);
+          FTestImage.Assign(FOrigImage);
+          RotateImage(FTestImage.ImageDataPointer^, Angles[I], pcWhite, Filter, Fit);
+
+          CosA := Cos(DegToRad(-Angles[I]));
+          SinA := Sin(DegToRad(-Angles[I]));
+          MaxErr := 0;
+
+          for Y := 0 to FTestImage.Height - 1 do
+            for X := 0 to FTestImage.Width - 1 do
+            begin
+              DstX := X - (FTestImage.Width - 1) / 2;
+              DstY := (FTestImage.Height - 1) / 2 - Y;
+              SrcX := CosA * DstX - SinA * DstY + (GradW - 1) / 2;
+              SrcY := (GradH - 1) / 2 - (SinA * DstX + CosA * DstY);
+              Expected := 0;
+
+              if Filter = rfNearest then
+              begin
+                // Exactly the nearest source pixel (either one when it's a tie)
+                if (SrcX <= -0.499) or (SrcY <= -0.499) or (SrcX >= GradW - 0.501) or (SrcY >= GradH - 0.501) or
+                  (Abs(Frac(SrcX) - 0.5) < 0.001) or (Abs(Frac(SrcY) - 0.5) < 0.001) then
+                  Continue;
+                Expected := Round(Gradient(Floor(SrcX + 0.5), Floor(SrcY + 0.5)));
+              end
+              else
+              begin
+                if (SrcX < Margins[Filter]) or (SrcY < Margins[Filter]) or
+                  (SrcX > GradW - 1 - Margins[Filter]) or (SrcY > GradH - 1 - Margins[Filter]) then
+                  Continue;
+                Expected := Gradient(SrcX, SrcY);
+              end;
+
+              Err := Abs(FTestImage.GetPixelColor32(X, Y).B - Expected);
+              if Err > MaxErr then
+                MaxErr := Err;
+            end;
+
+          AssertTrue(Format('%s: max error %.2f > %.2f', [Name, MaxErr, MaxErrors[Filter]]),
+            MaxErr <= MaxErrors[Filter] + 0.001);
+        end;
+  end;
 end;
 
 initialization

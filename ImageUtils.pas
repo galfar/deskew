@@ -627,7 +627,7 @@ var
   procedure PrecomputeFilterWeights;
   var
     I, J: Integer;
-    Weight: Single;
+    Weight, Sum: Single;
     Fraction: Single;
   begin
     FillMemoryByte(@WeightTable, SizeOf(WeightTable), 0);
@@ -635,11 +635,20 @@ var
     for I := 0 to TableSize do
     begin
       Fraction := I / (TableSize - 1);
+      Sum := 0;
       for J := -KernelWidth to KernelWidth do
       begin
         Weight := FilterFunction(J + Fraction);
         WeightTable[J, I] := Weight;
+        Sum := Sum + Weight;
       end;
+
+      // Weights of some filters (Lanczos) do not add up to 1, flat areas
+      // would get darker the sub-pixel position -> we need to normalize the weights
+      // so that all the taps must add up to 1.
+      if Sum <> 0 then
+        for J := -KernelWidth to KernelWidth do
+          WeightTable[J, I] := WeightTable[J, I] / Sum;
     end;
   end;
 {$ENDIF}
@@ -655,6 +664,7 @@ var
     XFilterTablePos, YFilterTablePos: Integer;
   {$ELSE}
     FracXS, FracYS: Single;
+    SumX, SumY, Norm: Single;
   {$ENDIF}
     SrcPixel: PColor32Rec;
     ClipRect: TRect;
@@ -714,6 +724,16 @@ var
   {$ELSE}
     FracXS := CeilX - X;
     FracYS := CeilY - Y;
+
+    // Same normalization as in PrecomputeFilterWeights: weights of all the taps
+    // (including those on the background) must add up to 1
+    SumX := 0;
+    SumY := 0;
+    for I := -KernelWidth to KernelWidth do
+    begin
+      SumX := SumX + FilterFunction(I + FracXS);
+      SumY := SumY + FilterFunction(I + FracYS);
+    end;
   {$ENDIF}
 
     VertEntry := EmptyBufferEntry;
@@ -795,6 +815,17 @@ var
         end;
       end
     end;
+
+  {$IFNDEF USE_FILTER_TABLE}
+    if SumX * SumY <> 0 then
+    begin
+      Norm := 1 / (SumX * SumY);
+      VertEntry.A := VertEntry.A * Norm;
+      VertEntry.R := VertEntry.R * Norm;
+      VertEntry.G := VertEntry.G * Norm;
+      VertEntry.B := VertEntry.B * Norm;
+    end;
+  {$ENDIF}
 
     with Result do
     begin
@@ -979,8 +1010,8 @@ begin
     FilterFunction := ImagingFormats.SamplingFilterFunctions[Filter];
     FilterRadius := ImagingFormats.SamplingFilterRadii[Filter];
 
-  {$IFDEF USE_FILTER_TABLE}
     KernelWidth := FastCeil(FilterRadius);
+  {$IFDEF USE_FILTER_TABLE}
     PrecomputeFilterWeights;
   {$ENDIF}
 
