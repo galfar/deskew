@@ -50,6 +50,7 @@ type
     procedure TestInfoFlags;
     procedure TestJsonReportFlags;
     procedure TestJsonReportFileName;
+    procedure TestOutputDirectory;
     procedure TestParametersToJson;
 
     // Test content area
@@ -668,6 +669,43 @@ begin
   ParseResult := FCmdOptions.Parse(['-s', 'r', '-x', '1', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Unknown parameter', 'bad parameter');
   AssertEquals('bad parameter', '', FCmdOptions.JsonReportFileName);
+end;
+
+procedure TTestCmdLineOptions.TestOutputDirectory;
+var
+  ParseResult: Boolean;
+  TempDir: string;
+begin
+  // Ends with a delimiter, does not have to exist
+  ParseResult := FCmdOptions.Parse(['-s', 'rw', '-g', 'd', '-o', 'reports/', 'scans/in.tif']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'dir with slash');
+  AssertEquals('dir with slash: dir', 'reports/', FCmdOptions.OutputDir);
+  AssertEquals('dir with slash: no output file', '', FCmdOptions.OutputFileName);
+  AssertEquals('dir with slash: report', 'reports/in.tif.json', FCmdOptions.JsonReportFileName);
+  AssertEquals('dir with slash: work image', 'reports/in.work.png', FCmdOptions.WorkImageFileName);
+
+  ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', 'reports' + PathDelim, 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'dir with delimiter');
+  AssertEquals('dir with delimiter: report', 'reports' + PathDelim + 'in.png.json', FCmdOptions.JsonReportFileName);
+
+  // Existing directory without the delimiter
+  TempDir := ExcludeTrailingPathDelimiter(GetCurrentDir);
+  ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', TempDir, 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'existing dir');
+  AssertEquals('existing dir: dir', TempDir + PathDelim, FCmdOptions.OutputDir);
+  AssertEquals('existing dir: work image', TempDir + PathDelim + 'in.work.png', FCmdOptions.WorkImageFileName);
+
+  // Output image needs a file name
+  ParseResult := FCmdOptions.Parse(['-o', 'reports/', 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'directory can only be given in detect only mode', 'dir without -g d');
+  ParseResult := FCmdOptions.Parse(['-o', TempDir, 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'directory can only be given in detect only mode', 'existing dir without -g d');
+
+  // A file name still works as before in detect only mode
+  ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', 'out.png', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'file in detect only');
+  AssertEquals('file in detect only: no dir', '', FCmdOptions.OutputDir);
+  AssertEquals('file in detect only: work image', 'out.work.png', FCmdOptions.WorkImageFileName);
 end;
 
 procedure TTestCmdLineOptions.TestParametersToJson;

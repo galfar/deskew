@@ -43,6 +43,12 @@ function OtsuThresholding(var Image: TImageData; AContentRect: PRect = nil): Int
   within this rectangle. Otherwise, the whole image is processed.}
 procedure BinarizeImage(var Image: TImageData; Threshold: Integer; AContentRect: PRect = nil);
 
+{ Draws a frame of given thickness and color along the edges of ARect,
+  inside the rectangle or, if Outside is True, around it. Parts of the frame
+  outside the image are left out. Used to mark areas in the work image. }
+procedure DrawRectFrame(var Image: TImageData; const ARect: TRect; Thickness: Integer;
+  Color: TColor32; Outside: Boolean);
+
 { Finds the area of 8bit grayscale image with actual content (text, pictures, ...)
   using given threshold level value [0..255] to tell the content from the background.
   Dark areas connected to the edges (scanner bed around the page, shadows)
@@ -76,6 +82,7 @@ procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TCo
 implementation
 
 uses
+  ImagingCanvases,
   Utils;
 
 function IsImageDataEqual(const Image1, Image2: TImageData): Boolean;
@@ -223,6 +230,31 @@ begin
   if Min = Max then Level := Min;
 
   Result := Level;
+end;
+
+procedure DrawRectFrame(var Image: TImageData; const ARect: TRect; Thickness: Integer;
+  Color: TColor32; Outside: Boolean);
+var
+  Canvas: TImagingCanvas;
+  R: TRect;
+  T: Integer;
+begin
+  T := Thickness;
+  R := ARect;
+  if Outside then
+    InflateRect(R, T, T);
+
+  // Canvas clips the edges to the image, empty ones are skipped
+  Canvas := TImagingCanvas.CreateForData(@Image);
+  try
+    Canvas.FillColor32 := Color;
+    Canvas.FillRect(Rect(R.Left, R.Top, R.Right, R.Top + T));
+    Canvas.FillRect(Rect(R.Left, R.Bottom - T, R.Right, R.Bottom));
+    Canvas.FillRect(Rect(R.Left, R.Top + T, R.Left + T, R.Bottom - T));
+    Canvas.FillRect(Rect(R.Right - T, R.Top + T, R.Right, R.Bottom - T));
+  finally
+    Canvas.Free;
+  end;
 end;
 
 procedure BinarizeImage(var Image: TImageData; Threshold: Integer; AContentRect: PRect);
@@ -454,7 +486,6 @@ var
   SrcWidthHalf, SrcHeightHalf, DstWidthHalf, DstHeightHalf: Single;
   DstWidth, DstHeight: Integer;
   AngleRad, ForwardSin, ForwardCos, BackwardSin, BackwardCos, SrcX, SrcY: Single;
-  TopLeft, TopRight, BottomLeft, BottomRight: TFloatPoint;
   SrcImage, DstImage: TImageData;
   FormatInfo: TImageFormatInfo;
   X, Y, Bpp, NearestX, NearestY: Integer;

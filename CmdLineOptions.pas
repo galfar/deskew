@@ -55,6 +55,7 @@ type
     // Option values
     FInputFileName: string;
     FOutputFileName: string;
+    FOutputDir: string;
     FMaxAngle: Double;
     FAngleStep: Double;
     FSkipAngle: Double;
@@ -88,6 +89,9 @@ type
     procedure Reset;
     // Check a single parameter
     function CheckParam(const Param, Value: string): Boolean;
+    // Output file name or input file name in output directory, the base for
+    // JSON report and work image names
+    function ReportBaseFileName: string;
   public
     constructor Create;
 
@@ -101,8 +105,13 @@ type
     procedure WriteToJson(Json: TJsonWriter);
     // Name of the file for JSON report (when JsonReportFile is set): output file
     // name with added extension. It's the same in detect only mode where
-    // no output file is written.
+    // no output file is written. With output directory (OutputDir) the input
+    // file name in that directory is used instead of the output file name.
     function JsonReportFileName: string;
+    // Name of the work image file (when SaveWorkImage is set): output file
+    // name with extension replaced by ".work.png", also in detect only mode.
+    // Output directory is handled like in JsonReportFileName.
+    function WorkImageFileName: string;
 
     // Calculates final content rectangle in pixels for given image based
     // on user input (content vs margin, units).
@@ -115,6 +124,9 @@ type
     function TrySetTiffCompressionFromMetadata(Metadata: TMetadata; out ReplacedLossy: Boolean): Boolean;
 
     property InputFileName: string read FInputFileName;
+    // Directory given with -o in detect only mode (with trailing path delimiter):
+    // only the JSON report and the work image go there, OutputFileName is empty then.
+    property OutputDir: string read FOutputDir;
     property OutputFileName: string read FOutputFileName;
 
     // Max expected rotation angle - detection algorithm then works in range [-MaxAngle, MaxAngle]
@@ -205,6 +217,7 @@ const
   SDefaultOutputFilePrefix = 'deskewed-';
   SDefaultOutputFileExt = 'png';
   SJsonReportFileExt = '.json';
+  SWorkImageFileExt = '.work.png';
 
 var
   FloatFmtSettings: TFormatSettings;
@@ -238,6 +251,7 @@ end;
 procedure TCmdLineOptions.Reset;
 begin
   FInputFileName := '';
+  FOutputDir := '';
   FOutputFileName := '';
   FMaxAngle := DefaultMaxAngle;
   FAngleStep := DefaultAngleStep;
@@ -656,7 +670,22 @@ begin
     Exit(False);
   end;
 
-  if FOutputFileName = '' then
+  if IsDirectoryName(FOutputFileName) then
+  begin
+    // There is no output image in detect only mode, so it is enough to say
+    // where the report and the work image should go
+    if not (ofDetectOnly in FOperationalFlags) then
+    begin
+      FErrorMessage := 'Output must be a file name, a directory can only be given in detect only mode (-g d): ' +
+        FOutputFileName;
+      Exit(False);
+    end;
+    FOutputDir := FOutputFileName;
+    if not EndsWithPathDelimiter(FOutputDir) then
+      FOutputDir := FOutputDir + PathDelim;
+    FOutputFileName := '';
+  end
+  else if FOutputFileName = '' then
   begin
     // No user output file name given => use prefixed input file name as default
     // (with PNG as file fomat to not introduce any new compression artifacts when
@@ -793,7 +822,7 @@ begin
   Result :=
     'Parameters: ' + CmdParams + sLineBreak +
     '  input file          = ' + InputFileName + sLineBreak +
-    '  output file         = ' + OutputFileName + sLineBreak +
+    Iff(OutputDir <> '', '  output directory    = ' + OutputDir, '  output file         = ' + OutputFileName) + sLineBreak +
     '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
     '  resampling filter   = ' + FilterStr + sLineBreak +
     '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
@@ -881,11 +910,26 @@ begin
   Json.AddBool('cropToInput', ofCropToInput in OperationalFlags);
 end;
 
+function TCmdLineOptions.ReportBaseFileName: string;
+begin
+  if FOutputDir <> '' then
+    Result := FOutputDir + GetFileName(FInputFileName)
+  else
+    Result := FOutputFileName;
+end;
+
 function TCmdLineOptions.JsonReportFileName: string;
 begin
-  Result := '';
-  if OutputFileName <> '' then
-    Result := OutputFileName + SJsonReportFileExt;
+  Result := ReportBaseFileName;
+  if Result <> '' then
+    Result := Result + SJsonReportFileExt;
+end;
+
+function TCmdLineOptions.WorkImageFileName: string;
+begin
+  Result := ReportBaseFileName;
+  if Result <> '' then
+    Result := ChangeFileExt(Result, SWorkImageFileExt);
 end;
 
 initialization

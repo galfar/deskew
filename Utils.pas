@@ -34,6 +34,13 @@ function RectToStr(const R: TRect): string;
 function CalcRectInPixels(const RectInUnits: TFloatRect; SizeUnit: TSizeUnit;
   const ImageBoundsPx: TRect;  Metadata: TMetadata): TRect;
 
+{ True when the path ends with a path delimiter. Slash counts on Windows too
+  (Delphi's IncludeTrailingPathDelimiter does not know it there).}
+function EndsWithPathDelimiter(const Path: string): Boolean;
+{ True when the path names a directory: it ends with a path delimiter
+  (does not have to exist then) or it is an existing directory.}
+function IsDirectoryName(const Path: string): Boolean;
+
 type
   { Simple writer of JSON documents for the machine readable reports.
     Output is plain ASCII (other characters are escaped) so it is valid UTF-8
@@ -137,6 +144,16 @@ begin
     else
       Assert(False);
   end;
+end;
+
+function EndsWithPathDelimiter(const Path: string): Boolean;
+begin
+  Result := (Path <> '') and CharInSet(Path[Length(Path)], ['/', PathDelim]);
+end;
+
+function IsDirectoryName(const Path: string): Boolean;
+begin
+  Result := EndsWithPathDelimiter(Path) or ((Path <> '') and DirectoryExists(Path));
 end;
 
 const

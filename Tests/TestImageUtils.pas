@@ -32,6 +32,10 @@ type
 
     procedure TestBinarize_WholeImage_SimpleSplit;
     procedure TestBinarize_ContentRect_LeavesOutsideUnchanged;
+
+    procedure TestDrawRectFrame_Inside;
+    procedure TestDrawRectFrame_Outside;
+    procedure TestDrawRectFrame_ClippedToImage;
   end;
 
   TTestImageRotation = class(TDeskewTestCase)
@@ -77,6 +81,11 @@ implementation
 
 uses
   Math;
+
+function C32(Color: TColor32): TColor32Rec;
+begin
+  Result.Color := Color;
+end;
 
 procedure TTestImageUtils.CreateTwoValueRect(AImage: TSingleImage; const ARect: TRect;
   Val1: Byte; Val2: Byte; IsHorizontalSplit: Boolean);
@@ -268,6 +277,65 @@ begin
         AssertEquals(Format('Pixel (%d,%d) originally 200 should be 255', [X, Y]), 255, RowPtr[X]);
     end;
   end;
+end;
+
+procedure TTestImageUtils.TestDrawRectFrame_Inside;
+const
+  Red = $FFFF0000;
+begin
+  FTestImage.Format := ifR8G8B8;
+  DrawRectFrame(FTestImage.ImageDataPointer^, Rect(10, 20, 50, 60), 3, Red, False);
+
+  AssertEquals('Top-left corner', C32(Red), FTestImage.GetPixelColor32(10, 20));
+  AssertEquals('Inner edge of top line', C32(Red), FTestImage.GetPixelColor32(30, 22));
+  AssertEquals('Inner edge of right line', C32(Red), FTestImage.GetPixelColor32(47, 40));
+  AssertEquals('Bottom-right corner', C32(Red), FTestImage.GetPixelColor32(49, 59));
+  AssertEquals('Inside the frame', C32(pcWhite), FTestImage.GetPixelColor32(30, 23));
+  AssertEquals('Inside the frame (right)', C32(pcWhite), FTestImage.GetPixelColor32(46, 40));
+  AssertEquals('Outside the rect', C32(pcWhite), FTestImage.GetPixelColor32(9, 20));
+  AssertEquals('Outside the rect (bottom)', C32(pcWhite), FTestImage.GetPixelColor32(30, 60));
+end;
+
+procedure TTestImageUtils.TestDrawRectFrame_Outside;
+const
+  Green = $FF00C000;
+begin
+  FTestImage.Format := ifR8G8B8;
+  DrawRectFrame(FTestImage.ImageDataPointer^, Rect(10, 20, 50, 60), 2, Green, True);
+
+  AssertEquals('Outer top-left corner', C32(Green), FTestImage.GetPixelColor32(8, 18));
+  AssertEquals('Left of the rect', C32(Green), FTestImage.GetPixelColor32(9, 40));
+  AssertEquals('Below the rect', C32(Green), FTestImage.GetPixelColor32(30, 61));
+  AssertEquals('Outer bottom-right corner', C32(Green), FTestImage.GetPixelColor32(51, 61));
+  AssertEquals('Rect itself untouched', C32(pcWhite), FTestImage.GetPixelColor32(10, 20));
+  AssertEquals('Rect itself untouched (bottom-right)', C32(pcWhite), FTestImage.GetPixelColor32(49, 59));
+  AssertEquals('Beyond the frame', C32(pcWhite), FTestImage.GetPixelColor32(7, 40));
+end;
+
+procedure TTestImageUtils.TestDrawRectFrame_ClippedToImage;
+const
+  Red = $FFFF0000;
+var
+  Bounds: TRect;
+begin
+  // Frame around the whole image lies completely outside of it
+  FTestImage.Format := ifR8G8B8;
+  Bounds := FTestImage.BoundsRect;
+  DrawRectFrame(FTestImage.ImageDataPointer^, Bounds, 4, Red, True);
+  AssertEquals('Corner untouched', C32(pcWhite), FTestImage.GetPixelColor32(0, 0));
+  AssertEquals('Edge untouched', C32(pcWhite), FTestImage.GetPixelColor32(FTestImage.Width - 1, 64));
+
+  // Rect partly outside the image, only the visible part of the frame is drawn
+  DrawRectFrame(FTestImage.ImageDataPointer^, Rect(-10, 100, 40, 200), 2, Red, False);
+  AssertEquals('Top line', C32(Red), FTestImage.GetPixelColor32(0, 100));
+  AssertEquals('Right line', C32(Red), FTestImage.GetPixelColor32(39, 127));
+  AssertEquals('Inside', C32(pcWhite), FTestImage.GetPixelColor32(20, 110));
+
+  // Gray8 image works as well
+  FTestImage.Format := ifGray8;
+  DrawRectFrame(FTestImage.ImageDataPointer^, Rect(0, 0, 10, 10), 1, pcBlack, False);
+  AssertEquals('Gray8 frame', 0, FTestImage.GetPixelByte(0, 5));
+  AssertEquals('Gray8 inside', 255, FTestImage.GetPixelByte(5, 5));
 end;
 
 procedure TTestImageUtils.TestBinarize_ContentRect_LeavesOutsideUnchanged;

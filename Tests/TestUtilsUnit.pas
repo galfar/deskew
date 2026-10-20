@@ -17,6 +17,7 @@ type
     procedure TestCalcRectInPixels;
     procedure TestCalcRectInPixelsPhysicalUnits;
     procedure TestCalcRectInPixelsWithoutDpi;
+    procedure TestPathDelimiterAndDirectory;
   end;
 
   TTestJsonWriter = class(TDeskewTestCase)
@@ -147,6 +148,22 @@ begin
   finally
     Metadata.Free;
   end;
+end;
+
+procedure TTestUtils.TestPathDelimiterAndDirectory;
+var
+  CurrentDir: string;
+begin
+  AssertFalse('empty', EndsWithPathDelimiter(''));
+  AssertTrue('slash', EndsWithPathDelimiter('reports/'));
+  AssertTrue('path delimiter', EndsWithPathDelimiter('reports' + PathDelim));
+  AssertFalse('file name', EndsWithPathDelimiter('reports/out.png'));
+
+  AssertFalse('dir: empty', IsDirectoryName(''));
+  AssertTrue('dir: trailing slash, does not exist', IsDirectoryName('no-such-dir-here/'));
+  AssertFalse('dir: does not exist', IsDirectoryName('no-such-dir-here'));
+  CurrentDir := ExcludeTrailingPathDelimiter(GetCurrentDir);
+  AssertTrue('dir: existing', IsDirectoryName(CurrentDir));
 end;
 
 { TTestJsonWriter }

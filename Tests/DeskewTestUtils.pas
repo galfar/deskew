@@ -25,6 +25,7 @@ type
     procedure FillRect(const ARect: TRect; Color: Pointer); overload;
     procedure FillRect(const ARect: TRect;  AValue: Byte); overload;
     function GetPixelByte(X, Y: Integer): Byte;
+    function GetPixelColor32(X, Y: Integer): TColor32Rec;
   end;
 
   TDeskewTestCase = class(TTestCase)
@@ -97,6 +98,13 @@ begin
   Assert(Valid and (Format = ifGray8));
   Assert((X >= 0) and (X < Width) and (Y >= 0) and (Y < Height));
   Result := PByteArray(Scanline[Y])[X];
+end;
+
+function TImageHelper.GetPixelColor32(X, Y: Integer): TColor32Rec;
+begin
+  Assert(Valid);
+  Assert((X >= 0) and (X < Width) and (Y >= 0) and (Y < Height));
+  Result := Imaging.GetPixel32(ImageDataPointer^, X, Y);
 end;
 
 {$IFNDEF FPC}

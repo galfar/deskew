@@ -585,6 +585,7 @@ object FormAdvOptions: TFormAdvOptions
       object CheckSaveWorkImage: TCheckBox
         Left = 311
         Height = 19
+        Hint = 'Save the image skew detection worked with next to the output file, as <output name>.work.png.'#13#10'It is thresholded to black and white, the detection area is framed red and the found content green.'
         Top = 0
         Width = 107
         Anchors = []
