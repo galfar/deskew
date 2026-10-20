@@ -18,6 +18,7 @@ type
     procedure TestCalcRectInPixelsPhysicalUnits;
     procedure TestCalcRectInPixelsWithoutDpi;
     procedure TestPathDelimiterAndDirectory;
+    procedure TestEndsWithPathDelimiterPerPlatform;
   end;
 
   TTestJsonWriter = class(TDeskewTestCase)
@@ -164,6 +165,27 @@ begin
   AssertFalse('dir: does not exist', IsDirectoryName('no-such-dir-here'));
   CurrentDir := ExcludeTrailingPathDelimiter(GetCurrentDir);
   AssertTrue('dir: existing', IsDirectoryName(CurrentDir));
+end;
+
+procedure TTestUtils.TestEndsWithPathDelimiterPerPlatform;
+begin
+  // Slash is a delimiter everywhere. On Linux and macOS it is also PathDelim,
+  // the function used a set ['/', PathDelim] which did not even compile there
+  // (duplicate set element). Running this test on those platforms covers it.
+  AssertTrue('slash only', EndsWithPathDelimiter('/'));
+  AssertTrue('PathDelim only', EndsWithPathDelimiter(PathDelim));
+  AssertTrue('relative with slash', EndsWithPathDelimiter('a/b/'));
+  AssertTrue('mixed, ends with slash', EndsWithPathDelimiter('a\b/'));
+  AssertFalse('no delimiter at the end', EndsWithPathDelimiter('a/b'));
+  AssertFalse('one character, no delimiter', EndsWithPathDelimiter('a'));
+{$IFDEF MSWINDOWS}
+  // Backslash is the Windows delimiter
+  AssertTrue('backslash', EndsWithPathDelimiter('reports\'));
+  AssertTrue('drive root', EndsWithPathDelimiter('C:\'));
+{$ELSE}
+  // Backslash is an ordinary character in file names here
+  AssertFalse('backslash is not a delimiter', EndsWithPathDelimiter('reports\'));
+{$ENDIF}
 end;
 
 { TTestJsonWriter }

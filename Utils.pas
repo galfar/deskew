@@ -148,7 +148,7 @@ end;
 
 function EndsWithPathDelimiter(const Path: string): Boolean;
 begin
-  Result := (Path <> '') and CharInSet(Path[Length(Path)], ['/', PathDelim]);
+  Result := (Path <> '') and ((Path[Length(Path)] = '/') or (Path[Length(Path)] = PathDelim));
 end;
 
 function IsDirectoryName(const Path: string): Boolean;
