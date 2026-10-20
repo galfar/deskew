@@ -679,15 +679,6 @@ begin
     OutFormat := Imaging.FindImageFileFormatByName(FOutputFileName);
     if (OutFormat <> nil) and not OutFormat.CanSave then
       FOutputFileName := ChangeFileExt(FOutputFileName, '.' + SDefaultOutputFileExt);
-
-    // Never write over the input (in detect only mode no image is written)
-    if not (ofDetectOnly in FOperationalFlags) and
-      SameFileName(ExpandFileName(FOutputFileName), ExpandFileName(FInputFileName)) then
-    begin
-      FErrorMessage := 'Output directory is the folder of the input file, the input would be overwritten: ' +
-        FOutputDir;
-      Exit(False);
-    end;
   end
   else if FOutputFileName = '' then
   begin
@@ -696,6 +687,20 @@ begin
     // not explicitly asked for ).
     FOutputFileName := EnsureTrailingPathDelimiter(GetFileDir(FInputFileName)) +
       SDefaultOutputFilePrefix + ChangeFileExt(GetFileName(FInputFileName), '.' + SDefaultOutputFileExt);
+  end;
+
+  // Deskewing in place is not supported: the input could be lost when saving
+  // fails. Paths are compared expanded, "./scan.png" is "scan.png" too.
+  // (Detect only mode writes no image.)
+  if not (ofDetectOnly in FOperationalFlags) and
+    SameFileName(ExpandFileName(FOutputFileName), ExpandFileName(FInputFileName)) then
+  begin
+    if FOutputDir <> '' then
+      FErrorMessage := 'Output directory is the folder of the input file, the input would be overwritten: ' +
+        FOutputDir
+    else
+      FErrorMessage := 'Output file is the input file, it cannot be overwritten: ' + FOutputFileName;
+    Exit(False);
   end;
 end;
 
