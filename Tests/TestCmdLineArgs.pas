@@ -726,6 +726,23 @@ begin
   ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', 'out.png', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, 'file in detect only');
   AssertEquals('file in detect only: work image', 'out.work.png', FCmdOptions.WorkImageFileName);
+
+  // Output file name equal to the input: no deskewing in place, also when spelled differently
+  ParseResult := FCmdOptions.Parse(['-o', 'scans/in.png', 'scans/in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Output file is the input file', 'same file');
+  ParseResult := FCmdOptions.Parse(['-o', './scans/../scans/in.png', 'scans/in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Output file is the input file', 'same file, other spelling');
+  ParseResult := FCmdOptions.Parse(['-o', 'in.png', CurrentDir + PathDelim + 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Output file is the input file', 'same file, relative and absolute');
+{$IFDEF MSWINDOWS}
+  // File names are not case sensitive on Windows
+  ParseResult := FCmdOptions.Parse(['-o', 'SCANS/IN.PNG', 'scans/in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'Output file is the input file', 'same file, other case');
+{$ENDIF}
+  // Detect only mode writes no image, the report is named after the file
+  ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', 'scans/in.png', 'scans/in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'same file in detect only');
+  AssertEquals('same file in detect only: report', 'scans/in.png.json', FCmdOptions.JsonReportFileName);
 end;
 
 procedure TTestCmdLineOptions.TestParametersTextIgnoresLocale;
