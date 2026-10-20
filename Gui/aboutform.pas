@@ -40,7 +40,7 @@ var
 implementation
 
 uses
-  LCLIntf, DataModule, Config, Utils;
+  LCLIntf, DataModule, Utils;
 
 {$R *.lfm}
 
@@ -58,7 +58,6 @@ begin
   LabTitle.Caption := Application.Title;
   LabVersion.Caption := 'v' + Module.VersionString + ' (' + SBuildTarget
     {$IFDEF DEBUG} + ', DEBUG'{$ENDIF} + ')';
-  LabWeb.Caption := Config.WebLink;
 end;
 
 procedure TFormAbout.LabGitHubClick(Sender: TObject);

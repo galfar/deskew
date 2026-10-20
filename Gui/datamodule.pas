@@ -22,9 +22,6 @@ uses
   Options;
 
 type
-
-  { TModule }
-
   TModule = class(TDataModule)
     ActShowAdvOptions: TAction;
     OpenDialogMulti: TOpenDialog;
@@ -50,7 +47,7 @@ var
 implementation
 
 uses
-  IniFiles, Forms, ImagingUtility, AdvOptionsForm, Utils, Config;
+  IniFiles, Forms, ImagingUtility, AdvOptionsForm, Utils;
 
 {$R *.lfm}
 
@@ -61,8 +58,6 @@ const
 
 procedure TModule.DataModuleCreate(Sender: TObject);
 begin
-  Application.Title := Config.ApplicationTitle;
-
   ReadVersionInfo;
   // Prefers "portable mode": config in the folder as exe if it is writable,
   // standard OS location otherwise.

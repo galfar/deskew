@@ -20,8 +20,7 @@ uses
   Interfaces, // this includes the LCL widgetset
   Forms,
   { you can add units after this }
-  DataModule, MainForm, AdvOptionsForm, AboutForm, Runner, Utils, Options,
-  Config;
+  DataModule, MainForm, AdvOptionsForm, AboutForm, Runner, Utils, Options;
 
 {$R *.res}
 

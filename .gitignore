@@ -28,5 +28,6 @@ deskew.cfg
 *.res
 *.stat
 *.dsv
+*.dcu
 *.tvsconfig
 
