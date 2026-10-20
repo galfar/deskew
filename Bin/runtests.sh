@@ -8,18 +8,19 @@ echo "Using '$DESKEW' executable"
 
 # Help only
 ./$DESKEW -h
-# All defaults, output goes next to the input as deskewed-2.png
-./$DESKEW ../TestImages/2.png
-# Auto (Otsu) threshold and max skew angle
-./$DESKEW -t a -a 10 -o TestOut/Out2.png ../TestImages/2.png
+# Output given as a new directory (ends with /): deskewed image is TestOut/ToDir/2.png.
+# Creates TestOut too, the following cases rely on it existing.
+./$DESKEW -o TestOut/ToDir/ ../TestImages/2.png
+# Auto (Otsu) threshold and max skew angle, output to existing directory: TestOut/2.png
+./$DESKEW -t a -a 10 -o TestOut ../TestImages/2.png
 # Max skew angle only
-./$DESKEW -a 10 -o TestOut/Out3.png ../TestImages/3.png
-# Output file name only
-./$DESKEW -o TestOut/Out4.png ../TestImages/4.png
+./$DESKEW -a 10 -o TestOut ../TestImages/3.png
+# Output directory only
+./$DESKEW -o TestOut ../TestImages/4.png
 # Lanczos resampling filter
-./$DESKEW -q lanczos -a 10 -o TestOut/Out5.png ../TestImages/5.png
+./$DESKEW -q lanczos -a 10 -o TestOut ../TestImages/5.png
 # JPEG in and out, crop the result to the input size
-./$DESKEW -g c -o TestOut/OutF1550.jpg ../TestImages/F1550.jpg
+./$DESKEW -g c -o TestOut ../TestImages/F1550.jpg
 # Explicit threshold level
 ./$DESKEW -t 128 -o TestOut/Oute2.png ../TestImages/2.png
 # Explicit threshold level, JPEG

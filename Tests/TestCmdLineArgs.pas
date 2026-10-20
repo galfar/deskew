@@ -675,37 +675,56 @@ end;
 procedure TTestCmdLineOptions.TestOutputDirectory;
 var
   ParseResult: Boolean;
-  TempDir: string;
+  CurrentDir: string;
 begin
-  // Ends with a delimiter, does not have to exist
-  ParseResult := FCmdOptions.Parse(['-s', 'rw', '-g', 'd', '-o', 'reports/', 'scans/in.tif']);
+  // Ends with a delimiter, does not have to exist: input file name in that directory
+  ParseResult := FCmdOptions.Parse(['-s', 'rw', '-o', 'reports/', 'scans/in.tif']);
   AssertParseSuccesAndEmptyError(ParseResult, 'dir with slash');
   AssertEquals('dir with slash: dir', 'reports/', FCmdOptions.OutputDir);
-  AssertEquals('dir with slash: no output file', '', FCmdOptions.OutputFileName);
+  AssertEquals('dir with slash: output file', 'reports/in.tif', FCmdOptions.OutputFileName);
   AssertEquals('dir with slash: report', 'reports/in.tif.json', FCmdOptions.JsonReportFileName);
   AssertEquals('dir with slash: work image', 'reports/in.work.png', FCmdOptions.WorkImageFileName);
 
-  ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', 'reports' + PathDelim, 'in.png']);
+  ParseResult := FCmdOptions.Parse(['-o', 'reports' + PathDelim, 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, 'dir with delimiter');
-  AssertEquals('dir with delimiter: report', 'reports' + PathDelim + 'in.png.json', FCmdOptions.JsonReportFileName);
+  AssertEquals('dir with delimiter: output file', 'reports' + PathDelim + 'in.png', FCmdOptions.OutputFileName);
+
+  // The same names in detect only mode, where only the report and work image are written
+  ParseResult := FCmdOptions.Parse(['-s', 'rw', '-g', 'd', '-o', 'reports/', 'scans/in.tif']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'detect only');
+  AssertEquals('detect only: report', 'reports/in.tif.json', FCmdOptions.JsonReportFileName);
+  AssertEquals('detect only: work image', 'reports/in.work.png', FCmdOptions.WorkImageFileName);
 
   // Existing directory without the delimiter
-  TempDir := ExcludeTrailingPathDelimiter(GetCurrentDir);
-  ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', TempDir, 'in.png']);
+  CurrentDir := ExcludeTrailingPathDelimiter(GetCurrentDir);
+  ParseResult := FCmdOptions.Parse(['-o', CurrentDir, 'scans/in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, 'existing dir');
-  AssertEquals('existing dir: dir', TempDir + PathDelim, FCmdOptions.OutputDir);
-  AssertEquals('existing dir: work image', TempDir + PathDelim + 'in.work.png', FCmdOptions.WorkImageFileName);
+  AssertEquals('existing dir: dir', CurrentDir + PathDelim, FCmdOptions.OutputDir);
+  AssertEquals('existing dir: output file', CurrentDir + PathDelim + 'in.png', FCmdOptions.OutputFileName);
 
-  // Output image needs a file name
-  ParseResult := FCmdOptions.Parse(['-o', 'reports/', 'in.png']);
-  AssertParseFailAndErrorContains(ParseResult, 'directory can only be given in detect only mode', 'dir without -g d');
-  ParseResult := FCmdOptions.Parse(['-o', TempDir, 'in.png']);
-  AssertParseFailAndErrorContains(ParseResult, 'directory can only be given in detect only mode', 'existing dir without -g d');
+  // Folder of the input: output would be the input file itself
+  ParseResult := FCmdOptions.Parse(['-o', 'scans/', 'scans/in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'the input would be overwritten', 'input folder');
+  ParseResult := FCmdOptions.Parse(['-o', CurrentDir, 'in.png']);
+  AssertParseFailAndErrorContains(ParseResult, 'the input would be overwritten', 'input folder as existing dir');
+  // Nothing is written over the input in detect only mode
+  ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', 'scans/', 'scans/in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'input folder in detect only');
+  AssertEquals('input folder in detect only: report', 'scans/in.png.json', FCmdOptions.JsonReportFileName);
 
-  // A file name still works as before in detect only mode
+  // These must work as before: no output given, and a file name in the folder of the input
+  ParseResult := FCmdOptions.Parse(['mydir/file.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'no output');
+  AssertEquals('no output: dir', '', FCmdOptions.OutputDir);
+  AssertEquals('no output: file', 'mydir' + PathDelim + 'deskewed-file.png', FCmdOptions.OutputFileName);
+
+  ParseResult := FCmdOptions.Parse(['-o', 'mydir/deskewed-scan.png', 'mydir/original-scan.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'file in input folder');
+  AssertEquals('file in input folder: dir', '', FCmdOptions.OutputDir);
+  AssertEquals('file in input folder: file', 'mydir/deskewed-scan.png', FCmdOptions.OutputFileName);
+
   ParseResult := FCmdOptions.Parse(['-g', 'd', '-o', 'out.png', 'in.png']);
   AssertParseSuccesAndEmptyError(ParseResult, 'file in detect only');
-  AssertEquals('file in detect only: no dir', '', FCmdOptions.OutputDir);
   AssertEquals('file in detect only: work image', 'out.work.png', FCmdOptions.WorkImageFileName);
 end;
 
