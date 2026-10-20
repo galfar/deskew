@@ -14,7 +14,7 @@ interface
 
 uses
   Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, StdCtrls,
-  ExtCtrls, Spin, ActnList, Buttons, Options, Config;
+  ExtCtrls, Spin, ActnList, Buttons, Options;
 
 type
 
@@ -112,15 +112,6 @@ begin
   ComboTiffCompression.AddItem('Uncompressed', TObject(TiffCompressionOptionNone));
   ComboTiffCompression.AddItem('PackBits (legacy)', TObject(TiffCompressionOptionPackbitsRle));
   ComboTiffCompression.ItemIndex := 0;
-
-  if not Config.ShowDeskewExeOption then
-  begin
-    CheckDefaultExecutable.Visible := False;
-    LabDeskewExe.Visible := False;
-    EdDeskewExePath.Visible := False;
-    BtnBrowseDeskewExePath.Visible := False;
-    Height := EdDeskewExePath.BoundsRect.Bottom;
-  end;
 end;
 
 procedure TFormAdvOptions.FormShow(Sender: TObject);

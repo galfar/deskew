@@ -104,7 +104,7 @@ implementation
 {$R *.lfm}
 
 uses
-  ImagingUtility, DataModule, AdvOptionsForm, AboutForm, Config, Utils;
+  ImagingUtility, DataModule, AdvOptionsForm, AboutForm, Utils;
 
 { TFormMain }
 
@@ -141,8 +141,6 @@ begin
   ComboFileFormat.ItemIndex := 0;
 
   ApplyOptions(Module.Options);
-
-  Config.AfterMainFormCreation(Self);
 
   if Screen.WorkAreaHeight < Height then
     Height := Round(Screen.WorkAreaHeight * 0.9);
