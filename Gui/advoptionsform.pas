@@ -27,10 +27,11 @@ type
     BtnBrowseDeskewExePath: TButton;
     BtnOk: TBitBtn;
     BtnResetOptions: TBitBtn;
+    CheckDetectOnly: TCheckBox;
     CheckForceRotation: TCheckBox;
     CheckPrintParams: TCheckBox;
-    CheckDetectOnly: TCheckBox;
     CheckDpiOverride: TCheckBox;
+    CheckSaveWorkImage: TCheckBox;
     CheckThresholdAuto: TCheckBox;
     CheckJpegQuality: TCheckBox;
     CheckDefaultExecutable: TCheckBox;
@@ -40,6 +41,7 @@ type
     ComboResampling: TComboBox;
     EdDeskewExePath: TEdit;
     EdExtraCmdArgs: TEdit;
+    FlowPanel1: TFlowPanel;
     LabDeskewExe: TLabel;
     LabExtraCmdArgs: TLabel;
     LabOutputFileParams: TLabel;
@@ -47,7 +49,6 @@ type
     LabResamling: TLabel;
     LabTitle: TLabel;
     LabForcedFormat: TLabel;
-    LabMaxAngle: TLabel;
     LabAngleStep: TLabel;
     LabSkipAngle: TLabel;
     Panel1: TPanel;
@@ -55,7 +56,6 @@ type
     Shape2: TShape;
     SpinThresholdValue: TSpinEdit;
     SpinEditJpegQuality: TSpinEdit;
-    SpinEditMaxAngle: TFloatSpinEdit;
     SpinEditAngleStep: TFloatSpinEdit;
     SpinEditDpiOverride: TSpinEdit;
     SpinEditSkipAngle: TFloatSpinEdit;
@@ -130,7 +130,6 @@ end;
 
 procedure TFormAdvOptions.ApplyOptions(AOptions: TOptions);
 begin
-  SpinEditMaxAngle.Value := AOptions.MaxAngle;
   SpinEditAngleStep.Value := AOptions.AngleStep;
   SpinEditSkipAngle.Value := AOptions.SkipAngle;
   ComboResampling.ItemIndex := Integer(AOptions.ResamplingFilter);
@@ -155,7 +154,6 @@ end;
 
 procedure TFormAdvOptions.GatherOptions(AOptions: TOptions);
 begin
-  AOptions.MaxAngle := SpinEditMaxAngle.Value;
   AOptions.AngleStep := SpinEditAngleStep.Value;
   AOptions.SkipAngle := SpinEditSkipAngle.Value;
   AOptions.ResamplingFilter := TResamplingFilter(PtrUInt(ComboResampling.Items.Objects[ComboResampling.ItemIndex]));

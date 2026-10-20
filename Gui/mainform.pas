@@ -15,7 +15,7 @@ interface
 uses
   Classes, SysUtils, FileUtil, Forms,
   Controls, Graphics, Dialogs, ExtCtrls, StdCtrls,
-  ComCtrls, ActnList, Buttons,
+  ComCtrls, ActnList, Buttons, Spin,
   // App units
   Runner, Options;
 
@@ -52,6 +52,7 @@ type
     Label1: TLabel;
     Label2: TLabel;
     Label3: TLabel;
+    LabMaxAngle: TLabel;
     LabOptOutputFolder: TLabel;
     LabBackColor: TLabel;
     LabDeskewProgressTitle: TLabel;
@@ -69,6 +70,9 @@ type
     PanelFiles: TPanel;
     PanelOptions: TPanel;
     ProgressBar: TProgressBar;
+    Shape1: TShape;
+    Shape2: TShape;
+    SpinEditMaxAngle: TFloatSpinEdit;
     procedure ActAddFilesExecute(Sender: TObject);
     procedure ActBrowseOutputDirExecute(Sender: TObject);
     procedure ActClearFilesExecute(Sender: TObject);
@@ -168,6 +172,7 @@ begin
   CheckCropToInput.Checked := AOptions.CropToInput;
   CheckAutoContent.Checked := AOptions.AutoContentRect;
   EdMargins.Text := AOptions.ContentMargins;
+  SpinEditMaxAngle.Value := AOptions.MaxAngle;
 end;
 
 procedure TFormMain.GatherOptions(AOptions: TOptions);
@@ -192,6 +197,7 @@ begin
   AOptions.CropToInput := CheckCropToInput.Checked;
   AOptions.AutoContentRect := CheckAutoContent.Checked;
   AOptions.ContentMargins := Trim(EdMargins.Text);
+  AOptions.MaxAngle := SpinEditMaxAngle.Value;
 end;
 
 procedure TFormMain.RunnerFinished(Sender: TObject; Reason: TFinishReason);

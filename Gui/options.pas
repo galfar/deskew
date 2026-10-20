@@ -165,7 +165,7 @@ const
   );
 
   IniSectionOptions = 'Options';
-  IniSectionAdvanced = 'Advanced';
+  IniSectionAdvancedOld = 'Advanced';
 
 { TOptions }
 
@@ -397,62 +397,80 @@ begin
   Ini.WriteString(IniSectionOptions, 'OutputFileFormat', TEnumUtils<TFileFormat>.EnumToStr(OutputFileFormat));
   Ini.WriteString(IniSectionOptions, 'BackgroundColor', ColorToString(BackgroundColor));
   Ini.WriteNiceBool(IniSectionOptions, 'CropToInput', CropToInput);
-
-  Ini.WriteString(IniSectionAdvanced, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
-  Ini.WriteFloat(IniSectionAdvanced, 'MaxAngle', MaxAngle);
-  Ini.WriteFloat(IniSectionAdvanced, 'AngleStep', AngleStep);
-  Ini.WriteNiceBool(IniSectionAdvanced, 'DpiOverrideEnabled', DpiOverrideEnabled);
-  Ini.WriteInteger(IniSectionAdvanced, 'DpiOverride', DpiOverride);
-  Ini.WriteNiceBool(IniSectionAdvanced, 'DetectOnly', DetectOnly);
-  Ini.WriteNiceBool(IniSectionAdvanced, 'ForceRotation', ForceRotation);
-  Ini.WriteNiceBool(IniSectionAdvanced, 'AutoContentRect', AutoContentRect);
-  Ini.WriteString(IniSectionAdvanced, 'ContentMargins', ContentMargins);
-  Ini.WriteInteger(IniSectionAdvanced, 'ThresholdLevel', ThresholdLevel);
-  Ini.WriteNiceBool(IniSectionAdvanced, 'ThresholdingAuto', ThresholdingAuto);
-  Ini.WriteString(IniSectionAdvanced, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
-  Ini.WriteFloat(IniSectionAdvanced, 'SkipAngle', SkipAngle);
-  Ini.WriteString(IniSectionAdvanced, 'OutputFileParamsEnabled', SetToString(PTypeInfo(TypeInfo(TFileFormatSet)), Integer(OutputFileParamsEnabled), True));
-  Ini.WriteInteger(IniSectionAdvanced, 'JpegCompressionQuality', JpegCompressionQuality);
-  Ini.WriteInteger(IniSectionAdvanced, 'TiffCompressionScheme', TiffCompressionScheme);
-  Ini.WriteNiceBool(IniSectionAdvanced, 'PrintParams', PrintParams);
-  Ini.WriteString(IniSectionAdvanced, 'ExtraCmdLineArgs', ExtraCmdLineArgs);
-  Ini.WriteNiceBool(IniSectionAdvanced, 'DefaultExecutable', DefaultExecutable);
-  Ini.WriteString(IniSectionAdvanced, 'CustomExecutablePath', CustomExecutablePath);
+  Ini.WriteFloat(IniSectionOptions, 'MaxAngle', MaxAngle);
+  Ini.WriteString(IniSectionOptions, 'ResamplingFilter', TEnumUtils<TResamplingFilter>.EnumToStr(ResamplingFilter));
+  Ini.WriteFloat(IniSectionOptions, 'AngleStep', AngleStep);
+  Ini.WriteNiceBool(IniSectionOptions, 'DpiOverrideEnabled', DpiOverrideEnabled);
+  Ini.WriteInteger(IniSectionOptions, 'DpiOverride', DpiOverride);
+  Ini.WriteNiceBool(IniSectionOptions, 'DetectOnly', DetectOnly);
+  Ini.WriteNiceBool(IniSectionOptions, 'ForceRotation', ForceRotation);
+  Ini.WriteNiceBool(IniSectionOptions, 'AutoContentRect', AutoContentRect);
+  Ini.WriteString(IniSectionOptions, 'ContentMargins', ContentMargins);
+  Ini.WriteInteger(IniSectionOptions, 'ThresholdLevel', ThresholdLevel);
+  Ini.WriteNiceBool(IniSectionOptions, 'ThresholdingAuto', ThresholdingAuto);
+  Ini.WriteString(IniSectionOptions, 'ForcedOutputFormat', TEnumUtils<TForcedOutputFormat>.EnumToStr(ForcedOutputFormat));
+  Ini.WriteFloat(IniSectionOptions, 'SkipAngle', SkipAngle);
+  Ini.WriteString(IniSectionOptions, 'OutputFileParamsEnabled', SetToString(PTypeInfo(TypeInfo(TFileFormatSet)), Integer(OutputFileParamsEnabled), True));
+  Ini.WriteInteger(IniSectionOptions, 'JpegCompressionQuality', JpegCompressionQuality);
+  Ini.WriteInteger(IniSectionOptions, 'TiffCompressionScheme', TiffCompressionScheme);
+  Ini.WriteNiceBool(IniSectionOptions, 'PrintParams', PrintParams);
+  Ini.WriteString(IniSectionOptions, 'ExtraCmdLineArgs', ExtraCmdLineArgs);
+  Ini.WriteNiceBool(IniSectionOptions, 'DefaultExecutable', DefaultExecutable);
+  Ini.WriteString(IniSectionOptions, 'CustomExecutablePath', CustomExecutablePath);
 end;
 
 procedure TOptions.LoadFromIni(Ini: TIniFile);
+var
+  Values: TStringList;
+  I: Integer;
 begin
+  // Older versions kept part of the settings in a separate [Advanced] section,
+  // move them over (whatever is already in [Options] wins).
+  // TODO: remove this in another relase, all users whould be "upgraded" by then
+  if Ini.SectionExists(IniSectionAdvancedOld) then
+  begin
+    Values := TStringList.Create;
+    try
+      Ini.ReadSectionValues(IniSectionAdvancedOld, Values);
+      for I := 0 to Values.Count - 1 do
+        if not Ini.ValueExists(IniSectionOptions, Values.Names[I]) then
+          Ini.WriteString(IniSectionOptions, Values.Names[I], Values.ValueFromIndex[I]);
+    finally
+      Values.Free;
+    end;
+    Ini.EraseSection(IniSectionAdvancedOld);
+  end;
+
   DefaultOutputFileOptions := Ini.ReadNiceBool(IniSectionOptions, 'DefaultOutputFileOptions', True);
   OutputFolder := Ini.ReadString(IniSectionOptions, 'OutputFolder', '');
   OutputFileFormat := TEnumUtils<TFileFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'OutputFileFormat', ''));
   BackgroundColor := StringToColorDef(Ini.ReadString(IniSectionOptions, 'BackgroundColor', ''), DefaultBackgroundColor);
   CropToInput := Ini.ReadNiceBool(IniSectionOptions, 'CropToInput', False);
-
-  ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ResamplingFilter', ''));
-  MaxAngle := Ini.ReadFloat(IniSectionAdvanced, 'MaxAngle', DefaultMaxAngle);
-  AngleStep := Ini.ReadFloat(IniSectionAdvanced, 'AngleStep', DefaultAngleStep);
-  DpiOverrideEnabled := Ini.ReadNiceBool(IniSectionAdvanced, 'DpiOverrideEnabled', False);
-  DpiOverride := Ini.ReadInteger(IniSectionAdvanced, 'DpiOverride', DefaultDpiOverride);
-  DetectOnly := Ini.ReadNiceBool(IniSectionAdvanced, 'DetectOnly', False);
-  ForceRotation := Ini.ReadNiceBool(IniSectionAdvanced, 'ForceRotation', False);
-  AutoContentRect := Ini.ReadNiceBool(IniSectionAdvanced, 'AutoContentRect', False);
-  ContentMargins := Ini.ReadString(IniSectionAdvanced, 'ContentMargins', '');
+  MaxAngle := Ini.ReadFloat(IniSectionOptions, 'MaxAngle', DefaultMaxAngle);
+  ResamplingFilter := TEnumUtils<TResamplingFilter>.StrToEnum(Ini.ReadString(IniSectionOptions, 'ResamplingFilter', ''));
+  AngleStep := Ini.ReadFloat(IniSectionOptions, 'AngleStep', DefaultAngleStep);
+  DpiOverrideEnabled := Ini.ReadNiceBool(IniSectionOptions, 'DpiOverrideEnabled', False);
+  DpiOverride := Ini.ReadInteger(IniSectionOptions, 'DpiOverride', DefaultDpiOverride);
+  DetectOnly := Ini.ReadNiceBool(IniSectionOptions, 'DetectOnly', False);
+  ForceRotation := Ini.ReadNiceBool(IniSectionOptions, 'ForceRotation', False);
+  AutoContentRect := Ini.ReadNiceBool(IniSectionOptions, 'AutoContentRect', False);
+  ContentMargins := Ini.ReadString(IniSectionOptions, 'ContentMargins', '');
   if not IsValidMargins(ContentMargins) then
     ContentMargins := '';
-  ThresholdLevel := Ini.ReadInteger(IniSectionAdvanced, 'ThresholdLevel', DefaultThresholdLevel);
-  ThresholdingAuto := Ini.ReadNiceBool(IniSectionAdvanced, 'ThresholdingAuto', True);
+  ThresholdLevel := Ini.ReadInteger(IniSectionOptions, 'ThresholdLevel', DefaultThresholdLevel);
+  ThresholdingAuto := Ini.ReadNiceBool(IniSectionOptions, 'ThresholdingAuto', True);
 
-  ForcedOutputFormat := TEnumUtils<TForcedOutputFormat>.StrToEnum(Ini.ReadString(IniSectionAdvanced, 'ForcedOutputFormat', ''));
-  SkipAngle := Ini.ReadFloat(IniSectionAdvanced, 'SkipAngle', DefaultSkipAngle);
-  OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionAdvanced, 'OutputFileParamsEnabled', '[]')));
-  JpegCompressionQuality := Ini.ReadInteger(IniSectionAdvanced, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
-  TiffCompressionScheme := Ini.ReadInteger(IniSectionAdvanced, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
+  ForcedOutputFormat := TEnumUtils<TForcedOutputFormat>.StrToEnum(Ini.ReadString(IniSectionOptions, 'ForcedOutputFormat', ''));
+  SkipAngle := Ini.ReadFloat(IniSectionOptions, 'SkipAngle', DefaultSkipAngle);
+  OutputFileParamsEnabled := TFileFormatSet(StringToSet(PTypeInfo(TypeInfo(TFileFormatSet)), Ini.ReadString(IniSectionOptions, 'OutputFileParamsEnabled', '[]')));
+  JpegCompressionQuality := Ini.ReadInteger(IniSectionOptions, 'JpegCompressionQuality', DefaultJpegCompressionQuality);
+  TiffCompressionScheme := Ini.ReadInteger(IniSectionOptions, 'TiffCompressionScheme', DefaultTiffCompressionScheme);
   if (TiffCompressionScheme < Low(TiffCompressionSchemeNames)) or (TiffCompressionScheme > High(TiffCompressionSchemeNames)) then
     TiffCompressionScheme := DefaultTiffCompressionScheme;
-  PrintParams := Ini.ReadNiceBool(IniSectionAdvanced, 'PrintParams', DefaultPrintParams);
-  ExtraCmdLineArgs := Ini.ReadString(IniSectionAdvanced, 'ExtraCmdLineArgs', '');
-  DefaultExecutable := Ini.ReadNiceBool(IniSectionAdvanced, 'DefaultExecutable', True);
-  CustomExecutablePath := Ini.ReadString(IniSectionAdvanced, 'CustomExecutablePath', '');
+  PrintParams := Ini.ReadNiceBool(IniSectionOptions, 'PrintParams', DefaultPrintParams);
+  ExtraCmdLineArgs := Ini.ReadString(IniSectionOptions, 'ExtraCmdLineArgs', '');
+  DefaultExecutable := Ini.ReadNiceBool(IniSectionOptions, 'DefaultExecutable', True);
+  CustomExecutablePath := Ini.ReadString(IniSectionOptions, 'CustomExecutablePath', '');
 end;
 
 end.
