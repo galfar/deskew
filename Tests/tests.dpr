@@ -20,7 +20,13 @@ uses
 
 begin
   try
-    ReportMemoryLeaksOnShutdown := True;
+    // Only under the IDE debugger: the report is a modal dialog that would
+    // block scripted runs (and DUnit leaves some of its own objects behind)
+{$IFDEF MSWINDOWS}
+  {$WARN SYMBOL_PLATFORM OFF}
+    ReportMemoryLeaksOnShutdown := DebugHook <> 0;
+  {$WARN SYMBOL_PLATFORM ON}
+{$ENDIF}
 
     //RunRegisteredTestsModelessUnattended;
 
