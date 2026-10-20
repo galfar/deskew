@@ -52,6 +52,7 @@ type
     procedure TestJsonReportFileName;
     procedure TestOutputDirectory;
     procedure TestParametersToJson;
+    procedure TestParametersTextIgnoresLocale;
 
     // Test content area
     procedure TestContentRect;
@@ -706,6 +707,30 @@ begin
   AssertParseSuccesAndEmptyError(ParseResult, 'file in detect only');
   AssertEquals('file in detect only: no dir', '', FCmdOptions.OutputDir);
   AssertEquals('file in detect only: work image', 'out.work.png', FCmdOptions.WorkImageFileName);
+end;
+
+procedure TTestCmdLineOptions.TestParametersTextIgnoresLocale;
+var
+  OldDecimal, OldThousand: Char;
+  Text: string;
+begin
+  // Parameter listing (-s p) must not depend on the system locale
+  OldDecimal := SysUtils.FormatSettings.DecimalSeparator;
+  OldThousand := SysUtils.FormatSettings.ThousandSeparator;
+  try
+    SysUtils.FormatSettings.DecimalSeparator := ',';
+    SysUtils.FormatSettings.ThousandSeparator := '.';
+    AssertParseSuccesAndEmptyError(FCmdOptions.Parse(['-a', '7.5', '-d', '0.25', '-l', '0.05',
+      '-m', '1.5,2,%', 'in.png']), 'decimal comma locale');
+    Text := FCmdOptions.OptionsToString;
+    AssertTrue('max angle: ' + Text, Pos('max angle           = 7.5' + sLineBreak, Text) > 0);
+    AssertTrue('angle step: ' + Text, Pos('angle step          = 0.25' + sLineBreak, Text) > 0);
+    AssertTrue('skip angle: ' + Text, Pos('skip angle          = 0.05' + sLineBreak, Text) > 0);
+    AssertTrue('margins: ' + Text, Pos('content margins     = 1.50,2.00,1.50,2.00 %', Text) > 0);
+  finally
+    SysUtils.FormatSettings.DecimalSeparator := OldDecimal;
+    SysUtils.FormatSettings.ThousandSeparator := OldThousand;
+  end;
 end;
 
 procedure TTestCmdLineOptions.TestParametersToJson;

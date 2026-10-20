@@ -825,14 +825,14 @@ begin
     Iff(OutputDir <> '', '  output directory    = ' + OutputDir, '  output file         = ' + OutputFileName) + sLineBreak +
     '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
     '  resampling filter   = ' + FilterStr + sLineBreak +
-    '  max angle           = ' + FloatToStr(MaxAngle) + sLineBreak +
-    '  angle step          = ' + FloatToStr(AngleStep) + sLineBreak +
+    '  max angle           = ' + FloatToStr(MaxAngle, FFormatSettings) + sLineBreak +
+    '  angle step          = ' + FloatToStr(AngleStep, FFormatSettings) + sLineBreak +
     '  thresholding method = ' + Iff(ThresholdingMethod = tmExplicit, 'explicit', 'auto otsu') + sLineBreak +
     '  threshold level     = ' + IntToStr(ThresholdLevel) + sLineBreak +
     '  content rect        = ' + Iff(AutoContentRect, SAutoContentRect, RectToStr(ContentRect)) + sLineBreak +
     '  content margins     = ' + RectToStr(ContentMargins) + sLineBreak +
     '  output format       = ' + Iff(ForcedOutputFormat = ifUnknown, 'default', Imaging.GetFormatName(ForcedOutputFormat)) + sLineBreak +
-    '  skip angle          = ' + FloatToStr(SkipAngle) + sLineBreak +
+    '  skip angle          = ' + FloatToStr(SkipAngle, FFormatSettings) + sLineBreak +
     '  dpi override        = ' + IntToStr(DpiOverride) + sLineBreak +
     '  oper flags          = ' + Iff(ofCropToInput in FOperationalFlags, 'crop-to-input ', '')
                                + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '')
