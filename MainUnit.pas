@@ -52,11 +52,6 @@ const
     'no dominant direction of text lines found within the max angle',
     'skew seems to be larger than the max angle (it can be raised with "-a")');
 
-  // Imaging cannot save PNG (and MNG, JNG) images with more pixel data than this yet.
-  // It ends with out of memory error, or even with a crash when there is over 4 GiB of data.
-  // Other file formats (TIFF, QOI, JPEG, BMP) were tested with more than 4 GiB.
-  MaxPngPixelDataSize = Int64(2000) * 1000 * 1000;
-
 type
   // Steps of the processing that are timed
   TTimedStep = (tsLoad, tsThresholding, tsContentDetection, tsSkewDetection, tsRotation, tsSave);
@@ -702,20 +697,6 @@ procedure RunDeskew;
     end;
   end;
 
-  // Large images cannot be saved in all the file formats. It's better to tell
-  // sooner and clearly than to fail somewhere deep in the file format writer.
-  procedure CheckOutputSizeLimit(Image: TSingleImage);
-  begin
-    if (Image.Size > MaxPngPixelDataSize) and
-      (Imaging.FindImageFileFormatByName(Options.OutputFileName) is TNetworkGraphicsFileFormat) then
-    begin
-      raise Exception.CreateFmt('Image is too large to be saved as %s (%s bytes of pixel data, ' +
-        'the limit is %s).' + sLineBreak + 'Use another output file format, e.g. TIFF or QOI: -o output.tif',
-        [UpperCase(GetFileExt(Options.OutputFileName)), Trim(FormatNiceNumber(Image.Size, 0)),
-         Trim(FormatNiceNumber(MaxPngPixelDataSize, 0))]);
-    end;
-  end;
-
   procedure SetImagingOutputOptions;
   begin
     if Options.JpegCompressionQuality <> -1 then
@@ -794,11 +775,6 @@ begin
         Report.InputHeight := InputImage.Height;
         Report.InputFormat := string(InputImage.FormatInfo.Name);
 
-        // No need to do all the work if the result cannot be saved anyway
-        // (unless the output is going to be in another, smaller pixel format)
-        if not (ofDetectOnly in Options.OperationalFlags) and (Options.ForcedOutputFormat = ifUnknown) then
-          CheckOutputSizeLimit(InputImage);
-
         // Do the magic
         Changed := DoDeskew();
 
@@ -815,7 +791,6 @@ begin
           Time := GetTimeMicroseconds;
           if Changed then
           begin
-            CheckOutputSizeLimit(OutputImage);
             SetImagingOutputOptions;
             // Make sure recognized metadata stays (like scanning DPI info)
             GlobalMetadata.CopyLoadedMetaItemsForSaving;
