@@ -103,14 +103,14 @@ begin
   ComboResampling.ItemIndex := 0;
 
   ComboTiffCompression.Clear;
-  ComboTiffCompression.Items.Add('Uncompressed');
-  ComboTiffCompression.Items.Add('LZW');
-  ComboTiffCompression.Items.Add('RLE');
-  ComboTiffCompression.Items.Add('Deflate/ZLib');
-  ComboTiffCompression.Items.Add('JPEG');
-  ComboTiffCompression.Items.Add('Group 4 Fax');
-  ComboTiffCompression.Items.Add('As input');
-  ComboTiffCompression.Items.Add('As input (lossless)');
+  ComboTiffCompression.AddItem('LZW', TObject(TiffCompressionOptionLzw));
+  ComboTiffCompression.AddItem('Deflate/ZLib', TObject(TiffCompressionOptionDeflate));
+  ComboTiffCompression.AddItem('Group 4 Fax', TObject(TiffCompressionOptionGroup4));
+  ComboTiffCompression.AddItem('JPEG', TObject(TiffCompressionOptionJpeg));
+  ComboTiffCompression.AddItem('As input (lossless)', TObject(TiffCompressionOptionAsInputLossless));
+  ComboTiffCompression.AddItem('As input', TObject(TiffCompressionOptionAsInput));
+  ComboTiffCompression.AddItem('Uncompressed', TObject(TiffCompressionOptionNone));
+  ComboTiffCompression.AddItem('PackBits (legacy)', TObject(TiffCompressionOptionPackbitsRle));
   ComboTiffCompression.ItemIndex := 0;
 
   if not Config.ShowDeskewExeOption then
@@ -137,7 +137,7 @@ begin
   CheckJpegQuality.Checked := ffJpeg in AOptions.OutputFileParamsEnabled;
   SpinEditJpegQuality.Value := AOptions.JpegCompressionQuality;
   CheckTiffCompression.Checked := ffTiff in AOptions.OutputFileParamsEnabled;
-  ComboTiffCompression.ItemIndex := AOptions.TiffCompressionScheme;
+  ComboTiffCompression.ItemIndex := ComboTiffCompression.Items.IndexOfObject(TObject(PtrUInt(AOptions.TiffCompressionScheme)));
   CheckThresholdAuto.Checked := AOptions.ThresholdingAuto;
   SpinThresholdValue.Value := AOptions.ThresholdLevel;
   CheckDpiOverride.Checked := AOptions.DpiOverrideEnabled;
@@ -159,7 +159,7 @@ begin
   AOptions.ResamplingFilter := TResamplingFilter(PtrUInt(ComboResampling.Items.Objects[ComboResampling.ItemIndex]));
   AOptions.ForcedOutputFormat := TForcedOutputFormat(PtrUInt(ComboOutputFormat.Items.Objects[ComboOutputFormat.ItemIndex]));
   AOptions.JpegCompressionQuality := SpinEditJpegQuality.Value;
-  AOptions.TiffCompressionScheme := ComboTiffCompression.ItemIndex;
+  AOptions.TiffCompressionScheme := Integer(PtrUInt(ComboTiffCompression.Items.Objects[ComboTiffCompression.ItemIndex]));
   AOptions.ThresholdingAuto := CheckThresholdAuto.Checked;
   AOptions.ThresholdLevel := SpinThresholdValue.Value;
   AOptions.DpiOverrideEnabled := CheckDpiOverride.Checked;
