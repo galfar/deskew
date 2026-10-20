@@ -7,12 +7,12 @@
 @if defined param1 set DESKEW=%param1%
 
 %DESKEW% -h || goto :error
-%DESKEW% ../TestImages/2.png || goto :error
-%DESKEW% -t a -a 10 -o TestOut/Out2.png ../TestImages/2.png || goto :error
-%DESKEW% -a 10 -o TestOut/Out3.png ../TestImages/3.png || goto :error
-%DESKEW% -o TestOut/Out4.png ../TestImages/4.png || goto :error
-%DESKEW% -q lanczos -a 10 -o TestOut/Out5.png ../TestImages/5.png || goto :error
-%DESKEW% -g c -o TestOut/OutF1550.jpg ../TestImages/F1550.jpg || goto :error
+%DESKEW% -o TestOut/ToDir/ ../TestImages/2.png || goto :error
+%DESKEW% -t a -a 10 -o TestOut ../TestImages/2.png || goto :error
+%DESKEW% -a 10 -o TestOut ../TestImages/3.png || goto :error
+%DESKEW% -o TestOut ../TestImages/4.png || goto :error
+%DESKEW% -q lanczos -a 10 -o TestOut ../TestImages/5.png || goto :error
+%DESKEW% -g c -o TestOut ../TestImages/F1550.jpg || goto :error
 %DESKEW% -t 128 -o TestOut/Oute2.png ../TestImages/2.png || goto :error
 %DESKEW% -t 180 -o TestOut/OuteF1550.jpg ../TestImages/F1550.jpg || goto :error
 %DESKEW% -q nearest -b 00FFFF -o TestOut/Outb5.png ../TestImages/5.png || goto :error

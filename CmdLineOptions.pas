@@ -89,9 +89,6 @@ type
     procedure Reset;
     // Check a single parameter
     function CheckParam(const Param, Value: string): Boolean;
-    // Output file name or input file name in output directory, the base for
-    // JSON report and work image names
-    function ReportBaseFileName: string;
   public
     constructor Create;
 
@@ -105,12 +102,10 @@ type
     procedure WriteToJson(Json: TJsonWriter);
     // Name of the file for JSON report (when JsonReportFile is set): output file
     // name with added extension. It's the same in detect only mode where
-    // no output file is written. With output directory (OutputDir) the input
-    // file name in that directory is used instead of the output file name.
+    // no output file is written.
     function JsonReportFileName: string;
     // Name of the work image file (when SaveWorkImage is set): output file
     // name with extension replaced by ".work.png", also in detect only mode.
-    // Output directory is handled like in JsonReportFileName.
     function WorkImageFileName: string;
 
     // Calculates final content rectangle in pixels for given image based
@@ -124,8 +119,8 @@ type
     function TrySetTiffCompressionFromMetadata(Metadata: TMetadata; out ReplacedLossy: Boolean): Boolean;
 
     property InputFileName: string read FInputFileName;
-    // Directory given with -o in detect only mode (with trailing path delimiter):
-    // only the JSON report and the work image go there, OutputFileName is empty then.
+    // Directory given with -o (with trailing path delimiter), empty when -o is
+    // a file name. OutputFileName is the input file name in this directory then.
     property OutputDir: string read FOutputDir;
     property OutputFileName: string read FOutputFileName;
 
@@ -594,6 +589,7 @@ function TCmdLineOptions.Parse(const Args: array of string): Boolean;
 var
   I: Integer;
   Param, Value: string;
+  OutFormat: TImageFileFormat;
 
   function IsKnownParam(const Param: string): Boolean;
   var
@@ -672,18 +668,26 @@ begin
 
   if IsDirectoryName(FOutputFileName) then
   begin
-    // There is no output image in detect only mode, so it is enough to say
-    // where the report and the work image should go
-    if not (ofDetectOnly in FOperationalFlags) then
-    begin
-      FErrorMessage := 'Output must be a file name, a directory can only be given in detect only mode (-g d): ' +
-        FOutputFileName;
-      Exit(False);
-    end;
+    // Output goes to the given directory under the name of the input file
     FOutputDir := FOutputFileName;
     if not EndsWithPathDelimiter(FOutputDir) then
       FOutputDir := FOutputDir + PathDelim;
-    FOutputFileName := '';
+    FOutputFileName := FOutputDir + GetFileName(FInputFileName);
+
+    // Input formats that can only be read (WebP) are saved as PNG like the
+    // default output. Unknown format is left for the format check before loading.
+    OutFormat := Imaging.FindImageFileFormatByName(FOutputFileName);
+    if (OutFormat <> nil) and not OutFormat.CanSave then
+      FOutputFileName := ChangeFileExt(FOutputFileName, '.' + SDefaultOutputFileExt);
+
+    // Never write over the input (in detect only mode no image is written)
+    if not (ofDetectOnly in FOperationalFlags) and
+      SameFileName(ExpandFileName(FOutputFileName), ExpandFileName(FInputFileName)) then
+    begin
+      FErrorMessage := 'Output directory is the folder of the input file, the input would be overwritten: ' +
+        FOutputDir;
+      Exit(False);
+    end;
   end
   else if FOutputFileName = '' then
   begin
@@ -822,7 +826,8 @@ begin
   Result :=
     'Parameters: ' + CmdParams + sLineBreak +
     '  input file          = ' + InputFileName + sLineBreak +
-    Iff(OutputDir <> '', '  output directory    = ' + OutputDir, '  output file         = ' + OutputFileName) + sLineBreak +
+    '  output file         = ' + OutputFileName + sLineBreak +
+    Iff(OutputDir <> '', '  output directory    = ' + OutputDir + sLineBreak, '') +
     '  background color    = ' + IntToHex(BackgroundColor, 8) + sLineBreak +
     '  resampling filter   = ' + FilterStr + sLineBreak +
     '  max angle           = ' + FloatToStr(MaxAngle, FFormatSettings) + sLineBreak +
@@ -910,26 +915,18 @@ begin
   Json.AddBool('cropToInput', ofCropToInput in OperationalFlags);
 end;
 
-function TCmdLineOptions.ReportBaseFileName: string;
-begin
-  if FOutputDir <> '' then
-    Result := FOutputDir + GetFileName(FInputFileName)
-  else
-    Result := FOutputFileName;
-end;
-
 function TCmdLineOptions.JsonReportFileName: string;
 begin
-  Result := ReportBaseFileName;
-  if Result <> '' then
-    Result := Result + SJsonReportFileExt;
+  Result := '';
+  if OutputFileName <> '' then
+    Result := OutputFileName + SJsonReportFileExt;
 end;
 
 function TCmdLineOptions.WorkImageFileName: string;
 begin
-  Result := ReportBaseFileName;
-  if Result <> '' then
-    Result := ChangeFileExt(Result, SWorkImageFileExt);
+  Result := '';
+  if OutputFileName <> '' then
+    Result := ChangeFileExt(OutputFileName, SWorkImageFileExt);
 end;
 
 initialization

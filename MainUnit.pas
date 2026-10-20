@@ -133,8 +133,8 @@ begin
   WriteLn(Log^);
   WriteLn(Log^, '  Options:');
   WriteLn(Log^, '    -o output:     Output image file name (default: deskewed-<input name>.png');
-  WriteLn(Log^, '                   next to the input file). In detect only mode (-g d) it can be');
-  WriteLn(Log^, '                   a directory for the JSON report and work image');
+  WriteLn(Log^, '                   next to the input file if none given) or a directory (existing');
+  WriteLn(Log^, '                   or with trailing slash) where output goes with input file name');
   WriteLn(Log^, '    -b color:      Background color in hex format RRGGBB|LL|AARRGGBB (default: black)');
   WriteLn(Log^, '    -q filter:     Resampling filter used for rotations (default: linear,');
   WriteLn(Log^, '                   values: nearest|linear|cubic|lanczos)');
@@ -780,7 +780,7 @@ begin
           ReportBadInput('Input file format not supported: ' + Options.InputFileName);
           Exit;
         end;
-        if (Options.OutputDir = '') and not IsFileFormatSupported(Options.OutputFileName) then
+        if not IsFileFormatSupported(Options.OutputFileName) then
         begin
           ReportBadInput('Output file format not supported: ' + Options.OutputFileName);
           Exit;
