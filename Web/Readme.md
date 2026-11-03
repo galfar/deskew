@@ -23,6 +23,10 @@ over the image, and the work image. The deskewed preview is a canvas rotation of
 decoded input, so output toggles (background, crop, force rotation) are instant. The real
 rotation and encoding run only for "Deskew & download".
 
+All three views (original with overlay, deskewed preview, work image) can be zoomed with the
+mouse wheel or a pinch and panned by dragging; they are drawn from the full resolution image.
+The help button lists the supported formats and all options, taken from `deskew -h` of the engine.
+
 Formats the browser cannot display (TIFF, TGA, PNM) are converted to PNG by Deskew
 itself for the view.
 

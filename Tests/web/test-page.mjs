@@ -60,10 +60,34 @@ if (shotDir) await page.screenshot({ path: join(shotDir, 'original.png') });
 await page.click('[data-view=preview]');
 if (shotDir) await page.screenshot({ path: join(shotDir, 'preview.png') });
 await page.click('[data-view=work]');
-const workSize = await page.$eval('#canvas', (c) => c.width);
-check('work image shown', workSize > 0, `canvas width ${workSize}`);
+const workSize = await page.$eval('#canvas', (c) => c.dataset.content);
+check('work image shown', workSize === '1241x1748', `content ${workSize}`);
 if (shotDir) await page.screenshot({ path: join(shotDir, 'work.png') });
 await page.click('[data-view=original]');
+
+// Zoom and pan
+const fitLabel = await page.textContent('#zoomLabel');
+const box = await page.locator('#canvasWrap').boundingBox();
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+await page.mouse.wheel(0, -300);
+const zoomedLabel = await page.textContent('#zoomLabel');
+check('wheel zooms in', parseInt(zoomedLabel) > parseInt(fitLabel), `${fitLabel} -> ${zoomedLabel}`);
+await page.mouse.down();
+await page.mouse.move(box.x + box.width / 2 + 100, box.y + box.height / 2 + 50);
+await page.mouse.up();
+if (shotDir) await page.screenshot({ path: join(shotDir, 'zoomed.png') });
+await page.click('#zoom100');
+check('100 % button', (await page.textContent('#zoomLabel')) === '100 %');
+await page.click('#zoomFit');
+check('fit button', (await page.textContent('#zoomLabel')) === fitLabel, await page.textContent('#zoomLabel'));
+
+// Help with formats from the engine
+await page.click('#helpBtn');
+await page.waitForFunction(() => document.querySelector('#formatsIn').textContent.includes('TIFF'), null, { timeout: 30000 });
+const formatsIn = await page.textContent('#formatsIn');
+check('help lists formats', formatsIn.includes('PNG') && formatsIn.includes('WEBP'), formatsIn);
+if (shotDir) await page.screenshot({ path: join(shotDir, 'help.png') });
+await page.keyboard.press('Escape');
 
 // A detection option triggers detection again
 await page.fill('#maxAngle', '1');
@@ -84,7 +108,7 @@ check('download JPEG', download.suggestedFilename() === 'deskewed-2.jpg' && out[
 
 // TIFF: the browser cannot decode it, Deskew converts it for the view
 const rt = await openImage('1-g4.tif');
-await page.waitForFunction(() => document.querySelector('#canvas').width > 0, null, { timeout: 30000 });
+await page.waitForFunction(() => document.querySelector('#canvas').dataset.content === '2076x3086', null, { timeout: 30000 });
 check('TIFF detected and shown', rt.includes('-1.35°'), rt);
 if (shotDir) await page.screenshot({ path: join(shotDir, 'tiff.png') });
 
