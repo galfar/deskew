@@ -81,6 +81,14 @@ check('100 % button', (await page.textContent('#zoomLabel')) === '100 %');
 await page.click('#zoomFit');
 check('fit button', (await page.textContent('#zoomLabel')) === fitLabel, await page.textContent('#zoomLabel'));
 
+// Dark / light switch
+const bgBefore = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+await page.click('#themeBtn');
+const bgAfter = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+check('theme switch', bgBefore !== bgAfter, `${bgBefore} -> ${bgAfter}`);
+if (shotDir) await page.screenshot({ path: join(shotDir, 'dark.png') });
+await page.click('#themeBtn');
+
 // Help with formats from the engine
 await page.click('#helpBtn');
 await page.waitForFunction(() => document.querySelector('#formatsIn').textContent.includes('TIFF'), null, { timeout: 30000 });
