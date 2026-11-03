@@ -9,16 +9,64 @@
 </head>
 <body>
   <header>
-    <h1>Deskew <span class="tag">web</span></h1>
+    <h1><a href="https://github.com/galfar/deskew">Deskew</a> <span class="tag">web</span></h1>
     <p class="sub">Straightens scanned documents right in your browser. Images never leave your computer.</p>
     <span id="engineStatus" class="status">Loading engine...</span>
+    <button id="helpBtn" class="icon-btn" title="Help and supported file formats" aria-label="Help">?</button>
   </header>
+
+  <dialog id="helpDialog">
+    <form method="dialog" class="dialog-head">
+      <h2>About Deskew web</h2>
+      <button class="icon-btn" aria-label="Close">×</button>
+    </form>
+    <div class="dialog-body">
+      <p>Deskew straightens scanned text documents: it finds the skew angle of the text lines
+        and rotates the image so they are horizontal. This page runs the Deskew command line tool
+        compiled to WebAssembly, so your images are processed on your computer and never uploaded.</p>
+
+      <h3>Supported file formats</h3>
+      <dl class="formats">
+        <dt>Input</dt><dd id="formatsIn">…</dd>
+        <dt>Output</dt><dd id="formatsOut">…</dd>
+      </dl>
+
+      <h3>How to use it</h3>
+      <ol>
+        <li>Open an image or drop it anywhere on the view. The skew angle is detected right away.</li>
+        <li>Check the result: <em>Original</em> shows the detection area (red, dashed) and the found
+          content (green), <em>Deskewed preview</em> shows the rotated page and <em>Work image</em> the
+          thresholded image Deskew actually looked at.</li>
+        <li>Adjust options if needed and click <em>Deskew &amp; download</em> to get the output file.</li>
+      </ol>
+
+      <h3>Tips</h3>
+      <ul>
+        <li>Zoom with the mouse wheel or a pinch, drag to pan, double click toggles between fit and 100&nbsp;%.</li>
+        <li>Outcome other than <em>detected</em> means the angle is not reliable and the image is not
+          rotated. <em>Force rotation</em> rotates it anyway.</li>
+        <li>Pages with dark scanner borders or photos often do better with
+          <em>Content area: Find automatically</em> or with margins.</li>
+        <li>If the angle hits the limit (<em>atRangeLimit</em>), raise <em>Max angle</em>.</li>
+        <li>Faint or very dark scans may need an explicit <em>Threshold</em>; the work image shows what
+          was considered to be text.</li>
+        <li><em>Extra params</em> takes any other command line option, e.g. <code>-f b1</code> for 1-bit
+          output or <code>-p 300</code> to override DPI. See the full list below.</li>
+        <li>Very large images may not fit into the memory available to WebAssembly (4 GB).</li>
+      </ul>
+
+      <details>
+        <summary>All command line options</summary>
+        <pre id="usageText">…</pre>
+      </details>
+    </div>
+  </dialog>
 
   <main>
     <aside id="options">
       <section>
         <label class="drop" id="dropZone">
-          <input type="file" id="fileInput" accept="image/*,.tif,.tiff,.tga,.pbm,.pgm,.ppm,.pnm,.webp">
+          <input type="file" id="fileInput" accept="image/*,.tif,.tiff,.tga,.pbm,.pgm,.ppm,.pnm,.webp,.qoi,.gif">
           <strong>Open image</strong>
           <span>or drop it here</span>
           <span id="fileName" class="file-name"></span>
@@ -105,14 +153,33 @@
         </label>
         <button id="downloadBtn" class="primary" disabled>Deskew &amp; download</button>
       </section>
+
+      <footer class="credits">
+        <p><a href="https://github.com/galfar/deskew">Deskew</a><span id="engineVersion"></span>
+          by Marek Mauder, image I/O by
+          <a href="https://github.com/galfar/imaging">Vampyre Imaging Library</a>.</p>
+        <p><a href="https://github.com/galfar/deskew">Source code</a> ·
+          <a href="https://github.com/galfar/deskew/issues">Report an issue</a> ·
+          <a href="https://galfar.vevb.net/deskew">Homepage</a> ·
+          <a href="https://mozilla.org/MPL/2.0/">MPL 2.0</a></p>
+      </footer>
     </aside>
 
     <section id="viewer">
-      <nav class="tabs" id="tabs">
-        <button data-view="original" class="active">Original</button>
-        <button data-view="preview">Deskewed preview</button>
-        <button data-view="work">Work image</button>
-      </nav>
+      <div class="toolbar">
+        <nav class="tabs" id="tabs">
+          <button data-view="original" class="active">Original</button>
+          <button data-view="preview">Deskewed preview</button>
+          <button data-view="work">Work image</button>
+        </nav>
+        <div class="zoom" aria-label="Zoom">
+          <button id="zoomOut" title="Zoom out">−</button>
+          <span id="zoomLabel"></span>
+          <button id="zoomIn" title="Zoom in">+</button>
+          <button id="zoomFit" title="Fit to view (double click)">Fit</button>
+          <button id="zoom100" title="Actual pixels">100 %</button>
+        </div>
+      </div>
       <div class="result" id="result">Open an image to start.</div>
       <div class="canvas-wrap" id="canvasWrap">
         <canvas id="canvas"></canvas>

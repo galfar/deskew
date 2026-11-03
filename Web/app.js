@@ -11,8 +11,6 @@
 
 const $ = (id) => document.getElementById(id);
 
-// Longest side of the canvas: previews of 600 dpi scans do not need all their pixels
-const MAX_VIEW_SIZE = 2400;
 // Default of the CLI (-l): smaller angles are not worth rotating
 const SKIP_ANGLE = 0.01;
 // Option controls that change detection, others change only the output
@@ -123,6 +121,7 @@ async function detect() {
       showError(`Unexpected output from Deskew (exit code ${result.exitCode}), see the output below.`);
     }
     state.report = report;
+    if (report?.deskew?.version) $('engineVersion').textContent = ` ${report.deskew.version}`;
     if (report?.error) showError(report.error);
 
     const workPath = Object.keys(result.files).find((p) => p.endsWith('.work.png'));
@@ -210,79 +209,219 @@ function willRotate(report) {
   return det.reliable && Math.abs(det.skewAngle) >= SKIP_ANGLE;
 }
 
-function draw() {
-  const canvas = $('canvas');
-  const ctx = canvas.getContext('2d');
-  const view = state.view;
+// Zoom and pan: content (image) coordinates are mapped to the canvas by a scale
+// and an offset in CSS pixels. "Fit" mode follows the size of the view.
+const viewport = { zoom: 1, panX: 0, panY: 0, fit: true, contentW: 0, contentH: 0 };
+const MIN_ZOOM = 0.02;
+const MAX_ZOOM = 32;
 
-  if (view === 'work' && state.workBitmap) {
-    drawFitted(canvas, ctx, state.workBitmap);
-    return;
-  }
-
+// Size of what the current view shows, in image pixels
+function contentSize() {
+  if (state.view === 'work' && state.workBitmap) return [state.workBitmap.width, state.workBitmap.height];
   const bmp = state.bitmap;
-  if (!bmp) {
-    canvas.width = canvas.height = 0;
-    return;
-  }
-
-  if (view === 'preview') {
-    drawPreview(canvas, ctx, bmp);
-    return;
-  }
-
-  const scale = drawFitted(canvas, ctx, bmp);
-  const det = state.report?.detection;
-  if (!det) return;
-
-  // Input image coordinates: detection area in red, found content in green, as in the work image
-  ctx.lineWidth = Math.max(2, canvas.width / 250);
-  if (det.detectionRect) strokeRect(ctx, det.detectionRect, scale, 'rgba(220, 38, 38, 0.9)', [8, 6]);
-  if (det.contentRect) strokeRect(ctx, det.contentRect, scale, 'rgba(22, 163, 74, 0.95)', []);
+  if (!bmp) return [0, 0];
+  if (state.view !== 'preview' || $('crop').checked) return [bmp.width, bmp.height];
+  const a = previewAngleRad();
+  return [
+    Math.abs(bmp.width * Math.cos(a)) + Math.abs(bmp.height * Math.sin(a)),
+    Math.abs(bmp.width * Math.sin(a)) + Math.abs(bmp.height * Math.cos(a)),
+  ];
 }
 
-function drawFitted(canvas, ctx, bmp) {
-  const scale = Math.min(1, MAX_VIEW_SIZE / Math.max(bmp.width, bmp.height));
-  canvas.width = Math.round(bmp.width * scale);
-  canvas.height = Math.round(bmp.height * scale);
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-  return scale;
-}
-
-function strokeRect(ctx, [l, t, r, b], scale, color, dash) {
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.setLineDash(dash);
-  ctx.strokeRect(l * scale, t * scale, (r - l) * scale, (b - t) * scale);
-  ctx.restore();
-}
-
-function drawPreview(canvas, ctx, bmp) {
+function previewAngleRad() {
   const det = state.report?.detection;
   const angle = det && willRotate(state.report) ? det.skewAngle : 0;
   // Positive skew means content turned clockwise, Deskew rotates counterclockwise to fix it
-  const a = (-angle * Math.PI) / 180;
-  const w = bmp.width;
-  const h = bmp.height;
-  let outW = w;
-  let outH = h;
-  if (!$('crop').checked) {
-    outW = Math.abs(w * Math.cos(a)) + Math.abs(h * Math.sin(a));
-    outH = Math.abs(w * Math.sin(a)) + Math.abs(h * Math.cos(a));
+  return (-angle * Math.PI) / 180;
+}
+
+function viewSize() {
+  const wrap = $('canvasWrap');
+  return [wrap.clientWidth, wrap.clientHeight];
+}
+
+function fitZoom() {
+  const [vw, vh] = viewSize();
+  const { contentW: cw, contentH: ch } = viewport;
+  if (!cw || !ch) return 1;
+  return Math.min(1, (vw - 16) / cw, (vh - 16) / ch);
+}
+
+function setZoom(zoom, anchorX, anchorY) {
+  const [vw, vh] = viewSize();
+  anchorX ??= vw / 2;
+  anchorY ??= vh / 2;
+  zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+  // Keep the image point under the anchor where it is
+  const ix = (anchorX - viewport.panX) / viewport.zoom;
+  const iy = (anchorY - viewport.panY) / viewport.zoom;
+  viewport.zoom = zoom;
+  viewport.panX = anchorX - ix * zoom;
+  viewport.panY = anchorY - iy * zoom;
+  viewport.fit = false;
+  render();
+}
+
+function zoomToFit() {
+  viewport.fit = true;
+  render();
+}
+
+function center() {
+  const [vw, vh] = viewSize();
+  viewport.panX = (vw - viewport.contentW * viewport.zoom) / 2;
+  viewport.panY = (vh - viewport.contentH * viewport.zoom) / 2;
+}
+
+// Called when the content changes (new image, view, detection, output options)
+function draw() {
+  const [cw, ch] = contentSize();
+  const changed = cw !== viewport.contentW || ch !== viewport.contentH;
+  const oldCx = viewport.contentW / 2;
+  const oldCy = viewport.contentH / 2;
+  viewport.contentW = cw;
+  viewport.contentH = ch;
+  if (changed && !viewport.fit) {
+    // Same zoom, keep the content centered where it was (rotation changes the size a bit)
+    viewport.panX += (oldCx - cw / 2) * viewport.zoom;
+    viewport.panY += (oldCy - ch / 2) * viewport.zoom;
   }
-  const scale = Math.min(1, MAX_VIEW_SIZE / Math.max(outW, outH));
-  canvas.width = Math.round(outW * scale);
-  canvas.height = Math.round(outH * scale);
-  ctx.fillStyle = $('background').value;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  render();
+}
+
+function render() {
+  const canvas = $('canvas');
+  const ctx = canvas.getContext('2d');
+  const [vw, vh] = viewSize();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(vw * dpr);
+  canvas.height = Math.round(vh * dpr);
+  canvas.dataset.content = `${Math.round(viewport.contentW)}x${Math.round(viewport.contentH)}`;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (viewport.contentW && viewport.fit) {
+    viewport.zoom = fitZoom();
+    center();
+  }
+  updateZoomLabel();
+  if (!viewport.contentW) return;
+  const z = viewport.zoom;
+  ctx.setTransform(dpr * z, 0, 0, dpr * z, dpr * viewport.panX, dpr * viewport.panY);
+  // Pixels are worth seeing sharp when zoomed in
+  ctx.imageSmoothingEnabled = z < 2;
   ctx.imageSmoothingQuality = 'high';
+
+  if (state.view === 'work' && state.workBitmap) {
+    ctx.drawImage(state.workBitmap, 0, 0);
+  } else if (state.view === 'preview') {
+    drawPreview(ctx, state.bitmap);
+  } else {
+    drawOriginal(ctx, state.bitmap, z);
+  }
+}
+
+function drawOriginal(ctx, bmp, zoom) {
+  ctx.drawImage(bmp, 0, 0);
+  const det = state.report?.detection;
+  if (!det) return;
+  // Detection area in red, found content in green, as in the work image; 2 screen pixels wide
+  ctx.lineWidth = 2 / zoom;
+  if (det.detectionRect) strokeRect(ctx, det.detectionRect, 'rgba(220, 38, 38, 0.9)', [8 / zoom, 6 / zoom]);
+  if (det.contentRect) strokeRect(ctx, det.contentRect, 'rgba(22, 163, 74, 0.95)', []);
+}
+
+function strokeRect(ctx, [l, t, r, b], color, dash) {
   ctx.save();
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  ctx.rotate(a);
-  ctx.scale(scale, scale);
-  ctx.drawImage(bmp, -w / 2, -h / 2);
+  ctx.strokeStyle = color;
+  ctx.setLineDash(dash);
+  ctx.strokeRect(l, t, r - l, b - t);
   ctx.restore();
+}
+
+function drawPreview(ctx, bmp) {
+  const { contentW: cw, contentH: ch } = viewport;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, cw, ch);
+  ctx.clip();
+  ctx.fillStyle = $('background').value;
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.translate(cw / 2, ch / 2);
+  ctx.rotate(previewAngleRad());
+  ctx.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
+  ctx.restore();
+}
+
+function updateZoomLabel() {
+  $('zoomLabel').textContent = viewport.contentW ? `${Math.round(viewport.zoom * 100)} %` : '';
+  $('zoomFit').classList.toggle('active', viewport.fit);
+}
+
+function setupZoomAndPan() {
+  const wrap = $('canvasWrap');
+
+  wrap.addEventListener('wheel', (e) => {
+    if (!viewport.contentW) return;
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    // Trackpads send small deltas, mouse wheels big ones
+    const factor = Math.exp(-Math.max(-100, Math.min(100, e.deltaY)) * 0.0025);
+    setZoom(viewport.zoom * factor, e.clientX - rect.left, e.clientY - rect.top);
+  }, { passive: false });
+
+  // Drag with mouse or one finger, pinch with two fingers
+  const pointers = new Map();
+  let pinch = null;
+  wrap.addEventListener('pointerdown', (e) => {
+    if (!viewport.contentW) return;
+    wrap.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    wrap.classList.add('dragging');
+    if (pointers.size === 2) {
+      const [p1, p2] = [...pointers.values()];
+      pinch = { dist: Math.hypot(p1.x - p2.x, p1.y - p2.y), zoom: viewport.zoom };
+    }
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    const last = pointers.get(e.pointerId);
+    if (!last) return;
+    const now = { x: e.clientX, y: e.clientY };
+    pointers.set(e.pointerId, now);
+    if (pointers.size === 2 && pinch) {
+      const [p1, p2] = [...pointers.values()];
+      const rect = wrap.getBoundingClientRect();
+      const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      setZoom(pinch.zoom * dist / pinch.dist, (p1.x + p2.x) / 2 - rect.left, (p1.y + p2.y) / 2 - rect.top);
+    } else if (pointers.size === 1) {
+      viewport.panX += now.x - last.x;
+      viewport.panY += now.y - last.y;
+      viewport.fit = false;
+      render();
+    }
+  });
+  const release = (e) => {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinch = null;
+    if (pointers.size === 0) wrap.classList.remove('dragging');
+  };
+  wrap.addEventListener('pointerup', release);
+  wrap.addEventListener('pointercancel', release);
+
+  // Double click: fit <-> 100 % at the clicked point
+  wrap.addEventListener('dblclick', (e) => {
+    if (!viewport.contentW) return;
+    const rect = wrap.getBoundingClientRect();
+    if (viewport.fit) setZoom(1, e.clientX - rect.left, e.clientY - rect.top);
+    else zoomToFit();
+  });
+
+  $('zoomIn').addEventListener('click', () => setZoom(viewport.zoom * 1.5));
+  $('zoomOut').addEventListener('click', () => setZoom(viewport.zoom / 1.5));
+  $('zoomFit').addEventListener('click', zoomToFit);
+  $('zoom100').addEventListener('click', () => setZoom(1));
+
+  new ResizeObserver(() => render()).observe(wrap);
 }
 
 // ---- UI state ----
@@ -348,6 +487,7 @@ async function openFile(file) {
   state.report = null;
   state.workBitmap = null;
   state.bitmap = await decode(bytes);
+  viewport.fit = true;
   $('fileName').textContent = `${file.name} (${formatSize(bytes.length)})`;
   $('downloadBtn').disabled = false;
   $('result').textContent = 'Detecting skew...';
@@ -410,6 +550,29 @@ $('tabs').addEventListener('click', (e) => {
 });
 
 $('downloadBtn').addEventListener('click', download);
+
+// Help: formats and options come from the engine itself, so they stay in sync with the CLI
+let usageLoaded = false;
+$('helpBtn').addEventListener('click', async () => {
+  $('helpDialog').showModal();
+  if (usageLoaded) return;
+  try {
+    const result = await runDeskew(['-h'], {});
+    const text = result.stdout + result.stderr;
+    $('formatsIn').textContent = /Input:\s*(.*)/.exec(text)?.[1] ?? '?';
+    $('formatsOut').textContent = /Output:\s*(.*)/.exec(text)?.[1] ?? '?';
+    $('usageText').textContent = text.trim();
+    usageLoaded = true;
+  } catch (e) {
+    $('formatsIn').textContent = $('formatsOut').textContent = `Engine not available: ${e.message}`;
+  }
+});
+// Click on the backdrop closes the help
+$('helpDialog').addEventListener('click', (e) => {
+  if (e.target === $('helpDialog')) $('helpDialog').close();
+});
+
+setupZoomAndPan();
 
 updateVisibility();
 updateTabs();
