@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deskew Web</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Deskew <span class="tag">web</span></h1>
+    <p class="sub">Straightens scanned documents right in your browser. Images never leave your computer.</p>
+    <span id="engineStatus" class="status">Loading engine...</span>
+  </header>
+
+  <main>
+    <aside id="options">
+      <section>
+        <label class="drop" id="dropZone">
+          <input type="file" id="fileInput" accept="image/*,.tif,.tiff,.tga,.pbm,.pgm,.ppm,.pnm,.webp">
+          <strong>Open image</strong>
+          <span>or drop it here</span>
+          <span id="fileName" class="file-name"></span>
+        </label>
+      </section>
+
+      <section>
+        <h2>Detection</h2>
+        <label class="row" title="Maximal expected skew angle, in both directions">
+          <span>Max angle [deg]</span>
+          <input type="number" id="maxAngle" min="0.1" max="45" step="0.5" value="10">
+        </label>
+        <label class="row" title="Darker pixels than the threshold are considered to be text">
+          <span>Threshold</span>
+          <span class="combo">
+            <input type="checkbox" id="thresholdAuto" checked> <span>auto</span>
+            <input type="number" id="thresholdLevel" min="1" max="255" value="128" disabled>
+          </span>
+        </label>
+        <label class="row" title="Part of the page used for skew detection">
+          <span>Content area</span>
+          <select id="contentArea">
+            <option value="page">Whole page</option>
+            <option value="auto" selected>Find automatically</option>
+            <option value="margins">Outside margins</option>
+          </select>
+        </label>
+        <label class="row" id="marginsRow" hidden title="Left, top, right, bottom margins, or one value for all">
+          <span>Margins</span>
+          <span class="combo">
+            <input type="text" id="margins" value="5" size="8">
+            <select id="marginsUnit">
+              <option value="%">%</option>
+              <option value="mm">mm</option>
+              <option value="px">px</option>
+              <option value="in">in</option>
+            </select>
+          </span>
+        </label>
+        <label class="row" title="Angle step during detection">
+          <span>Angle step [deg]</span>
+          <input type="number" id="angleStep" min="0.01" max="1" step="0.01" value="0.1">
+        </label>
+      </section>
+
+      <section>
+        <h2>Output</h2>
+        <label class="row" title="Color of the corners uncovered by the rotation">
+          <span>Background</span>
+          <input type="color" id="background" value="#ffffff">
+        </label>
+        <label class="row" title="Resampling filter used for the rotation">
+          <span>Filter</span>
+          <select id="filter">
+            <option value="nearest">Nearest</option>
+            <option value="linear" selected>Linear</option>
+            <option value="cubic">Cubic</option>
+            <option value="lanczos">Lanczos</option>
+          </select>
+        </label>
+        <label class="check" title="Output keeps the size of the input, corners are cut off">
+          <input type="checkbox" id="crop"> Crop to input size
+        </label>
+        <label class="check" title="Rotate also when the skew angle is not reliable or very small">
+          <input type="checkbox" id="force"> Force rotation
+        </label>
+        <label class="row">
+          <span>File format</span>
+          <select id="format">
+            <option value="same">Same as input</option>
+            <option value="png" selected>PNG</option>
+            <option value="jpg">JPEG</option>
+            <option value="tif">TIFF</option>
+            <option value="bmp">BMP</option>
+          </select>
+        </label>
+        <label class="row" id="jpegRow" hidden>
+          <span>JPEG quality</span>
+          <input type="number" id="jpegQuality" min="1" max="100" value="90">
+        </label>
+        <label class="row" title="Any other command line parameters, as for the deskew CLI">
+          <span>Extra params</span>
+          <input type="text" id="extraParams" placeholder="e.g. -f g8">
+        </label>
+        <button id="downloadBtn" class="primary" disabled>Deskew &amp; download</button>
+      </section>
+    </aside>
+
+    <section id="viewer">
+      <nav class="tabs" id="tabs">
+        <button data-view="original" class="active">Original</button>
+        <button data-view="preview">Deskewed preview</button>
+        <button data-view="work">Work image</button>
+      </nav>
+      <div class="result" id="result">Open an image to start.</div>
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="canvas"></canvas>
+        <div class="busy" id="busy" hidden>Working...</div>
+      </div>
+      <details class="log">
+        <summary>Deskew output</summary>
+        <pre id="log"></pre>
+      </details>
+    </section>
+  </main>
+</body>
+</html>
