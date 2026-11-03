@@ -12,7 +12,10 @@
     <h1><a href="https://github.com/galfar/deskew">Deskew</a> <span class="tag">web</span></h1>
     <p class="sub">Straightens scanned documents right in your browser. Images never leave your computer.</p>
     <span id="engineStatus" class="status">Loading engine...</span>
-    <button id="helpBtn" class="icon-btn" title="Help and supported file formats" aria-label="Help">?</button>
+    <div class="header-actions">
+      <button id="themeBtn" class="theme-btn" title="Switch dark / light mode" aria-label="Switch dark or light mode"></button>
+      <button id="helpBtn" class="help-btn" title="Help, tips and supported file formats"><span class="q">?</span>Help</button>
+    </div>
   </header>
 
   <dialog id="helpDialog">
@@ -52,7 +55,10 @@
           was considered to be text.</li>
         <li><em>Extra params</em> takes any other command line option, e.g. <code>-f b1</code> for 1-bit
           output or <code>-p 300</code> to override DPI. See the full list below.</li>
-        <li>Very large images may not fit into the memory available to WebAssembly (4 GB).</li>
+        <li>Very large images may not fit: WebAssembly gives the page at most 4 GB of memory, and
+          the input, its grayscale copy and the rotated output all have to fit in it. For huge scans use the
+          <a href="https://github.com/galfar/deskew/releases">Deskew command line tool or desktop GUI</a>,
+          which are limited only by the memory of your computer.</li>
       </ul>
 
       <details>
