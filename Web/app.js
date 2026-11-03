@@ -244,7 +244,7 @@ function fitZoom() {
   const [vw, vh] = viewSize();
   const { contentW: cw, contentH: ch } = viewport;
   if (!cw || !ch) return 1;
-  return Math.min(1, (vw - 16) / cw, (vh - 16) / ch);
+  return Math.min((vw - 16) / cw, (vh - 16) / ch);
 }
 
 function setZoom(zoom, anchorX, anchorY) {
@@ -573,6 +573,32 @@ $('helpDialog').addEventListener('click', (e) => {
 });
 
 setupZoomAndPan();
+setupTheme();
+
+// Dark / light switch: follows the system until used, the choice is remembered in this browser
+function setupTheme() {
+  const root = document.documentElement;
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+  const isDark = () => (root.dataset.theme ? root.dataset.theme === 'dark' : systemDark.matches);
+  const update = () => {
+    // Icon shows what a click switches to
+    $('themeBtn').textContent = isDark() ? '☀' : '☾';
+    $('themeBtn').title = isDark() ? 'Switch to light mode' : 'Switch to dark mode';
+  };
+  try {
+    const saved = localStorage.getItem('deskew-theme');
+    if (saved === 'dark' || saved === 'light') root.dataset.theme = saved;
+  } catch { /* storage not available, follow the system */ }
+  $('themeBtn').addEventListener('click', () => {
+    root.dataset.theme = isDark() ? 'light' : 'dark';
+    try {
+      localStorage.setItem('deskew-theme', root.dataset.theme);
+    } catch { /* not remembered then */ }
+    update();
+  });
+  systemDark.addEventListener('change', update);
+  update();
+}
 
 updateVisibility();
 updateTabs();
