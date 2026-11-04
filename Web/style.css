@@ -117,7 +117,7 @@ a { color: var(--accent); }
 main {
   flex: 1;
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 330px 1fr;
   min-height: 0;
 }
 
@@ -159,6 +159,23 @@ h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: v
 .row input[type=number] { width: 84px; }
 .row input[type=text] { width: 130px; }
 .combo { display: inline-flex; align-items: center; gap: 4px; }
+.row > label:first-child { color: var(--muted); }
+/* Unit shown inside the number box, after the value */
+.unit-input { position: relative; display: inline-flex; }
+.row .unit-input input[type=number] { width: 84px; padding-right: 18px; text-align: right; }
+.unit-input > span {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+/* Number spinners would cover the unit */
+.unit-input input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+.unit-input input::-webkit-inner-spin-button,
+.unit-input input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.slider { width: 100%; margin: 0 0 6px; accent-color: var(--accent); }
 .combo input[type=text] { width: 80px; }
 .check { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
 
