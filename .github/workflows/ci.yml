@@ -180,3 +180,99 @@ jobs:
           path: |
             Bin
           if-no-files-found: error
+
+  # Web GUI: CLI built for WebAssembly (wasm32-wasip1) with FPC trunk, tested in Node
+  # and headless Chromium. FPC trunk is a moving target, so this job does not fail CI.
+  web:
+    # Not ubuntu-latest: Playwright has no browser builds for Ubuntu 26.04 yet
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 60
+    env:
+      # Same fpclazup and commits as the FPC trunk job of Imaging (imaginglib ci.yml),
+      # keep them in sync. setup-lazarus does not download fpclazup when FPC comes from cache.
+      FPCLAZUP_URL: https://github.com/LongDirtyAnimAlf/Reiniero-fpcup/releases/download/v2.4.0i/fpclazup-x86_64-linux
+      PLAYWRIGHT_VERSION: 1.55.0
+    steps:
+      - uses: actions/checkout@v7
+
+      # Lazarus is built too (setup-lazarus always does in fpclazup mode), the
+      # whole installation is cached by commits
+      - name: Install FPC trunk (fpclazup)
+        uses: ollydev/setup-lazarus@v4.1
+        with:
+          fpclazup-url: ${{ env.FPCLAZUP_URL }}
+          fpclazup-lazcommit: 121cf87c5e # Lazarus trunk 2026-11-03
+          fpclazup-fpccommit: 4cb8012b64 # FPC trunk 3.3.1 2026-11-03
+
+      # Cross compiler and wasm-ld (--autotools) are added to the cached installation,
+      # the cache is saved at the end of the job that built them
+      - name: Install FPC cross compiler for WASM (wasip1)
+        shell: bash
+        run: |
+          INSTALL_DIR="$RUNNER_TEMP/fpclazup/"
+          if [ -n "$(find "$INSTALL_DIR" -type f -name ppcrosswasm32 -print -quit)" ]; then
+            echo "Cross compiler for wasm32-wasip1 already installed"
+          else
+            FPCLAZUP_BIN="$RUNNER_TEMP/fpclazupbin"
+            if [ ! -x "$FPCLAZUP_BIN" ]; then
+              curl -sSfL -o "$FPCLAZUP_BIN" "$FPCLAZUP_URL"
+              chmod +x "$FPCLAZUP_BIN"
+            fi
+            "$FPCLAZUP_BIN" --only=FPCCleanOnly,FPCBuildOnly --cputarget=wasm32 --ostarget=wasip1 \
+              --autotools --noconfirm --verbose --installdir="$INSTALL_DIR"
+          fi
+          # setup-lazarus in fpclazup mode puts only Lazarus on PATH, use fpc.sh wrapper of the install
+          FPC=$(ls "$INSTALL_DIR"/fpc/bin/*/fpc.sh | head -1)
+          echo "FPC=$FPC" >> $GITHUB_ENV
+          echo "FPC cross compiler:" $("$FPC" -Pwasm32 -Twasip1 -iVTPTO)
+
+      # Scripts/compile-wasm.sh does not use the options that are broken in FPC trunk for
+      # wasm32-wasip1 (as found by Imaging CI): -Xg (module wasmtime cannot parse)
+      # and smart linking -CX -XX (compiler crashes while linking)
+      - name: Build Deskew CLI for WASM
+        shell: bash
+        run: |
+          ./Scripts/compile-wasm.sh
+          ls -lh Web/deskew.wasm
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Test WASM build in Node
+        shell: bash
+        run: node Tests/web/test-wasi.mjs
+
+      - name: Test web GUI in headless Chromium
+        shell: bash
+        run: |
+          npm install --no-save --no-package-lock playwright@$PLAYWRIGHT_VERSION
+          npx playwright install --with-deps chromium
+          mkdir -p Bin/web-screenshots
+          node Tests/web/test-page.mjs Bin/web-screenshots
+
+      # Static site, ready to be served (python3 -m http.server, GitHub Pages, ...).
+      # The artifact ZIP holds it in a deskew-web folder: upload-artifact strips
+      # the given path, so the folder is one level below it.
+      - name: Assemble web GUI
+        shell: bash
+        run: |
+          mkdir -p Bin/web/deskew-web
+          cp Web/index.html Web/app.js Web/worker.js Web/wasi.js Web/style.css Web/deskew.wasm Bin/web/deskew-web/
+          ls -lh Bin/web/deskew-web
+
+      - name: Upload web GUI
+        uses: actions/upload-artifact@v7
+        with:
+          name: deskew-web
+          path: Bin/web
+          if-no-files-found: error
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deskew-web-screenshots
+          path: Bin/web-screenshots
+          if-no-files-found: ignore
