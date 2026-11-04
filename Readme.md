@@ -19,6 +19,9 @@ Win64 (`deskew.exe`), Win32 (`deskew32.exe`), Linux x86_64 (`deskew`), macOS x86
 
 GUI frontend for this CLI tool is available as well (Windows, Linux, and macOS), see [GUI's Readme](Gui/Readme.md).
 
+WebUI runs Deskew right in your web browser, no installation needed: <https://galfar.github.io/deskew-webui>.
+It is the same CLI tool compiled to WebAssembly, so images are processed on your computer and never uploaded. See [WebUI's Readme](Web/Readme.md).
+
 License: MPL 2.0
 
 ### Downloads And Releases
@@ -150,6 +153,8 @@ Additionally, there are compile shell/batch scripts for standalone FPC compiler 
 
 Deskew can be compiled and was tested on these platforms:
 Win32, Win64, Linux x86_64, macOS x86_64, Linux ARM aarch64 + v7.
+
+WebAssembly build for WebUI (`wasm32-wasip1`) needs FPC trunk, see [WebUI's Readme](Web/Readme.md).
 
 ### Source Code
 
