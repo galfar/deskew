@@ -50,7 +50,7 @@
           rotated. <em>Force rotation</em> rotates it anyway.</li>
         <li>Pages with dark scanner borders or photos often do better with
           <em>Content area: Find automatically</em> or with margins.</li>
-        <li>If the angle hits the limit (<em>atRangeLimit</em>), raise <em>Max angle</em>.</li>
+        <li>If the angle hits the limit (<em>At max angle limit</em>), raise <em>Max angle</em>.</li>
         <li>Faint or very dark scans may need an explicit <em>Threshold</em>; the work image shows what
           was considered to be text.</li>
         <li><em>Extra params</em> takes any other command line option, e.g. <code>-f b1</code> for 1-bit
@@ -81,10 +81,12 @@
 
       <section>
         <h2>Detection</h2>
-        <label class="row" title="Maximal expected skew angle, in both directions">
-          <span>Max angle [deg]</span>
-          <input type="number" id="maxAngle" min="0.1" max="45" step="0.5" value="10">
-        </label>
+        <div class="row" title="Maximal expected skew angle, in both directions (0.1–45°)">
+          <label for="maxAngle">Max angle</label>
+          <span class="unit-input"><input type="number" id="maxAngle" min="0.1" max="45" step="0.5" value="10"><span>°</span></span>
+        </div>
+        <input type="range" id="maxAngleSlider" class="slider" min="0.5" max="45" step="0.5" value="10"
+          aria-label="Max angle" title="Maximal expected skew angle, in both directions (0.1–45°)">
         <label class="row" title="Darker pixels than the threshold are considered to be text">
           <span>Threshold</span>
           <span class="combo">
@@ -112,9 +114,9 @@
             </select>
           </span>
         </label>
-        <label class="row" title="Angle step during detection">
-          <span>Angle step [deg]</span>
-          <input type="number" id="angleStep" min="0.01" max="1" step="0.01" value="0.1">
+        <label class="row" title="Angle step during detection, smaller is more precise but slower (0.01–1°)">
+          <span>Angle step</span>
+          <span class="unit-input"><input type="number" id="angleStep" min="0.01" max="1" step="0.01" value="0.1"><span>°</span></span>
         </label>
       </section>
 

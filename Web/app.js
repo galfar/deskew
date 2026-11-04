@@ -440,6 +440,14 @@ function showError(message) {
   $('result').appendChild(span);
 }
 
+// Outcomes of the JSON report as shown on the page, with the reason as a tooltip
+const OUTCOMES = {
+  detected: ['Detected', ''],
+  noContent: ['No content', 'No content to detect the skew from (blank page?)'],
+  lowConfidence: ['Low confidence', 'No dominant direction of text lines found within the max angle'],
+  atRangeLimit: ['At max angle limit', 'Skew seems to be larger than the max angle, try raising it'],
+};
+
 function showReport(report, timeMs) {
   const det = report.detection;
   const el = $('result');
@@ -448,19 +456,21 @@ function showReport(report, timeMs) {
     el.textContent = 'No detection result.';
     return;
   }
-  const outcomeClass = det.reliable ? 'ok' : det.outcome === 'blank' ? 'muted' : 'warn';
+  const outcomeClass = det.reliable ? 'ok' : 'warn';
+  const [outcomeText, outcomeReason] = OUTCOMES[det.outcome] ?? [det.outcome, ''];
   const parts = [
     ['angle', `${det.skewAngle.toFixed(2)}°`],
-    [outcomeClass, ` ${det.outcome}`],
+    [outcomeClass, ` ${outcomeText}`, outcomeReason],
     ['muted', `, confidence ${(det.confidence * 100).toFixed(0)} %`],
     ['muted', ` · ${report.input.width} × ${report.input.height} ${report.input.format}`],
     ['muted', ` · ${Math.round(timeMs)} ms`],
   ];
   if (!willRotate(report)) parts.push(['muted', ' · output will not be rotated']);
-  for (const [cls, text] of parts) {
+  for (const [cls, text, title] of parts) {
     const span = document.createElement('span');
     span.className = cls;
     span.textContent = text;
+    if (title) span.title = title;
     el.appendChild(span);
   }
 }
@@ -517,6 +527,16 @@ for (const id of DETECTION_INPUTS) {
     scheduleDetect();
   });
 }
+// Max angle slider and number box show the same value, the box allows values off the slider steps
+$('maxAngleSlider').addEventListener('input', () => {
+  $('maxAngle').value = $('maxAngleSlider').value;
+  scheduleDetect();
+});
+$('maxAngle').addEventListener('input', () => {
+  const value = parseFloat($('maxAngle').value);
+  if (!Number.isNaN(value)) $('maxAngleSlider').value = value;
+});
+
 for (const id of OUTPUT_INPUTS) {
   $(id).addEventListener('input', () => {
     updateVisibility();
