@@ -1,5 +1,5 @@
 /*
-  Deskew Web GUI
+  Deskew WebUI
   Page logic: builds Deskew command line arguments from the toggles, runs the
   CLI in a worker, shows the image with detection overlay and a rotated preview.
   The real rotation and encoding runs only when the output is downloaded.
