@@ -1,5 +1,5 @@
 /*
-  Deskew Web GUI
+  Deskew WebUI
   Web Worker running deskew.wasm, so the page stays responsive during detection
   and rotation. Every request is a new instance of the CLI with its own memory.
   - - - - -

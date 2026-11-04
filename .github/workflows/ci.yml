@@ -181,7 +181,7 @@ jobs:
             Bin
           if-no-files-found: error
 
-  # Web GUI: CLI built for WebAssembly (wasm32-wasip1) with FPC trunk, tested in Node
+  # WebUI: CLI built for WebAssembly (wasm32-wasip1) with FPC trunk, tested in Node
   # and headless Chromium. FPC trunk is a moving target, so this job does not fail CI.
   web:
     # Not ubuntu-latest: Playwright has no browser builds for Ubuntu 26.04 yet

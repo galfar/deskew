@@ -1,5 +1,7 @@
-Deskew Web GUI (prototype)
+Deskew WebUI
 ===========================
+
+Live version: <https://galfar.github.io/deskew-webui>
 
 A static web page that runs the Deskew command line tool compiled to WebAssembly
 (`wasm32-wasip1`) in the browser. Images are processed locally and never leave the

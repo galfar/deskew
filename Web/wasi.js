@@ -1,5 +1,5 @@
 /*
-  Deskew Web GUI
+  Deskew WebUI
   Minimal WASI (wasi_snapshot_preview1) host for running deskew.wasm in a browser
   or in Node. Files live in memory, one preopened directory "/" holds them all.
   - - - - -
