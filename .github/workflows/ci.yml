@@ -257,9 +257,14 @@ jobs:
       # the given path, so the folder is one level below it.
       - name: Assemble web GUI
         shell: bash
+        env:
+          # Head of the PR branch, github.sha of a PR run is a merge commit nobody can open
+          BUILD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           mkdir -p Bin/web/deskew-web
           cp Web/index.html Web/app.js Web/worker.js Web/wasi.js Web/style.css Web/deskew.wasm Bin/web/deskew-web/
+          # Stamp the WebUI build shown in the page footer (Web/version.js marks a dev build)
+          echo "export const WEBUI_BUILD = { date: '$(date -u +%F)', commit: '$BUILD_COMMIT' };" > Bin/web/deskew-web/version.js
           ls -lh Bin/web/deskew-web
 
       - name: Upload web GUI

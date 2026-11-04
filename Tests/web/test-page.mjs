@@ -44,6 +44,10 @@ page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await page.goto(url);
 await page.waitForSelector('#engineStatus:text("Engine ready")', { timeout: 30000 });
 check('engine loads', true);
+await page.waitForSelector('#engineStatus:text("Deskew 1.")', { timeout: 30000 });
+check('engine version in status', true, await page.textContent('#engineStatus'));
+const webuiVersion = await page.textContent('#webuiVersion');
+check('WebUI version in footer', /development build|build \d{4}-\d\d-\d\d/.test(webuiVersion), webuiVersion);
 
 async function openImage(name) {
   await page.$eval('#result', (el) => { el.innerHTML = ''; });
