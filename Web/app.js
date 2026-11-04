@@ -9,6 +9,8 @@
   file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
+import { WEBUI_BUILD } from './version.js';
+
 const $ = (id) => document.getElementById(id);
 
 // Default of the CLI (-l): smaller angles are not worth rotating
@@ -39,6 +41,7 @@ worker.onmessage = (event) => {
   if ('ready' in msg) {
     $('engineStatus').textContent = msg.ready ? 'Engine ready' : `Engine failed to load: ${msg.error}`;
     $('engineStatus').classList.toggle('error', !msg.ready);
+    if (msg.ready) showEngineVersion();
     return;
   }
   const request = pending.get(msg.id);
@@ -121,7 +124,6 @@ async function detect() {
       showError(`Unexpected output from Deskew (exit code ${result.exitCode}), see the output below.`);
     }
     state.report = report;
-    if (report?.deskew?.version) $('engineVersion').textContent = ` ${report.deskew.version}`;
     if (report?.error) showError(report.error);
 
     const workPath = Object.keys(result.files).find((p) => p.endsWith('.work.png'));
@@ -551,18 +553,53 @@ $('tabs').addEventListener('click', (e) => {
 
 $('downloadBtn').addEventListener('click', download);
 
+// Usage text of the engine (deskew -h), run once and shared by the status line and help
+let usagePromise = null;
+function getUsage() {
+  usagePromise ??= runDeskew(['-h'], {}).then((result) => (result.stdout + result.stderr).trim());
+  usagePromise.catch(() => { usagePromise = null; });  // try again next time
+  return usagePromise;
+}
+
+// The first line of -h is the title, e.g. "Deskew 1.33 (2025-06-02, ...) by Marek Mauder"
+async function showEngineVersion() {
+  try {
+    const usage = await getUsage();
+    const title = usage.split('\n')[0].trim();
+    const version = /^Deskew\s+(\S+)/.exec(title)?.[1];
+    if (!version) return;
+    $('engineStatus').textContent = `Engine ready: Deskew ${version}`;
+    $('engineStatus').title = title;
+  } catch {
+    // Status stays "Engine ready"
+  }
+}
+
+// WebUI build: version.js is stamped when the site is assembled (CI), "dev" otherwise
+function showWebuiVersion() {
+  const { date, commit } = WEBUI_BUILD;
+  const el = $('webuiVersion');
+  if (!date) {
+    el.textContent = 'development build';
+    return;
+  }
+  el.textContent = `build ${date}`;
+  if (commit) {
+    const link = document.createElement('a');
+    link.href = `https://github.com/galfar/deskew/commit/${commit}`;
+    link.textContent = commit.slice(0, 7);
+    el.append(' (', link, ')');
+  }
+}
+
 // Help: formats and options come from the engine itself, so they stay in sync with the CLI
-let usageLoaded = false;
 $('helpBtn').addEventListener('click', async () => {
   $('helpDialog').showModal();
-  if (usageLoaded) return;
   try {
-    const result = await runDeskew(['-h'], {});
-    const text = result.stdout + result.stderr;
+    const text = await getUsage();
     $('formatsIn').textContent = /Input:\s*(.*)/.exec(text)?.[1] ?? '?';
     $('formatsOut').textContent = /Output:\s*(.*)/.exec(text)?.[1] ?? '?';
-    $('usageText').textContent = text.trim();
-    usageLoaded = true;
+    $('usageText').textContent = text;
   } catch (e) {
     $('formatsIn').textContent = $('formatsOut').textContent = `Engine not available: ${e.message}`;
   }
@@ -574,6 +611,7 @@ $('helpDialog').addEventListener('click', (e) => {
 
 setupZoomAndPan();
 setupTheme();
+showWebuiVersion();
 
 // Dark / light switch: follows the system until used, the choice is remembered in this browser
 function setupTheme() {

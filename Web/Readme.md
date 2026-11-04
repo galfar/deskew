@@ -28,6 +28,9 @@ rotation and encoding run only for "Deskew & download".
 All three views (original with overlay, deskewed preview, work image) can be zoomed with the
 mouse wheel or a pinch and panned by dragging; they are drawn from the full resolution image.
 The help button lists the supported formats and all options, taken from `deskew -h` of the engine.
+The engine version (also from `deskew -h`) is shown in the header as soon as the engine loads.
+The footer shows the WebUI build: `version.js` marks a development build, CI overwrites it with
+the build date and commit when it assembles the site.
 
 Formats the browser cannot display (TIFF, TGA, PNM) are converted to PNG by Deskew
 itself for the view.
