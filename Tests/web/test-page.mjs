@@ -58,7 +58,7 @@ async function openImage(name) {
 }
 
 const r2 = await openImage('2.png');
-check('2.png detected', r2.includes('-2.19°') && r2.includes('detected'), r2);
+check('2.png detected', r2.includes('-2.19°') && r2.includes('Detected'), r2);
 if (shotDir) await page.screenshot({ path: join(shotDir, 'original.png') });
 
 await page.click('[data-view=preview]');
@@ -106,7 +106,10 @@ await page.fill('#maxAngle', '1');
 await page.waitForFunction(() => !document.querySelector('#result').textContent.includes('-2.19°'), null, { timeout: 30000 });
 await page.waitForSelector('#busy', { state: 'hidden' });
 const r2b = await page.textContent('#result');
-check('max angle 1 changes the outcome', /atRangeLimit|lowConfidence|will not be rotated/.test(r2b), r2b);
+check('max angle 1 changes the outcome', /At max angle limit|Low confidence|will not be rotated/.test(r2b), r2b);
+await page.fill('#maxAngle', '10');
+await page.$eval('#maxAngleSlider', (el) => { el.value = '5'; el.dispatchEvent(new Event('input')); });
+check('max angle slider sets the box', (await page.inputValue('#maxAngle')) === '5');
 await page.fill('#maxAngle', '10');
 await page.waitForFunction(() => document.querySelector('#result').textContent.includes('-2.19°'), null, { timeout: 30000 });
 
@@ -126,7 +129,7 @@ if (shotDir) await page.screenshot({ path: join(shotDir, 'tiff.png') });
 
 // Blank page
 const rb = await openImage('blank.png');
-check('blank page', rb.includes('noContent') && rb.includes('will not be rotated'), rb);
+check('blank page', rb.includes('No content') && rb.includes('will not be rotated'), rb);
 
 check('no page errors', errors.length === 0, errors.join('; '));
 
