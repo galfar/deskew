@@ -109,8 +109,10 @@ const
 var
   // Program options
   Options: TCmdLineOptions;
-  // Input and output image
-  InputImage, OutputImage: TSingleImage;
+  // Image as loaded, it is rotated and saved
+  OutputImage: TSingleImage;
+  // Grayscale working image for the skew detection, made from OutputImage
+  WorkImage: TSingleImage;
   // Where all the text for the user is written to. It is standard output unless
   // it is taken by JSON report: nothing but the report can be written there then.
   // Never use WriteLn without it.
@@ -475,18 +477,18 @@ var
   var
     Thickness: Integer;
   begin
-    // We can reuse InputImage here, no longer needed. What the detection saw
+    // We can reuse WorkImage here, it is no longer needed. What the detection saw
     // (thresholded) with frames inside the detection area and around the content.
-    BinarizeImage(InputImage.ImageDataPointer^, Threshold, @ContentRect);
-    InputImage.Format := ifR8G8B8;
-    Thickness := Max(2, Max(InputImage.Width, InputImage.Height) div 500);
-    DrawRectFrame(InputImage.ImageDataPointer^, ContentRect, Thickness, DetectionAreaColor, False);
+    BinarizeImage(WorkImage.ImageDataPointer^, Threshold, @ContentRect);
+    WorkImage.Format := ifR8G8B8;
+    Thickness := Max(2, Max(WorkImage.Width, WorkImage.Height) div 500);
+    DrawRectFrame(WorkImage.ImageDataPointer^, ContentRect, Thickness, DetectionAreaColor, False);
     if HasContent then
-      DrawRectFrame(InputImage.ImageDataPointer^, FoundContentRect, Thickness, ContentAreaColor, True);
+      DrawRectFrame(WorkImage.ImageDataPointer^, FoundContentRect, Thickness, ContentAreaColor, True);
 
     WriteLn(Log^, 'Saving work image (', Options.WorkImageFileName, ') ...');
     EnsureOutputLocation(Options.WorkImageFileName);
-    InputImage.SaveToFile(Options.WorkImageFileName);
+    WorkImage.SaveToFile(Options.WorkImageFileName);
     Report.WorkImageFile := ExpandFileName(Options.WorkImageFileName);
   end;
 
@@ -568,12 +570,10 @@ begin
   Threshold := 0;
   ForceRotation := ofForceRotation in Options.OperationalFlags;
   WriteLn(Log^, 'Preparing input image (', ExtractFileName(Options.InputFileName), ' [',
-    InputImage.Width, 'x', InputImage.Height, '/', string(InputImage.FormatInfo.Name), ']) ...');
+    OutputImage.Width, 'x', OutputImage.Height, '/', string(OutputImage.FormatInfo.Name), ']) ...');
 
-  // Clone input image and convert it to 8bit grayscale. This will be our
-  // working image.
-  OutputImage.Assign(InputImage);
-  InputImage.Format := ifGray8;
+  // Working image is converted from the loaded one to 8bit grayscale
+  OutputImage.ConvertInto(WorkImage, ifGray8);
 
   if Options.DpiOverride > 0 then
   begin
@@ -588,7 +588,7 @@ begin
   end;
 
   // Determine the content rect - where exactly to detect rotated text
-  if not Options.CalcContentRectForImage(InputImage.BoundsRect, GlobalMetadata, ContentRect) then
+  if not Options.CalcContentRectForImage(WorkImage.BoundsRect, GlobalMetadata, ContentRect) then
   begin
     // User most probably defined content/margins with physical resolution units (cm, inch, ...)
     // but the image has no physical resolution info inside or Deskew is not able to read it.
@@ -609,7 +609,7 @@ begin
       begin
         // Determine the threshold automatically
         Time := GetTimeMicroseconds;
-        Threshold := OtsuThresholding(InputImage.ImageDataPointer^, @ContentRect);
+        Threshold := OtsuThresholding(WorkImage.ImageDataPointer^, @ContentRect);
         WriteTiming(tsThresholding);
       end;
   end;
@@ -617,7 +617,7 @@ begin
   // Look where the actual content of the page is. Blank pages are recognized this way
   // and the skew detection can be limited to the content area if the user asks for it.
   Time := GetTimeMicroseconds;
-  HasContent := DetectContentRect(InputImage.ImageDataPointer^, Threshold, FoundContentRect, @ContentRect);
+  HasContent := DetectContentRect(WorkImage.ImageDataPointer^, Threshold, FoundContentRect, @ContentRect);
   WriteTiming(tsContentDetection);
 
   if HasContent and Options.AutoContentRect then
@@ -625,18 +625,18 @@ begin
     ContentRect := FoundContentRect;
     // Threshold for the content only, without the surroundings of the page
     if Options.ThresholdingMethod = tmOtsu then
-      Threshold := OtsuThresholding(InputImage.ImageDataPointer^, @ContentRect);
+      Threshold := OtsuThresholding(WorkImage.ImageDataPointer^, @ContentRect);
   end;
 
   if HasContent or ForceRotation then
   begin
     // Main step - calculate image rotation SkewAngle
     WriteLn(Log^, 'Calculating skew angle',
-      Iff(EqualRect(InputImage.BoundsRect, ContentRect), '', ' (in ' + RectToStr(ContentRect) +')'),
+      Iff(EqualRect(WorkImage.BoundsRect, ContentRect), '', ' (in ' + RectToStr(ContentRect) +')'),
       ' using threshold ', Threshold, '...');
     Time := GetTimeMicroseconds;
     SkewAngle := CalcRotationAngle(Options.MaxAngle, Options.AngleStep, Threshold,
-      InputImage.Width, InputImage.Height, InputImage.Bits,
+      WorkImage.Width, WorkImage.Height, WorkImage.Bits,
       @ContentRect, @Stats);
     WriteTiming(tsSkewDetection);
   end
@@ -671,6 +671,9 @@ begin
 
   if ofDetectOnly in Options.OperationalFlags then
     Exit;
+
+  // Working image is not needed anymore, memory is better used for image rotation step
+  WorkImage.FreeImageData;
 
   if (Stats.Outcome <> sdoDetected) and not ForceRotation then
   begin
@@ -751,8 +754,8 @@ begin
   Log := @Output;
   InitReport;
   Options := TCmdLineOptions.Create;
-  InputImage := TSingleImage.Create;
   OutputImage := TSingleImage.Create;
+  WorkImage := TSingleImage.Create;
 
   try
     try
@@ -788,19 +791,19 @@ begin
 
         // Load input image
         Time := GetTimeMicroseconds;
-        InputImage.LoadFromFile(Options.InputFileName);
+        OutputImage.LoadFromFile(Options.InputFileName);
         WriteTiming(tsLoad);
 
-        if not InputImage.Valid then
+        if not OutputImage.Valid then
         begin
           ReportBadInput('Loaded input image is not valid: ' + Options.InputFileName, False);
           Exit;
         end;
 
         Report.InputLoaded := True;
-        Report.InputWidth := InputImage.Width;
-        Report.InputHeight := InputImage.Height;
-        Report.InputFormat := string(InputImage.FormatInfo.Name);
+        Report.InputWidth := OutputImage.Width;
+        Report.InputHeight := OutputImage.Height;
+        Report.InputFormat := string(OutputImage.FormatInfo.Name);
 
         // Do the magic
         Changed := DoDeskew();
@@ -866,8 +869,8 @@ begin
   finally
     WriteReports;
     Options.Free;
-    InputImage.Free;
     OutputImage.Free;
+    WorkImage.Free;
 
   {$IF Defined(DEBUG) and Defined(DELPHI) and Defined(MSWINDOWS)}
     {$WARN SYMBOL_PLATFORM OFF}
