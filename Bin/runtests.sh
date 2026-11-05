@@ -60,6 +60,8 @@ echo "Using '$DESKEW' executable"
 ./$DESKEW -s r -o TestOut/OutJsonFile3.png ../TestImages/3.png
 # Both reports in detect only mode: the file is named after the output that would be written
 ./$DESKEW -s jr -g d -o TestOut/OutJsonDetect5.png ../TestImages/5.png > TestOut/OutJsonDetect5.json
+# Libraries used for zlib, JPEG, TIFF and WebP (shared libraries or the built in Pascal codecs)
+./$DESKEW -s l -g d ../TestImages/F1550.jpg
 # Report and work image into a new directory in detect only mode: TestOut/Reports/3.png.json, 3.work.png
 ./$DESKEW -s rw -g d -o TestOut/Reports/ ../TestImages/3.png
 

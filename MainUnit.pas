@@ -164,6 +164,7 @@ begin
   WriteLn(Log^, '                   or smaller than the skip angle (-l)');
   WriteLn(Log^, '    -s info:       Info dump (any combination of):');
   WriteLn(Log^, '                   s - skew detection stats, p - program parameters, t - timings,');
+  WriteLn(Log^, '                   l - libraries used for zlib, JPEG, TIFF and WebP (shared or built in),');
   WriteLn(Log^, '                   w - save work image to <output file name>.work.png: thresholded,');
   WriteLn(Log^, '                       detection area framed red, found content green,');
   WriteLn(Log^, '                   j - JSON report to standard output (and nothing else there),');
@@ -249,6 +250,19 @@ begin
     WriteLn(Log^, STimedSteps[Step] + ' - time taken: ' + FormatNiceNumber(Elapsed, 0) + ' us');
 end;
 
+// Libraries Imaging uses for zlib, JPEG, TIFF and WebP in this run
+procedure WriteLibraries;
+var
+  Libraries: TImagingLibraryInfos;
+  I: Integer;
+begin
+  Libraries := GetImagingLibraries;
+  WriteLn(Log^, 'Imaging libraries:');
+  for I := 0 to High(Libraries) do
+    WriteLn(Log^, '  ', Libraries[I].Name + ':', '':6 - Length(Libraries[I].Name), Libraries[I].Description);
+  WriteLn(Log^);
+end;
+
 procedure InitReport;
 var
   Step: TTimedStep;
@@ -272,6 +286,8 @@ function BuildJsonReport: string;
 var
   Json: TJsonWriter;
   Step: TTimedStep;
+  Libraries: TImagingLibraryInfos;
+  I: Integer;
 begin
   Json := TJsonWriter.Create;
   try
@@ -280,6 +296,19 @@ begin
     Json.BeginObject('deskew');
     Json.AddString('version', SAppVersion);
     Json.AddString('target', SBuildTarget + ', ' + SBuildCompiler);
+    Libraries := GetImagingLibraries;
+    Json.BeginObject('libraries');
+    for I := 0 to High(Libraries) do
+    begin
+      Json.BeginObject(LowerCase(Libraries[I].Name));
+      Json.AddString('backend', Libraries[I].Backend);
+      if Libraries[I].Version <> '' then
+        Json.AddString('version', Libraries[I].Version)
+      else
+        Json.AddNull('version');
+      Json.EndObject;
+    end;
+    Json.EndObject;
     Json.EndObject;
 
     // There is nothing more to tell when Deskew did not even get proper parameters
@@ -777,6 +806,8 @@ begin
         Report.ParamsValid := True;
         if Options.ShowParams then
           WriteLn(Log^, Options.OptionsToString);
+        if Options.ShowLibraries then
+          WriteLibraries;
 
         if not IsFileFormatSupported(Options.InputFileName) then
         begin

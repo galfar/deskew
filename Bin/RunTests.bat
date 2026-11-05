@@ -32,6 +32,7 @@
 %DESKEW% -s j -o TestOut/OutJson3.png ../TestImages/3.png > TestOut/OutJson3.json || goto :error
 %DESKEW% -s r -o TestOut/OutJsonFile3.png ../TestImages/3.png || goto :error
 %DESKEW% -s jr -g d -o TestOut/OutJsonDetect5.png ../TestImages/5.png > TestOut/OutJsonDetect5.json || goto :error
+%DESKEW% -s l -g d ../TestImages/F1550.jpg || goto :error
 %DESKEW% -s rw -g d -o TestOut/Reports/ ../TestImages/3.png || goto :error
 
 %DESKEW% -t a -a 5 -o TestOut/Out1.tif ../TestImages/1-lzw.tif || goto :error

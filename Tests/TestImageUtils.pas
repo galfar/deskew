@@ -36,6 +36,8 @@ type
     procedure TestDrawRectFrame_Inside;
     procedure TestDrawRectFrame_Outside;
     procedure TestDrawRectFrame_ClippedToImage;
+
+    procedure TestImagingLibraries;
   end;
 
   TTestImageRotation = class(TDeskewTestCase)
@@ -441,6 +443,35 @@ begin
       ExpectedHeight := ExpectedHeight + 1;
     end;
   end;
+end;
+
+procedure TTestImageUtils.TestImagingLibraries;
+const
+  Names: array[0..3] of string = ('zlib', 'JPEG', 'TIFF', 'WebP');
+  // Allowed backends of each library, separated and enclosed by spaces
+  Backends: array[0..3] of string = (
+    ' bundled fpc delphi dynlib ', ' pascal turbojpeg ', ' pastiff libtiff ', ' pascal libwebp ');
+var
+  Libraries: TImagingLibraryInfos;
+  I: Integer;
+begin
+  Libraries := GetImagingLibraries;
+  AssertEquals('Number of libraries', Length(Names), Length(Libraries));
+  for I := 0 to High(Libraries) do
+  begin
+    AssertEquals('Name', Names[I], Libraries[I].Name);
+    // Pascal codecs are always there to fall back to, so "none" must not happen
+    AssertTrue(Names[I] + ' backend: ' + Libraries[I].Backend,
+      Pos(' ' + Libraries[I].Backend + ' ', Backends[I]) > 0);
+    AssertTrue(Names[I] + ' description', Libraries[I].Description <> '');
+    // Shared libraries tell their version (zlib has one for all backends)
+    if (Libraries[I].Backend = 'dynlib') or (Libraries[I].Backend = 'libtiff') or
+      (Libraries[I].Backend = 'libwebp') then
+      AssertTrue(Names[I] + ' version', Libraries[I].Version <> '');
+  end;
+  AssertTrue('zlib version', Libraries[0].Version <> '');
+  // The same answer when asked again
+  AssertEquals('Asked again', Libraries[2].Backend, GetImagingLibraries[2].Backend);
 end;
 
 procedure TTestImageRotation.SetUp;

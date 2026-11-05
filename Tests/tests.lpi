@@ -111,7 +111,7 @@
         <ShowNotes Value="False"/>
         <ShowHints Value="False"/>
       </Verbosity>
-      <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>      
+      <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
     </Other>
   </CompilerOptions>
   <Debugging>

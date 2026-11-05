@@ -577,6 +577,13 @@ begin
   AssertFalse('Info: !work-image', FCmdOptions.SaveWorkImage);
   AssertFalse('Info: !json', FCmdOptions.JsonToStdOut);
   AssertFalse('Info: !json file', FCmdOptions.JsonReportFile);
+  AssertFalse('Info: !libraries', FCmdOptions.ShowLibraries);
+
+  ParseResult := FCmdOptions.Parse(['-s', 'lt', 'in.png']);
+  AssertParseSuccesAndEmptyError(ParseResult, 'libraries flag');
+  AssertTrue('Info: libraries', FCmdOptions.ShowLibraries);
+  AssertTrue('Info: timings with libraries', FCmdOptions.ShowTimings);
+  AssertFalse('Info: !params with libraries', FCmdOptions.ShowParams);
 
   ParseResult := FCmdOptions.Parse(['-s', 'sq', 'in.png']);
   AssertParseFailAndErrorContains(ParseResult, 'Unknown info flag "q"', 'unknown flag');

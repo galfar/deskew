@@ -29,7 +29,28 @@ uses
   ImagingFormats,
   ImagingUtility;
 
+type
+  { Third party library (codec) that Imaging uses for one kind of data. }
+  TImagingLibraryInfo = record
+    // zlib, JPEG, TIFF, WebP
+    Name: string;
+    // Implementation in use: bundled, fpc, delphi or dynlib (zlib), pascal or turbojpeg (JPEG),
+    // pastiff or libtiff (TIFF), pascal or libwebp (WebP), none (not available)
+    Backend: string;
+    // Version of the library if it is known, empty otherwise
+    Version: string;
+    // The same for people, as Bench demo of Imaging shows it, e.g. 'libtiff 4.5.1 dynlib'
+    Description: string;
+  end;
+  TImagingLibraryInfos = array of TImagingLibraryInfo;
+
 function IsImageDataEqual(const Image1, Image2: TImageData): Boolean;
+
+{ Returns the libraries Imaging uses for zlib, JPEG, TIFF and WebP: shared libraries
+  when they were found, Pascal codecs compiled in otherwise. Shared libraries are
+  looked for when this is called for the first time (or when the first image needing
+  them is loaded or saved), so this tells what the current run uses. }
+function GetImagingLibraries: TImagingLibraryInfos;
 
 { Thresholding using Otsu's method (which chooses the threshold
   to minimize the intraclass variance of the black and white pixels!).
@@ -83,7 +104,70 @@ implementation
 
 uses
   ImagingCanvases,
+  ImagingZLib,
+  ImagingJpegLib,
+  ImagingTiffBackend,
+  ImagingLibWebP,
+{$IFDEF HAS_DYNLIBS}
+  LibTiffDynLib,
+  LibWebPDynLib,
+{$ENDIF}
   Utils;
+
+function GetImagingLibraries: TImagingLibraryInfos;
+const
+  SZLibBackends: array[TZLibBackend] of string = ('bundled', 'fpc', 'delphi', 'dynlib');
+  SZLibDescriptions: array[TZLibBackend] of string = ('bundled', 'FPC paszlib', 'Delphi RTL', 'dynlib');
+
+  procedure Add(const Name, Backend, Version, Description: string);
+  var
+    I: Integer;
+  begin
+    I := Length(Result);
+    SetLength(Result, I + 1);
+    Result[I].Name := Name;
+    Result[I].Backend := Backend;
+    Result[I].Version := Version;
+    Result[I].Description := Description;
+  end;
+
+var
+  Version: string;
+begin
+  SetLength(Result, 0);
+
+  Version := GetZLibVersion;
+  Add('zlib', SZLibBackends[ZLibBackend], Version, SZLibDescriptions[ZLibBackend] + ' ' + Version);
+
+  if JpegBackend = jbTurboJpeg then
+    Add('JPEG', 'turbojpeg', '', 'TurboJPEG dynlib')
+  else
+    Add('JPEG', 'pascal', '', 'Pascal');
+
+  case TiffBackend of
+    tbPasTiff:
+      Add('TIFF', 'pastiff', '', 'PasTiff');
+    tbLibTiff:
+      begin
+        Version := {$IFDEF HAS_DYNLIBS}GetLibTiffVersion{$ELSE}''{$ENDIF};
+        Add('TIFF', 'libtiff', Version, 'libtiff ' + Version + ' dynlib');
+      end;
+  else
+    Add('TIFF', 'none', '', 'none');
+  end;
+
+  case WebPBackend of
+    wbPascal:
+      Add('WebP', 'pascal', '', 'Pascal (load only)');
+    wbLibWebP:
+      begin
+        Version := {$IFDEF HAS_DYNLIBS}GetLibWebPVersion{$ELSE}''{$ENDIF};
+        Add('WebP', 'libwebp', Version, 'libwebp ' + Version + ' dynlib');
+      end;
+  else
+    Add('WebP', 'none', '', 'none');
+  end;
+end;
 
 function IsImageDataEqual(const Image1, Image2: TImageData): Boolean;
 var

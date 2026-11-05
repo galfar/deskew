@@ -75,6 +75,7 @@ type
     FShowDetectionStats: Boolean;
     FShowParams: Boolean;
     FShowTimings: Boolean;
+    FShowLibraries: Boolean;
     FSaveWorkImage: Boolean;
     FJsonToStdOut: Boolean;
     FJsonReportFile: Boolean;
@@ -172,6 +173,8 @@ type
     property ShowParams: Boolean read FShowParams;
     // Show timing of processing steps to user
     property ShowTimings: Boolean read FShowTimings;
+    // Show which libraries Imaging uses for zlib, JPEG, TIFF and WebP
+    property ShowLibraries: Boolean read FShowLibraries;
     // Save "working" thresholded image (for testing and tweaking thresholding), effectively an input
     // for skew detection.
     property SaveWorkImage: Boolean read FSaveWorkImage;
@@ -267,6 +270,7 @@ begin
   FShowDetectionStats := False;
   FShowParams := False;
   FShowTimings:= False;
+  FShowLibraries := False;
   FSaveWorkImage := False;
   FJsonToStdOut := False;
   FJsonReportFile := False;
@@ -432,11 +436,12 @@ begin
   end
   else if Param = '-s' then
   begin
-    if not CheckFlags('sptwjr', 'info') then
+    if not CheckFlags('sptwjrl', 'info') then
       Exit(False);
     if ContainsText(Value, 's') then FShowDetectionStats := True;
     if ContainsText(Value, 'p') then FShowParams := True;
     if ContainsText(Value, 't') then FShowTimings := True;
+    if ContainsText(Value, 'l') then FShowLibraries := True;
     if ContainsText(Value, 'w') then FSaveWorkImage := True;
     if ContainsText(Value, 'j') then FJsonToStdOut := True;
     if ContainsText(Value, 'r') then FJsonReportFile := True;
@@ -848,7 +853,8 @@ begin
                                + Iff(ofDetectOnly in FOperationalFlags, 'detect-only ', '')
                                + Iff(ofForceRotation in FOperationalFlags, 'force-rotation ', '') + sLineBreak +
     '  info flags          = ' + Iff(ShowParams, 'params ', '') + Iff(ShowDetectionStats, 'detection-stats ', '') +
-      Iff(ShowTimings, 'timings ', '') + Iff(SaveWorkImage, 'save-work-image ', '') +
+      Iff(ShowTimings, 'timings ', '') + Iff(ShowLibraries, 'libraries ', '') +
+      Iff(SaveWorkImage, 'save-work-image ', '') +
       Iff(JsonToStdOut, 'json-stdout ', '') + Iff(JsonReportFile, 'json-file ', '') + sLineBreak +
     '  output file specs   = jpeg quality:' + CompJpegStr + ' tiff compression:' + CompTiffStr + sLineBreak;
 end;
