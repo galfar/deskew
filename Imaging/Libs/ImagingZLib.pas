@@ -33,22 +33,27 @@
                      and linked statically, can be 2x faster than ZLIB_USE_BUNDLED.
   ZLIB_USE_DYNLIB  - zlib shared library bound by ZLibDynLib unit: zlib1.dll,
                      libz.so.1, or libz.1.dylib (zlib-ng in compat mode works too).
-                     The library is loaded at program start and it must be
-                     present, there is no fallback to another backend at run time.
+                     Ignored on targets without dynamic libraries.
 
   Selection:
 
-  By default the backend is chosen automatically:
+  One of the Pascal or compiled-in backends is always there, chosen
+  automatically:
     - Free Pascal: ZLIB_USE_FPC
     - Delphi XE3 and newer: ZLIB_USE_DELPHI
     - older Delphi: ZLIB_USE_BUNDLED
-
-  Define ZLIB_USE_BUNDLED or ZLIB_USE_DYNLIB to override the automatic choice
-  (ZLIB_USE_BUNDLED wins when both are defined). The defines are listed in
-  ImagingOptions.inc, set them there, in project options, or in
-  ImagingUserOptions.inc.
+  Define ZLIB_USE_BUNDLED to use the bundled one with all compilers.
   ZLIB_USE_FPC and ZLIB_USE_DELPHI are set by the automatic choice and are not
   meant to be defined by hand.
+
+  ZLIB_USE_DYNLIB is an addition to that backend, not a replacement. When it
+  is defined the library is looked for at program start (or loaded by
+  TryLoadZLibLibrary). If it is found it does all compression and
+  decompression, otherwise the compiled-in backend is used, so the program
+  works without the library too. ZLibBackend tells which one is active.
+
+  The defines are listed in ImagingOptions.inc, set them there, in project
+  options, or in ImagingUserOptions.inc.
 }
 
 unit ImagingZLib;
@@ -61,9 +66,9 @@ interface
   {$UNDEF ZLIB_USE_DYNLIB}
 {$ENDIF}
 
-{$IF not Defined(ZLIB_USE_BUNDLED) and not Defined(ZLIB_USE_DYNLIB)}
+{$IFNDEF ZLIB_USE_BUNDLED}
   {$DEFINE NO_USER_ZLIB}
-{$IFEND}
+{$ENDIF}
 
 
 {$IF Defined(FPC) and Defined(NO_USER_ZLIB)}
@@ -78,11 +83,17 @@ interface
   {$DEFINE ZLIB_USE_DELPHI}
 {$IFEND}
 
-{$IF not Defined(ZLIB_USE_FPC) and not Defined(ZLIB_USE_DELPHI) and not Defined(ZLIB_USE_DYNLIB)}
+{$IF not Defined(ZLIB_USE_FPC) and not Defined(ZLIB_USE_DELPHI)}
   {$DEFINE ZLIB_USE_BUNDLED}  // Fallback
 {$IFEND}
 
 uses
+{$IFDEF ZLIB_USE_DYNLIB}
+  { zlib dll/so/dylib, used when found at run time. Can also use zlib-ng compat.
+    Listed first so that unqualified zlib names refer to the backend below,
+    the library's ones are always qualified (ZLibDynLib.inflate). }
+  ZLibDynLib,
+{$ENDIF}
 {$IF Defined(ZLIB_USE_BUNDLED)}
   { Use paszlib modified by me for Delphi and FPC. Fall-back solution. }
   ImPasZLib,
@@ -92,9 +103,6 @@ uses
 {$ELSEIF Defined(ZLIB_USE_DELPHI)}
   { Use ZLib unit shipped with Delphi }
   ZLib,
-{$ELSEIF Defined(ZLIB_USE_DYNLIB)}
-  { Use zlib dll/so/dylib. Can also use zlib-ng compat. }
-  ZLibDynLib,
 {$IFEND}
   ImagingTypes, SysUtils, Classes;
 
@@ -125,14 +133,16 @@ type
 type
   { State of decompression of one zlib stream, see ZInflateBegin.}
   TZInflater = record
-    Stream: TZStreamRec;
+    // Stream of the backend chosen when the stream starts, used until its end
+    Backend: TObject;
     Active: Boolean;
     Finished: Boolean;
   end;
 
   { State of compression of one zlib stream, see ZDeflateBegin.}
   TZDeflater = record
-    Stream: TZStreamRec;
+    // Stream of the backend chosen when the stream starts, used until its end
+    Backend: TObject;
     Active: Boolean;
     Finished: Boolean;
   end;
@@ -276,10 +286,17 @@ type
     zbDynLib    // zlib shared library
   );
 
-{ Returns zlib implementation in use (chosen at compile time).}
+{ Returns zlib implementation in use: zbDynLib when the shared library is
+  loaded, otherwise the backend chosen at compile time.}
 function ZLibBackend: TZLibBackend;
 { Returns version of zlib reported by the backend, e.g. '1.3.1'.}
 function GetZLibVersion: string;
+{ Loads zlib library from the given file and uses it from now on (instead of
+  the one found in the default locations). Returns False and falls back to
+  the compiled-in backend when the library can't be loaded. Call it before
+  any compression or decompression starts, the previously loaded library is
+  unloaded. Always False in builds without ZLIB_USE_DYNLIB.}
+function TryLoadZLibLibrary(const FileName: string): Boolean;
 
 implementation
 
@@ -288,16 +305,14 @@ const
   // parts supported since forever.
   MinZLibVersion = '1.1.2';
 
-{$IF not Defined(ZLIB_USE_BUNDLED) and not Defined(ZLIB_USE_FPC)}
-  // Use Pascal mem allocation when using compiled C libs
+{$IFDEF ZLIB_USE_DELPHI}
+  // Use Pascal mem allocation when using compiled C libs (shared library
+  // always gets it)
   {$DEFINE USE_PASCAL_ALLOC}
-{$IFEND}
-
-{$IF Defined(ZLIB_USE_DELPHI) or Defined(ZLIB_USE_DYNLIB)}
 const
   DEF_MEM_LEVEL = 9;
   MAX_WBITS = 15;
-{$IFEND}
+{$ENDIF}
 
 const
   ZErrorMessages: array[0..9] of PAnsiChar = (
@@ -336,7 +351,182 @@ begin
     raise EDecompressionError.Create('zlib: ' + ZErrorMessages[2 - code]);
 end;
 
+type
+  { One zlib stream (decompression or compression) of a backend. The backends
+    have their own z_stream records with different layouts, each class keeps
+    its own one.}
+  TZBackendStream = class
+  public
+    function BeginInflate: Integer; virtual; abstract;
+    { Runs inflate for one block of input and output (at most MaxZLibBlock
+      bytes each), Used and Made return the numbers of bytes read and written.}
+    function RunInflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+                     OutputSize: NativeInt; out Used, Made: NativeInt): Integer; virtual; abstract;
+    procedure EndInflate; virtual; abstract;
+    function BeginDeflate(Level, Strategy: Integer): Integer; virtual; abstract;
+    { Runs deflate for one block of input and output, see RunInflate.}
+    function RunDeflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+                     OutputSize: NativeInt; Flush: Integer; out Used, Made: NativeInt): Integer; virtual; abstract;
+    procedure EndDeflate; virtual; abstract;
+  end;
+
+  { Backend compiled in: ImPasZLib, FPC's paszlib, or ZLib unit of Delphi.}
+  TStaticZStream = class(TZBackendStream)
+  private
+    FStream: TZStreamRec;
+  public
+    function BeginInflate: Integer; override;
+    function RunInflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+                     OutputSize: NativeInt; out Used, Made: NativeInt): Integer; override;
+    procedure EndInflate; override;
+    function BeginDeflate(Level, Strategy: Integer): Integer; override;
+    function RunDeflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+                     OutputSize: NativeInt; Flush: Integer; out Used, Made: NativeInt): Integer; override;
+    procedure EndDeflate; override;
+  end;
+
+{$IFDEF ZLIB_USE_DYNLIB}
+  { zlib shared library.}
+  TDynLibZStream = class(TZBackendStream)
+  private
+    FStream: ZLibDynLib.z_stream;
+  public
+    function BeginInflate: Integer; override;
+    function RunInflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+                     OutputSize: NativeInt; out Used, Made: NativeInt): Integer; override;
+    procedure EndInflate; override;
+    function BeginDeflate(Level, Strategy: Integer): Integer; override;
+    function RunDeflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+                     OutputSize: NativeInt; Flush: Integer; out Used, Made: NativeInt): Integer; override;
+    procedure EndDeflate; override;
+  end;
+{$ENDIF}
+
+{ TStaticZStream }
+
+function TStaticZStream.BeginInflate: Integer;
+begin
+{$IFDEF USE_PASCAL_ALLOC}
+  FStream.zalloc := @zlibAllocMem;
+  FStream.zfree := @zlibFreeMem;
+{$ENDIF}
+  Result := inflateInit_(FStream, MinZLibVersion, SizeOf(FStream));
+end;
+
+function TStaticZStream.RunInflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+  OutputSize: NativeInt; out Used, Made: NativeInt): Integer;
+begin
+  FStream.next_in := Input;
+  FStream.avail_in := InputSize;
+  FStream.next_out := Output;
+  FStream.avail_out := OutputSize;
+  Result := inflate(FStream, Z_NO_FLUSH);
+  Used := InputSize - NativeInt(FStream.avail_in);
+  Made := OutputSize - NativeInt(FStream.avail_out);
+end;
+
+procedure TStaticZStream.EndInflate;
+begin
+  inflateEnd(FStream);
+end;
+
+function TStaticZStream.BeginDeflate(Level, Strategy: Integer): Integer;
+begin
+{$IFDEF USE_PASCAL_ALLOC}
+  FStream.zalloc := @zlibAllocMem;
+  FStream.zfree := @zlibFreeMem;
+{$ENDIF}
+  Result := deflateInit2_(FStream, Level, Z_DEFLATED, MAX_WBITS, DEF_MEM_LEVEL,
+                          Strategy, MinZLibVersion, SizeOf(FStream));
+end;
+
+function TStaticZStream.RunDeflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+  OutputSize: NativeInt; Flush: Integer; out Used, Made: NativeInt): Integer;
+begin
+  FStream.next_in := Input;
+  FStream.avail_in := InputSize;
+  FStream.next_out := Output;
+  FStream.avail_out := OutputSize;
+  Result := deflate(FStream, Flush);
+  Used := InputSize - NativeInt(FStream.avail_in);
+  Made := OutputSize - NativeInt(FStream.avail_out);
+end;
+
+procedure TStaticZStream.EndDeflate;
+begin
+  deflateEnd(FStream);
+end;
+
+{$IFDEF ZLIB_USE_DYNLIB}
+
+{ TDynLibZStream }
+
+function TDynLibZStream.BeginInflate: Integer;
+begin
+  FStream.zalloc := @zlibAllocMem;
+  FStream.zfree := @zlibFreeMem;
+  Result := ZLibDynLib.inflateInit_(FStream, MinZLibVersion, SizeOf(FStream));
+end;
+
+function TDynLibZStream.RunInflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+  OutputSize: NativeInt; out Used, Made: NativeInt): Integer;
+begin
+  FStream.next_in := Input;
+  FStream.avail_in := InputSize;
+  FStream.next_out := Output;
+  FStream.avail_out := OutputSize;
+  Result := ZLibDynLib.inflate(FStream, Z_NO_FLUSH);
+  Used := InputSize - NativeInt(FStream.avail_in);
+  Made := OutputSize - NativeInt(FStream.avail_out);
+end;
+
+procedure TDynLibZStream.EndInflate;
+begin
+  ZLibDynLib.inflateEnd(FStream);
+end;
+
+function TDynLibZStream.BeginDeflate(Level, Strategy: Integer): Integer;
+begin
+  FStream.zalloc := @zlibAllocMem;
+  FStream.zfree := @zlibFreeMem;
+  Result := ZLibDynLib.deflateInit2_(FStream, Level, Z_DEFLATED, MAX_WBITS, DEF_MEM_LEVEL,
+                                     Strategy, MinZLibVersion, SizeOf(FStream));
+end;
+
+function TDynLibZStream.RunDeflate(Input: Pointer; InputSize: NativeInt; Output: Pointer;
+  OutputSize: NativeInt; Flush: Integer; out Used, Made: NativeInt): Integer;
+begin
+  FStream.next_in := Input;
+  FStream.avail_in := InputSize;
+  FStream.next_out := Output;
+  FStream.avail_out := OutputSize;
+  Result := ZLibDynLib.deflate(FStream, Flush);
+  Used := InputSize - NativeInt(FStream.avail_in);
+  Made := OutputSize - NativeInt(FStream.avail_out);
+end;
+
+procedure TDynLibZStream.EndDeflate;
+begin
+  ZLibDynLib.deflateEnd(FStream);
+end;
+
+{$ENDIF}
+
 { Streaming interface }
+
+{ Creates a stream of the backend in use: the shared library when it is loaded,
+  otherwise the compiled-in one.}
+function CreateBackendStream: TZBackendStream;
+begin
+{$IFDEF ZLIB_USE_DYNLIB}
+  if IsZLibLibraryLoaded then
+  begin
+    Result := TDynLibZStream.Create;
+    Exit;
+  end;
+{$ENDIF}
+  Result := TStaticZStream.Create;
+end;
 
 function MinSize(A, B: NativeInt): NativeInt; {$IFDEF USE_INLINE}inline;{$ENDIF}
 begin
@@ -347,19 +537,25 @@ begin
 end;
 
 procedure ZInflateBegin(var Inflater: TZInflater);
+var
+  Backend: TZBackendStream;
 begin
   FillChar(Inflater, SizeOf(Inflater), 0);
-{$IFDEF USE_PASCAL_ALLOC}
-  Inflater.Stream.zalloc := @zlibAllocMem;
-  Inflater.Stream.zfree := @zlibFreeMem;
-{$ENDIF}
-  DCheck(inflateInit_(Inflater.Stream, MinZLibVersion, SizeOf(Inflater.Stream)));
+  Backend := CreateBackendStream;
+  try
+    DCheck(Backend.BeginInflate);
+  except
+    Backend.Free;
+    raise;
+  end;
+  Inflater.Backend := Backend;
   Inflater.Active := True;
 end;
 
 function ZInflateData(var Inflater: TZInflater; Input: Pointer; InputSize: NativeInt;
   Output: Pointer; OutputSize: NativeInt; out Consumed, Produced: NativeInt): Boolean;
 var
+  Backend: TZBackendStream;
   InBlock, OutBlock, Used, Made: NativeInt;
   Code: Integer;
   NoOutput: Byte;
@@ -374,6 +570,8 @@ begin
   // zlib needs valid output pointer even when there is no room in it
   if Output = nil then
     Output := @NoOutput;
+  Assert(Inflater.Backend <> nil, 'ZInflateBegin not called');
+  Backend := TZBackendStream(Inflater.Backend);
 
   // Input and output are passed in blocks, zlib counts are 32-bit. inflate is
   // called at least once, the end of stream (checksum) can be read also when
@@ -381,14 +579,8 @@ begin
   repeat
     InBlock := MinSize(InputSize - Consumed, MaxZLibBlock);
     OutBlock := MinSize(OutputSize - Produced, MaxZLibBlock);
-    Inflater.Stream.next_in := Pointer(@PBuffer(Input)[Consumed]);
-    Inflater.Stream.avail_in := InBlock;
-    Inflater.Stream.next_out := Pointer(@PBuffer(Output)[Produced]);
-    Inflater.Stream.avail_out := OutBlock;
-
-    Code := inflate(Inflater.Stream, Z_NO_FLUSH);
-    Used := InBlock - NativeInt(Inflater.Stream.avail_in);
-    Made := OutBlock - NativeInt(Inflater.Stream.avail_out);
+    Code := Backend.RunInflate(@PBuffer(Input)[Consumed], InBlock,
+                            @PBuffer(Output)[Produced], OutBlock, Used, Made);
     Inc(Consumed, Used);
     Inc(Produced, Made);
 
@@ -414,25 +606,31 @@ begin
   if Inflater.Active then
   begin
     Inflater.Active := False;
-    inflateEnd(Inflater.Stream);
+    TZBackendStream(Inflater.Backend).EndInflate;
+    FreeAndNil(Inflater.Backend);
   end;
 end;
 
 procedure ZDeflateBegin(var Deflater: TZDeflater; Level, Strategy: Integer);
+var
+  Backend: TZBackendStream;
 begin
   FillChar(Deflater, SizeOf(Deflater), 0);
-{$IFDEF USE_PASCAL_ALLOC}
-  Deflater.Stream.zalloc := @zlibAllocMem;
-  Deflater.Stream.zfree := @zlibFreeMem;
-{$ENDIF}
-  CCheck(deflateInit2_(Deflater.Stream, Level, Z_DEFLATED, MAX_WBITS,
-    DEF_MEM_LEVEL, Strategy, MinZLibVersion, SizeOf(Deflater.Stream)));
+  Backend := CreateBackendStream;
+  try
+    CCheck(Backend.BeginDeflate(Level, Strategy));
+  except
+    Backend.Free;
+    raise;
+  end;
+  Deflater.Backend := Backend;
   Deflater.Active := True;
 end;
 
 function ZDeflateData(var Deflater: TZDeflater; Input: Pointer; InputSize: NativeInt;
   Output: Pointer; OutputSize: NativeInt; Finish: Boolean; out Consumed, Produced: NativeInt): Boolean;
 var
+  Backend: TZBackendStream;
   InBlock, OutBlock, Used, Made: NativeInt;
   Flush, Code: Integer;
   NoOutput: Byte;
@@ -442,6 +640,8 @@ begin
   // zlib needs valid output pointer even when there is no room in it
   if Output = nil then
     Output := @NoOutput;
+  Assert(Deflater.Backend <> nil, 'ZDeflateBegin not called');
+  Backend := TZBackendStream(Deflater.Backend);
 
   // Input and output are passed in blocks, zlib counts are 32-bit
   while not Deflater.Finished and (Produced < OutputSize) do
@@ -454,14 +654,8 @@ begin
     else
       Flush := Z_NO_FLUSH;
 
-    Deflater.Stream.next_in := Pointer(@PBuffer(Input)[Consumed]);
-    Deflater.Stream.avail_in := InBlock;
-    Deflater.Stream.next_out := Pointer(@PBuffer(Output)[Produced]);
-    Deflater.Stream.avail_out := OutBlock;
-
-    Code := deflate(Deflater.Stream, Flush);
-    Used := InBlock - NativeInt(Deflater.Stream.avail_in);
-    Made := OutBlock - NativeInt(Deflater.Stream.avail_out);
+    Code := Backend.RunDeflate(@PBuffer(Input)[Consumed], InBlock,
+                            @PBuffer(Output)[Produced], OutBlock, Flush, Used, Made);
     Inc(Consumed, Used);
     Inc(Produced, Made);
 
@@ -475,7 +669,7 @@ begin
     if (Used = 0) and (Made = 0) then
       Break;
     // Without Finish only the given input is processed
-    if not Finish and (Consumed = InputSize) and (Deflater.Stream.avail_out > 0) then
+    if not Finish and (Consumed = InputSize) and (Made < OutBlock) then
       Break;
   end;
 
@@ -487,7 +681,8 @@ begin
   if Deflater.Active then
   begin
     Deflater.Active := False;
-    deflateEnd(Deflater.Stream);
+    TZBackendStream(Deflater.Backend).EndDeflate;
+    FreeAndNil(Deflater.Backend);
   end;
 end;
 
@@ -585,24 +780,47 @@ end;
 
 function ZLibBackend: TZLibBackend;
 begin
+{$IFDEF ZLIB_USE_DYNLIB}
+  if IsZLibLibraryLoaded then
+  begin
+    Result := zbDynLib;
+    Exit;
+  end;
+{$ENDIF}
+
 {$IF Defined(ZLIB_USE_BUNDLED)}
   Result := zbBundled;
 {$ELSEIF Defined(ZLIB_USE_FPC)}
   Result := zbFpc;
-{$ELSEIF Defined(ZLIB_USE_DELPHI)}
-  Result := zbDelphi;
 {$ELSE}
-  Result := zbDynLib;
+  Result := zbDelphi;
 {$IFEND}
 end;
 
 function GetZLibVersion: string;
 begin
+{$IFDEF ZLIB_USE_DYNLIB}
+  if IsZLibLibraryLoaded then
+  begin
+    Result := string(AnsiString(ZLibDynLib.zlibVersion));
+    Exit;
+  end;
+{$ENDIF}
+
 {$IF Defined(ZLIB_USE_FPC)}
   Result := string(paszlib.zlibVersion);
 {$ELSE}
   Result := string(AnsiString(zlibVersion));
 {$IFEND}
+end;
+
+function TryLoadZLibLibrary(const FileName: string): Boolean;
+begin
+{$IFDEF ZLIB_USE_DYNLIB}
+  Result := LoadZLibLibraryFromFile(FileName);
+{$ELSE}
+  Result := False;
+{$ENDIF}
 end;
 
 { TCustomZLibStream }

@@ -352,30 +352,13 @@ function GetNumMipMapLevels(Width, Height: LongInt): LongInt;
 { Returns total number of levels of volume texture with given depth and
   mipmap count (this is not depth * mipmaps!).}
 function GetVolumeLevelCount(Depth, MipMaps: LongInt): LongInt;
+
 { Returns rectangle (X, Y, X + Width, Y + Height).}
 function BoundsToRect(X, Y, Width, Height: LongInt): TRect; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns rectangle (R.Left, R.Top, R.Left + R.Right, R.Top + R.Bottom).}
 function BoundsToRect(const R: TRect): TRect; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
 { Returns rectangle (R.Left, R.Top, R.Right - R.Left, R.Bottom - R.Top).}
 function RectToBounds(const R: TRect): TRect; overload; {$IFDEF USE_INLINE}inline;{$ENDIF}
-{ Clips given bounds to Clip rectangle.}
-procedure ClipRectBounds(var X, Y, Width, Height: LongInt; const Clip: TRect);
-{ Clips given source bounds and dest position. It is used by various CopyRect
-  functions that copy rect from one image to another. It handles clipping the same way
-  as Win32 BitBlt function. }
-procedure ClipCopyBounds(var SrcX, SrcY, Width, Height, DstX, DstY: LongInt;
-  SrcImageWidth, SrcImageHeight: LongInt; const DstClip: TRect);
-{ Clips given source bounds and dest bounds. It is used by various StretchRect
-  functions that stretch rectangle of pixels from one image to another.
-  It handles clipping the same way as Win32 StretchBlt function. }
-procedure ClipStretchBounds(var SrcX, SrcY, SrcWidth, SrcHeight, DstX, DstY,
-  DstWidth, DstHeight: LongInt; SrcImageWidth, SrcImageHeight: LongInt; const DstClip: TRect);
-{ Scales one rectangle to fit into another. Proportions are preserved so
-  it could be used for 'Stretch To Fit Window' image drawing for instance.}
-function ScaleRectToRect(const SourceRect, TargetRect: TRect): TRect;
-{ Scales given size to fit into max size while keeping the original aspect ratio.
-  Useful for calculating thumbnail dimensions etc.}
-function ScaleSizeToFit(const CurrentSize, MaxSize: TSize): TSize;
 { Returns width of given rect. Part of RTL in newer Delphi.}
 function RectWidth(const Rect: TRect): Integer;
 { Returns height of given rect. Part of RTL in newer Delphi.}
@@ -386,6 +369,32 @@ function RectInRect(const R1, R2: TRect): Boolean;
 function RectIntersects(const R1, R2: TRect): Boolean;
 { Ensures that rect's right>left and bottom>top. }
 procedure NormalizeRect(var R: TRect);
+
+{ Clips given bounds to Clip rectangle.}
+procedure ClipRectBounds(var X, Y, Width, Height: LongInt; const Clip: TRect);
+{ Clips given source bounds and dest position. It is used by various CopyRect
+  functions that copy rect from one image to another. It handles clipping the same way
+  as Win32 BitBlt function. }
+procedure ClipCopyBounds(var SrcX, SrcY, Width, Height, DstX, DstY: LongInt;
+  SrcImageWidth, SrcImageHeight: LongInt; const DstClip: TRect);
+{ Clips stretching of SrcRect of an image (SrcImageWidth x SrcImageHeight) to
+  DstRect, DstClip is e.g. bounds of the destination image or clip
+  rectangle of a canvas. It keeps the mapping of the original rectangles:
+  drawing of the clipped part gives the same pixels as the
+  same part of unclipped drawing. DrawnRect gets the destination pixels to draw:
+  those inside DstRect and DstClip whose centers map into the image.
+  SrcValidRect gets the part of SrcRect inside the image, pixels outside of it
+  must not be read (samplers clamp to it). Source positions of destination
+  pixels are still computed from SrcRect and DstRect. Returns False when there
+  is nothing to draw (also for empty or inverted rectangles).}
+function ClipStretchRects(const SrcRect, DstRect: TRect; SrcImageWidth, SrcImageHeight: Integer;
+  const DstClip: TRect; out DrawnRect, SrcValidRect: TRect): Boolean;
+{ Scales one rectangle to fit into another. Proportions are preserved so
+  it could be used for 'Stretch To Fit Window' image drawing for instance.}
+function ScaleRectToRect(const SourceRect, TargetRect: TRect): TRect;
+{ Scales given size to fit into max size while keeping the original aspect ratio.
+  Useful for calculating thumbnail dimensions etc.}
+function ScaleSizeToFit(const CurrentSize, MaxSize: TSize): TSize;
 
 { Converts pixel size in micrometers to corresponding DPI.}
 function PixelSizeToDpi(SizeInMicroMeters: Single): Single;
@@ -1598,6 +1607,42 @@ begin
   Result.Bottom := R.Bottom - R.Top;
 end;
 
+function RectWidth(const Rect: TRect): Integer;
+begin
+  Result := Rect.Right - Rect.Left;
+end;
+
+function RectHeight(const Rect: TRect): Integer;
+begin
+  Result := Rect.Bottom - Rect.Top;
+end;
+
+function RectInRect(const R1, R2: TRect): Boolean;
+begin
+  Result:=
+    (R1.Left >= R2.Left) and
+    (R1.Top >= R2.Top) and
+    (R1.Right <= R2.Right) and
+    (R1.Bottom <= R2.Bottom);
+end;
+
+function RectIntersects(const R1, R2: TRect): Boolean;
+begin
+  Result :=
+    not (R1.Left > R2.Right) and
+    not (R1.Top > R2.Bottom) and
+    not (R1.Right < R2.Left) and
+    not (R1.Bottom < R2.Top);
+end;
+
+procedure NormalizeRect(var R: TRect);
+begin
+  if R.Right < R.Left then
+    SwapValues(R.Right, R.Left);
+  if R.Bottom < R.Top then
+    SwapValues(R.Bottom, R.Top);
+end;
+
 procedure ClipRectBounds(var X, Y, Width, Height: LongInt; const Clip: TRect);
 
   procedure ClipDim(var AStart, ALength: LongInt; ClipMin, ClipMax: LongInt);
@@ -1646,49 +1691,59 @@ begin
   ClipDim(SrcY, DstY, Height, SrcImageHeight, DstClip.Top, DstClip.Bottom);
 end;
 
-procedure ClipStretchBounds(var SrcX, SrcY, SrcWidth, SrcHeight, DstX, DstY,
-  DstWidth, DstHeight: LongInt; SrcImageWidth, SrcImageHeight: LongInt; const DstClip: TRect);
+function ClipStretchRects(const SrcRect, DstRect: TRect; SrcImageWidth, SrcImageHeight: Integer;
+  const DstClip: TRect; out DrawnRect, SrcValidRect: TRect): Boolean;
 
-  procedure ClipDim(var SrcPos, DstPos, SrcSize, DstSize: LongInt; SrcClipMax,
-    DstClipMin, DstClipMax: LongInt);
+  { Returns the first destination position (relative to the start of destination)
+    whose pixel center maps to source position SrcPos (relative to the start of
+    source) or after it: the smallest D with (D + 0.5) * SrcSize / DstSize >= SrcPos,
+    that is D >= (2 * SrcPos * DstSize - SrcSize) / (2 * SrcSize). Computed with
+    integers so it is exact.}
+  function FirstDstPos(SrcPos, SrcSize, DstSize: Integer): Integer;
   var
-    OldSize: LongInt;
-    Diff: LongInt;
-    Scale: Single;
+    Num, Den: Int64;
   begin
-    Scale := DstSize / SrcSize;
-    if DstPos < DstClipMin then
-    begin
-      Diff := DstClipMin - DstPos;
-      DstSize := DstSize - Diff;
-      SrcPos := SrcPos + Round(Diff / Scale);
-      SrcSize := SrcSize - Round(Diff / Scale);
-      DstPos := DstClipMin;
-    end;
-    if SrcPos < 0 then
-    begin
-      SrcSize := SrcSize + SrcPos;
-      DstPos := DstPos - Round(SrcPos * Scale);
-      DstSize := DstSize + Round(SrcPos * Scale);
-      SrcPos := 0;
-    end;
-    if SrcPos + SrcSize > SrcClipMax then
-    begin
-      OldSize := SrcSize;
-      SrcSize := SrcClipMax - SrcPos;
-      DstSize := Round(DstSize * (SrcSize / OldSize));
-    end;
-    if DstPos + DstSize > DstClipMax then
-    begin
-      OldSize := DstSize;
-      DstSize := DstClipMax - DstPos;
-      SrcSize := Round(SrcSize * (DstSize / OldSize));
-    end;
+    Num := 2 * Int64(SrcPos) * DstSize - SrcSize;
+    Den := 2 * Int64(SrcSize);
+    // Ceiling of the division for positive Den
+    if Num >= 0 then
+      Result := (Num + Den - 1) div Den
+    else
+      Result := -((-Num) div Den);
   end;
 
+  function ClipDim(SrcStart, SrcEnd, DstStart, DstEnd, SrcImageSize, ClipMin, ClipMax: Integer;
+    out DrawnStart, DrawnEnd, ValidStart, ValidEnd: Integer): Boolean;
+  var
+    SrcSize, DstSize: Integer;
+  begin
+    SrcSize := SrcEnd - SrcStart;
+    DstSize := DstEnd - DstStart;
+    ValidStart := Max(SrcStart, 0);
+    ValidEnd := Min(SrcEnd, SrcImageSize);
+    DrawnStart := DstStart;
+    DrawnEnd := DstStart;
+    Result := (SrcSize > 0) and (DstSize > 0) and (ValidStart < ValidEnd);
+    if not Result then
+      Exit;
+
+    DrawnStart := Max(Max(DstStart, ClipMin),
+                      DstStart + FirstDstPos(ValidStart - SrcStart, SrcSize, DstSize));
+    DrawnEnd := Min(Min(DstEnd, ClipMax),
+                    DstStart + FirstDstPos(ValidEnd - SrcStart, SrcSize, DstSize));
+    Result := DrawnStart < DrawnEnd;
+  end;
+
+var
+  ResultX, ResultY: Boolean;
 begin
-  ClipDim(SrcX, DstX, SrcWidth, DstWidth, SrcImageWidth, DstClip.Left, DstClip.Right);
-  ClipDim(SrcY, DstY, SrcHeight, DstHeight, SrcImageHeight, DstClip.Top, DstClip.Bottom);
+  ResultX := ClipDim(SrcRect.Left, SrcRect.Right, DstRect.Left, DstRect.Right, SrcImageWidth,
+                     DstClip.Left, DstClip.Right, DrawnRect.Left, DrawnRect.Right,
+                     SrcValidRect.Left, SrcValidRect.Right);
+  ResultY := ClipDim(SrcRect.Top, SrcRect.Bottom, DstRect.Top, DstRect.Bottom, SrcImageHeight,
+                     DstClip.Top, DstClip.Bottom, DrawnRect.Top, DrawnRect.Bottom,
+                     SrcValidRect.Top, SrcValidRect.Bottom);
+  Result := ResultX and ResultY;
 end;
 
 function ScaleRectToRect(const SourceRect, TargetRect: TRect): TRect;
@@ -1729,42 +1784,6 @@ begin
   ScaledRect := ScaleRectToRect(SR, TR);
   Result.CX := ScaledRect.Right - ScaledRect.Left;
   Result.CY := ScaledRect.Bottom - ScaledRect.Top;
-end;
-
-function RectWidth(const Rect: TRect): Integer;
-begin
-  Result := Rect.Right - Rect.Left;
-end;
-
-function RectHeight(const Rect: TRect): Integer;
-begin
-  Result := Rect.Bottom - Rect.Top;
-end;
-
-function RectInRect(const R1, R2: TRect): Boolean;
-begin
-  Result:=
-    (R1.Left >= R2.Left) and
-    (R1.Top >= R2.Top) and
-    (R1.Right <= R2.Right) and
-    (R1.Bottom <= R2.Bottom);
-end;
-
-function RectIntersects(const R1, R2: TRect): Boolean;
-begin
-  Result :=
-    not (R1.Left > R2.Right) and
-    not (R1.Top > R2.Bottom) and
-    not (R1.Right < R2.Left) and
-    not (R1.Bottom < R2.Top);
-end;
-
-procedure NormalizeRect(var R: TRect);
-begin
-  if R.Right < R.Left then
-    SwapValues(R.Right, R.Left);
-  if R.Bottom < R.Top then
-    SwapValues(R.Bottom, R.Top);
 end;
 
 function PixelSizeToDpi(SizeInMicroMeters: Single): Single;

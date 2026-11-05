@@ -139,8 +139,21 @@ function SaveMultiImageToMemory(const Ext: string; Data: Pointer;
 { Creates identical copy of image data. Clone should be initialized
   by InitImage or it should be valid image which will be freed by CloneImage.}
 function CloneImage(const Image: TImageData; var Clone: TImageData): Boolean;
-{ Converts image to the given format.}
-function ConvertImage(var Image: TImageData; DestFormat: TImageFormat): Boolean;
+{ Converts image to the given format. When Image is already in DstFormat
+  nothing is done.}
+function ConvertImage(var Image: TImageData; DstFormat: TImageFormat): Boolean;
+{ Converts SrcImage to DstFormat into DstImage, SrcImage is not changed.
+  When SrcImage is already in DstFormat, DstImage gets a copy of it (as by
+  CloneImage): DstImage always ends up with its own image in DstFormat.
+  An image that DstImage holds is freed. SrcImage and DstImage
+  can be the same record (converted in place as by ConvertImage).
+  Special source or destination formats are converted through a clone.
+  Returns False and leaves DstImage unchanged when SrcImage is not valid.
+  Use instead of CloneImage followed by ConvertImage: ConvertImageInto
+  needs memory only for the result, CloneImage + ConvertImage needs
+  also a clone (3x the image size at peak instead of 2x).}
+function ConvertImageInto(const SrcImage: TImageData; var DstImage: TImageData;
+  DstFormat: TImageFormat): Boolean;
 { Flips given image. Reverses the image along its horizontal axis - the top
   becomes the bottom and vice versa.}
 function FlipImage(var Image: TImageData): Boolean;
@@ -460,9 +473,18 @@ type
       to get all images that are to be saved.}
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; virtual;
-    { This method is called internally by MakeCompatible when input image
-      is in format not supported by this file format. Image is clone of
-      MakeCompatible's input and Info is its extended format info.}
+    { Returns data format (one of SupportedFormats) that an image in data
+      format of Info is converted to before saving. MakeCompatible converts
+      the image straight to it with ConvertImageInto, without a clone. Returns
+      ifUnknown when saving needs more than conversion of data format (resizing,
+      mapping to a fixed palette, ...): ConvertToSupported is then called on
+      a clone of the image. The base class returns ifUnknown.}
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; virtual;
+    { Called by MakeCompatible when the input image is in format not supported
+      by this file format and GetConversionFormat returns ifUnknown. Image is
+      clone of MakeCompatible's input and Info is its extended format info.
+      The base class converts the image to format given by GetConversionFormat.
+      Override it only when GetConversionFormat cannot describe the needed changes.}
     procedure ConvertToSupported(var Image: TImageData;
       const Info: TImageFormatInfo); virtual;
     { Returns True if given image is supported for saving by this file format.
@@ -509,10 +531,11 @@ type
       in supported format then Compatible just use value from input
       (Compatible := Image) so must not free it after you are done with it
       (image bits pointer points to input image's bits).
-      If input is not in supported format then it is cloned to Compatible
-      and converted to one of supported formats (what exact format depends on
-      this file format). If image is cloned MustBeFreed is set to True
-      to indicated that you must free Compatible after you are done with it.}
+      If input is not in supported format then it is converted to one of
+      supported formats into Compatible (what exact format depends on this file
+      format, see GetConversionFormat and ConvertToSupported). MustBeFreed is
+      set to True then to indicated that you must free Compatible after you are
+      done with it.}
     function MakeCompatible(const Image: TImageData; var Compatible: TImageData;
       out MustBeFreed: Boolean): Boolean;
     { Returns True if data located in source identified by Handle
@@ -1364,24 +1387,93 @@ begin
   end;
 end;
 
-function ConvertImage(var Image: TImageData; DestFormat: TImageFormat): Boolean;
+{ Converts pixels of Image (not special format) to new buffers in format of
+  DstInfo, frees them when an exception is raised.}
+procedure ConvertPixels(const Image: TImageData; SrcInfo, DstInfo: PImageFormatInfo;
+  out NewData: Pointer; out NewPal: PPalette32; out NewSize: Int64);
+var
+  NumPixels: NativeInt;
+begin
+  NumPixels := GetPixelCount(Image);
+  NewSize := Int64(NumPixels) * DstInfo.BytesPerPixel;
+  NewData := AllocMem(NewSize);
+  NewPal := nil;
+  try
+    if DstInfo.PaletteEntries > 0 then
+      NewPal := AllocMem(DstInfo.PaletteEntries * SizeOf(TColor32Rec));
+
+    if SrcInfo.IsIndexed then
+    begin
+      // Source: indexed format
+      if DstInfo.IsIndexed then
+        IndexToIndex(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo, Image.Palette, NewPal)
+      else if DstInfo.HasGrayChannel then
+        IndexToGray(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo, Image.Palette)
+      else if DstInfo.IsFloatingPoint then
+        IndexToFloat(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo, Image.Palette)
+      else
+        IndexToChannel(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo, Image.Palette);
+    end
+    else if SrcInfo.HasGrayChannel then
+    begin
+      // Source: grayscale format
+      if DstInfo.IsIndexed then
+        GrayToIndex(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo, NewPal)
+      else if DstInfo.HasGrayChannel then
+        GrayToGray(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo)
+      else if DstInfo.IsFloatingPoint then
+        GrayToFloat(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo)
+      else
+        GrayToChannel(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo);
+    end
+    else if SrcInfo.IsFloatingPoint then
+    begin
+      // Source: floating point format
+      if DstInfo.IsIndexed then
+        FloatToIndex(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo, NewPal)
+      else if DstInfo.HasGrayChannel then
+        FloatToGray(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo)
+      else if DstInfo.IsFloatingPoint then
+        FloatToFloat(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo)
+      else
+        FloatToChannel(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo);
+    end
+    else
+    begin
+      // Source: standard multi channel image
+      if DstInfo.IsIndexed then
+        ChannelToIndex(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo, NewPal)
+      else if DstInfo.HasGrayChannel then
+        ChannelToGray(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo)
+      else if DstInfo.IsFloatingPoint then
+        ChannelToFloat(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo)
+      else
+        ChannelToChannel(NumPixels, Image.Bits, NewData, SrcInfo, DstInfo);
+    end;
+  except
+    FreeMemNil(NewData);
+    FreeMemNil(NewPal);
+    raise;
+  end;
+end;
+
+function ConvertImage(var Image: TImageData; DstFormat: TImageFormat): Boolean;
 var
   NewData: Pointer;
   NewPal: PPalette32;
   NewSize: Int64;
-  NumPixels: NativeInt;
   SrcInfo, DstInfo: PImageFormatInfo;
 begin
-  Assert(IsImageFormatValid(DestFormat));
+  Assert(IsImageFormatValid(DstFormat));
   Result := False;
   if TestImage(Image) then
   with Image do
   try
     // If default format is set we use DefaultImageFormat
-    if DestFormat = ifDefault then
-      DestFormat := DefaultImageFormat;
+    if DstFormat = ifDefault then
+      DstFormat := DefaultImageFormat;
     SrcInfo := ImageFormatInfos[Format];
-    DstInfo := ImageFormatInfos[DestFormat];
+    DstInfo := ImageFormatInfos[DstFormat];
 
     if SrcInfo = DstInfo then
     begin
@@ -1395,7 +1487,7 @@ begin
 
     // If dest format is just src with swapped channels we call
     // SwapChannels instead
-    if (SrcInfo.RBSwapFormat = DestFormat) and
+    if (SrcInfo.RBSwapFormat = DstFormat) and
       (DstInfo.RBSwapFormat = SrcInfo.Format) then
     begin
       Result := SwapChannels(Image, ChannelRed, ChannelBlue);
@@ -1405,65 +1497,11 @@ begin
 
     if (not SrcInfo.IsSpecial) and (not DstInfo.IsSpecial) then
     begin
-      NumPixels := GetPixelCount(Image);
-      NewSize := Int64(NumPixels) * DstInfo.BytesPerPixel;
-      NewData := AllocMem(NewSize);
-      NewPal := nil;
-      if DstInfo.PaletteEntries > 0 then
-        NewPal := AllocMem(DstInfo.PaletteEntries * SizeOf(TColor32Rec));
-
-      if SrcInfo.IsIndexed then
-      begin
-        // Source: indexed format
-        if DstInfo.IsIndexed then
-          IndexToIndex(NumPixels, Bits, NewData, SrcInfo, DstInfo, Palette, NewPal)
-        else if DstInfo.HasGrayChannel then
-          IndexToGray(NumPixels, Bits, NewData, SrcInfo, DstInfo, Palette)
-        else if DstInfo.IsFloatingPoint then
-          IndexToFloat(NumPixels, Bits, NewData, SrcInfo, DstInfo, Palette)
-        else
-          IndexToChannel(NumPixels, Bits, NewData, SrcInfo, DstInfo, Palette);
-      end
-      else if SrcInfo.HasGrayChannel then
-      begin
-        // Source: grayscale format
-        if DstInfo.IsIndexed then
-          GrayToIndex(NumPixels, Bits, NewData, SrcInfo, DstInfo, NewPal)
-        else if DstInfo.HasGrayChannel then
-          GrayToGray(NumPixels, Bits, NewData, SrcInfo, DstInfo)
-        else if DstInfo.IsFloatingPoint then
-          GrayToFloat(NumPixels, Bits, NewData, SrcInfo, DstInfo)
-        else
-          GrayToChannel(NumPixels, Bits, NewData, SrcInfo, DstInfo);
-      end
-      else if SrcInfo.IsFloatingPoint then
-      begin
-        // Source: floating point format
-        if DstInfo.IsIndexed then
-          FloatToIndex(NumPixels, Bits, NewData, SrcInfo, DstInfo, NewPal)
-        else if DstInfo.HasGrayChannel then
-          FloatToGray(NumPixels, Bits, NewData, SrcInfo, DstInfo)
-        else if DstInfo.IsFloatingPoint then
-          FloatToFloat(NumPixels, Bits, NewData, SrcInfo, DstInfo)
-        else
-          FloatToChannel(NumPixels, Bits, NewData, SrcInfo, DstInfo);
-      end
-      else
-      begin
-        // Source: standard multi channel image
-        if DstInfo.IsIndexed then
-          ChannelToIndex(NumPixels, Bits, NewData, SrcInfo, DstInfo, NewPal)
-        else if DstInfo.HasGrayChannel then
-          ChannelToGray(NumPixels, Bits, NewData, SrcInfo, DstInfo)
-        else if DstInfo.IsFloatingPoint then
-          ChannelToFloat(NumPixels, Bits, NewData, SrcInfo, DstInfo)
-        else
-          ChannelToChannel(NumPixels, Bits, NewData, SrcInfo, DstInfo);
-      end;
+      ConvertPixels(Image, SrcInfo, DstInfo, NewData, NewPal, NewSize);
 
       FreeMemNil(Bits);
       FreeMemNil(Palette);
-      Format := DestFormat;
+      Format := DstFormat;
       Bits := NewData;
       Size := NewSize;
       Palette := NewPal;
@@ -1475,7 +1513,77 @@ begin
 
     Result := True;
   except
-    raise UpdateExceptMessage(GetExceptObject, SErrorConvertImage, [GetFormatName(DestFormat), ImageToStr(Image)]);
+    raise UpdateExceptMessage(GetExceptObject, SErrorConvertImage, [GetFormatName(DstFormat), ImageToStr(Image)]);
+  end;
+end;
+
+function ConvertImageInto(const SrcImage: TImageData; var DstImage: TImageData;
+  DstFormat: TImageFormat): Boolean;
+var
+  SrcInfo, DstInfo: PImageFormatInfo;
+  NewData: Pointer;
+  NewPal: PPalette32;
+  NewSize: Int64;
+  Work: TImageData;
+begin
+  Assert(IsImageFormatValid(DstFormat));
+  Result := False;
+  if not TestImage(SrcImage) then
+    Exit;
+
+  if @SrcImage = @DstImage then
+  begin
+    Result := ConvertImage(DstImage, DstFormat);
+    Exit;
+  end;
+
+  if DstFormat = ifDefault then
+    DstFormat := DefaultImageFormat;
+  SrcInfo := ImageFormatInfos[SrcImage.Format];
+  DstInfo := ImageFormatInfos[DstFormat];
+  if (SrcInfo = nil) or (DstInfo = nil) then
+    Exit;
+
+  if (SrcInfo = DstInfo) or SrcInfo.IsSpecial or DstInfo.IsSpecial or
+     ((SrcInfo.RBSwapFormat = DstFormat) and (DstInfo.RBSwapFormat = SrcInfo.Format)) then
+  begin
+    // Same format, swapped channels, or special formats (ConvertSpecial works
+    // in place): converted (if needed) clone, DstImage is replaced only when it succeeds.
+
+    InitImage(Work);
+    try
+      Result := CloneImage(SrcImage, Work) and ConvertImage(Work, DstFormat);
+
+      if Result then
+      begin
+        FreeImage(DstImage);
+        DstImage := Work;
+        InitImage(Work);
+      end;
+    finally
+      FreeImage(Work);
+    end;
+    Exit;
+  end;
+
+  try
+    ConvertPixels(SrcImage, SrcInfo, DstInfo, NewData, NewPal, NewSize);
+
+    // DstImage may be a shallow copy of SrcImage record, its memory is not freed then
+    if TestImage(DstImage) and (DstImage.Bits <> SrcImage.Bits) then
+      FreeImage(DstImage)
+    else
+      InitImage(DstImage);
+
+    DstImage.Width := SrcImage.Width;
+    DstImage.Height := SrcImage.Height;
+    DstImage.Format := DstFormat;
+    DstImage.Size := NewSize;
+    DstImage.Bits := NewData;
+    DstImage.Palette := NewPal;
+    Result := True;
+  except
+    raise UpdateExceptMessage(GetExceptObject, SErrorConvertImage, [GetFormatName(DstFormat), ImageToStr(SrcImage)]);
   end;
 end;
 
@@ -1773,8 +1881,7 @@ begin
     if Info.IsSpecial then
     begin
       InitImage(CompatibleCopy);
-      CloneImage(Image, CompatibleCopy);
-      ConvertImage(CompatibleCopy, ifDefault);
+      ConvertImageInto(Image, CompatibleCopy, ifDefault);
     end
     else
       CompatibleCopy := Image;
@@ -1850,8 +1957,7 @@ begin
     // then recreate source image in ifIndex8 format
     // with palette taken from Pal parameter
     InitImage(CloneARGB);
-    CloneImage(Image, CloneARGB);
-    ConvertImage(CloneARGB, ifA8R8G8B8);
+    ConvertImageInto(Image, CloneARGB, ifA8R8G8B8);
     FreeImage(Image);
     NewImage(CloneARGB.Width, CloneARGB.Height, ifIndex8, Image);
 
@@ -1982,8 +2088,7 @@ begin
       if SrcInfo.IsIndexed or SrcInfo.IsSpecial then
       begin
         // create temp image in supported format for updating histogram
-        CloneImage(Images[I], TempImage);
-        ConvertImage(TempImage, ifA8R8G8B8);
+        ConvertImageInto(Images[I], TempImage, ifA8R8G8B8);
         SrcInfo := ImageFormatInfos[TempImage.Format];
       end
       else
@@ -2396,8 +2501,7 @@ begin
       begin
         // If images are in different format source is converted to dest's format
         InitImage(WorkImage);
-        CloneImage(SrcImage, WorkImage);
-        ConvertImage(WorkImage, DstImage.Format);
+        ConvertImageInto(SrcImage, WorkImage, DstImage.Format);
       end
       else
         WorkImage := SrcImage;
@@ -2537,23 +2641,26 @@ var
   WorkImage: TImageData;
   OldFormat: TImageFormat;
   Resampling: TSamplingFilter;
+  DrawnRect, SrcValidRect: TRect;
 begin
   Result := False;
   OldFormat := ifUnknown;
   if TestImage(SrcImage) and TestImage(DstImage) then
   try
-    // Make sure we are still copying image to image, not invalid pointer to protected memory
-    ClipStretchBounds(SrcX, SrcY, SrcWidth, SrcHeight, DstX, DstY, DstWidth, DstHeight,
-      SrcImage.Width, SrcImage.Height, Rect(0, 0, DstImage.Width, DstImage.Height));
-
     if (SrcWidth = DstWidth) and (SrcHeight = DstHeight) then
     begin
-      // If source and dest rectangles have the same size call CopyRect
+      // If source and dest rectangles have the same size call CopyRect (it clips itself)
       Result := CopyRect(SrcImage, SrcX, SrcY, SrcWidth, SrcHeight, DstImage, DstX, DstY);
     end
-    else if (SrcWidth > 0) and (SrcHeight > 0) and (DstWidth > 0) and (DstHeight > 0) then
+    else if ClipStretchRects(BoundsToRect(SrcX, SrcY, SrcWidth, SrcHeight),
+                             BoundsToRect(DstX, DstY, DstWidth, DstHeight),
+                             SrcImage.Width, SrcImage.Height,
+                             Rect(0, 0, DstImage.Width, DstImage.Height),
+                             DrawnRect, SrcValidRect) then
     begin
-      // If source and dest rectangles don't have the same size we do stretch
+      // If source and dest rectangles don't have the same size we do stretch.
+      // Only pixels in DrawnRect are written, source positions are still computed
+      // from the whole rectangles so clipping does not shift the result.
       Info := ImageFormatInfos[DstImage.Format];
 
       if Info.IsSpecial then
@@ -2568,8 +2675,7 @@ begin
       begin
         // If images are in different format source is converted to dest's format
         InitImage(WorkImage);
-        CloneImage(SrcImage, WorkImage);
-        ConvertImage(WorkImage, DstImage.Format);
+        ConvertImageInto(SrcImage, WorkImage, DstImage.Format);
       end
       else
         WorkImage := SrcImage;
@@ -2581,7 +2687,7 @@ begin
       if Filter = rfNearest then
       begin
         StretchNearest(WorkImage, SrcX, SrcY, SrcWidth, SrcHeight,
-          DstImage, DstX, DstY, DstWidth, DstHeight);
+                       DstImage, DstX, DstY, DstWidth, DstHeight, DrawnRect);
       end
       else
       begin
@@ -2591,8 +2697,11 @@ begin
           rfBicubic:  Resampling := DefaultCubicFilter;
           rfLanczos:  Resampling := sfLanczos;
         end;
+
         StretchResample(WorkImage, SrcX, SrcY, SrcWidth, SrcHeight,
-          DstImage, DstX, DstY, DstWidth, DstHeight, Resampling);
+                        DstImage, DstX, DstY, DstWidth, DstHeight,
+                        SamplingFilterFunctions[Resampling], SamplingFilterRadii[Resampling],
+                        False, DrawnRect);
       end;
 
       // If dest image was in special format we convert it back
@@ -3715,9 +3824,19 @@ begin
   RaiseImaging(SFileFormatCanNotSave, [FName]);
 end;
 
+function TImageFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
+begin
+  Result := ifUnknown;
+end;
+
 procedure TImageFileFormat.ConvertToSupported(var Image: TImageData;
   const Info: TImageFormatInfo);
+var
+  ConvFormat: TImageFormat;
 begin
+  ConvFormat := GetConversionFormat(Info);
+  if ConvFormat <> ifUnknown then
+    ConvertImage(Image, ConvFormat);
 end;
 
 function TImageFileFormat.IsSupported(const Image: TImageData): Boolean;
@@ -3964,14 +4083,15 @@ end;
 
 function TImageFileFormat.MakeCompatible(const Image: TImageData;
   var Compatible: TImageData; out MustBeFreed: Boolean): Boolean;
+var
+  ConvFormat: TImageFormat;
 begin
   InitImage(Compatible);
 
   if SaveOverrideFormat <> ifUnknown then
   begin
-    // Save format override is active. Clone input and convert it to override format.
-    CloneImage(Image, Compatible);
-    ConvertImage(Compatible, SaveOverrideFormat);
+    // Save format override is active. Convert input to override format.
+    ConvertImageInto(Image, Compatible, SaveOverrideFormat);
     // Now check if override format is supported by file format. If it is not
     // then file format specific conversion (virtual method) is called.
     Result := IsSupported(Compatible);
@@ -3991,9 +4111,16 @@ begin
   else
   begin
     // No override and input's format is not compatible with file format.
-    // Clone it and the call file format specific conversion (virtual method).
-    CloneImage(Image, Compatible);
-    ConvertToSupported(Compatible, GetFormatInfo(Compatible.Format));
+    // Convert it straight to the format file format wants, when it needs more
+    // than that clone it and call file format specific conversion.
+    ConvFormat := GetConversionFormat(GetFormatInfo(Image.Format));
+    if ConvFormat <> ifUnknown then
+      ConvertImageInto(Image, Compatible, ConvFormat)
+    else
+    begin
+      CloneImage(Image, Compatible);
+      ConvertToSupported(Compatible, GetFormatInfo(Compatible.Format));
+    end;
     Result := IsSupported(Compatible);
   end;
   // Tell the user that he must free Compatible after he's done with it

@@ -1,3 +1,8 @@
+{ Bindings for zlib shared library (zlib1.dll, libz.so.1, libz.1.dylib; zlib-ng
+  in compat mode works too) loaded at run time. Only what ImagingZLib needs
+  is bound. The library is looked for in the default locations when the unit
+  is initialized, a missing library is not an error: check
+  IsZLibLibraryLoaded. }
 unit ZLibDynLib;
 
 {$I ImagingOptions.inc}
@@ -12,15 +17,6 @@ uses
   SysUtils;
 
 const
-  { Library names for different platforms }
-{$IF Defined(MSWINDOWS)}
-  SLibName = 'zlib1.dll';
-{$ELSEIF Defined(DARWIN)}  // macOS
-  SLibName = 'libz.1.dylib';
-{$ELSE}  // Linux, BSD
-  SLibName = 'libz.so.1';
-{$IFEND}
-
   ZLIB_VERSION    = '1.2.3';
 
   Z_NO_FLUSH      = 0;
@@ -61,7 +57,7 @@ type
   {$ELSE}
     PtrUInt = NativeUInt;
   {$IFEND}
-{$IFEND}
+{$ENDIF}
 
   z_size_t = PtrUInt;
   Int = Integer;
@@ -106,8 +102,6 @@ type
 var
   { Just what we need from full ZLib API }
   zlibVersion: function: PAnsiChar; cdecl;
-  deflateInit_: function(var strm: z_stream; level: Int;
-    const version: PAnsiChar; stream_size: Int): Int; cdecl;
   deflate: function(var strm: z_stream; flush: Int): Int; cdecl;
   deflateEnd: function(var strm: z_stream): Int; cdecl;
   inflateInit_: function(var strm: z_stream; const version: PAnsiChar; stream_size: Int): Int; cdecl;
@@ -115,15 +109,14 @@ var
   inflateEnd: function(var strm: z_stream): Int; cdecl;
   deflateInit2_: function(var strm: z_stream; level, method, windowBits,
     memLevel, strategy: Int; const version: PAnsiChar; stream_size: Int): Int; cdecl;
-  deflateReset: function(var strm: z_stream): Int; cdecl;
-  deflateBound: function(var strm: z_stream; sourceLen: uLong): uLong; cdecl;
-  inflateInit2_: function(var strm: z_stream; windowBits: Int;
-    const version: PAnsiChar; stream_size: Int): Int; cdecl;
-  inflateReset: function(var strm: z_stream): Int; cdecl;
-  compressBound: function(sourceLen: uLong): uLong; cdecl;
 
+{ Looks for zlib library in the default locations (unless it is already
+  loaded) and returns True if it is loaded.}
 function LoadZLibLibrary: Boolean;
-var LoadedZLibVersion: string;
+{ Loads zlib library from the given file (replaces already loaded library).}
+function LoadZLibLibraryFromFile(const FileName: string): Boolean;
+{ Returns True if zlib library is currently loaded.}
+function IsZLibLibraryLoaded: Boolean;
 
 implementation
 
@@ -135,66 +128,95 @@ uses dynlibs;
   {$ENDIF}
 {$ENDIF}
 
-var
-  ZLibHandle: {$IFDEF FPC}TLibHandle{$ELSE}THandle{$ENDIF} = 0;
+const
+{$IF Defined(MSWINDOWS)}
+  LibNames: array[0..1] of string = ('zlib1.dll', 'zlib.dll');
+{$ELSEIF Defined(DARWIN) or Defined(MACOS)}
+  LibNames: array[0..3] of string = ('libz.1.dylib', 'libz.dylib',
+    '@executable_path/libz.1.dylib', '@executable_path/libz.dylib');
+{$ELSE}  // Linux, BSD
+  LibNames: array[0..1] of string = ('libz.so.1', 'libz.so');
+{$IFEND}
 
-function GetZLibProc(const AProcName: PChar): Pointer;
+var
+  LibHandle: {$IFDEF FPC}TLibHandle{$ELSE}THandle{$ENDIF} = 0;
+
+procedure UnloadLib;
 begin
-  Result := GetProcAddress(ZLibHandle, AProcName);
-  if Result = nil then begin
-    RaiseLastOSError;
+  if LibHandle <> 0 then
+  begin
+    FreeLibrary(LibHandle);
+    LibHandle := 0;
   end;
+
+  zlibVersion := nil;
+  deflate := nil;
+  deflateEnd := nil;
+  inflateInit_ := nil;
+  inflate := nil;
+  inflateEnd := nil;
+  deflateInit2_ := nil;
+end;
+
+function TryLoad(const FileName: string): Boolean;
+
+  function GetProc(const ProcName: string): Pointer;
+  begin
+    Result := GetProcAddress(LibHandle, PChar(ProcName));
+  end;
+
+begin
+  Result := False;
+  LibHandle := LoadLibrary(PChar(FileName));
+  if LibHandle = 0 then
+    Exit;
+
+  zlibVersion := GetProc('zlibVersion');
+  deflate := GetProc('deflate');
+  deflateEnd := GetProc('deflateEnd');
+  inflateInit_ := GetProc('inflateInit_');
+  inflate := GetProc('inflate');
+  inflateEnd := GetProc('inflateEnd');
+  deflateInit2_ := GetProc('deflateInit2_');
+
+  Result := Assigned(zlibVersion) and Assigned(deflate) and Assigned(deflateEnd) and
+            Assigned(inflateInit_) and Assigned(inflate) and Assigned(inflateEnd) and
+            Assigned(deflateInit2_);
+
+  if not Result then
+    UnloadLib;
 end;
 
 function LoadZLibLibrary: Boolean;
+var
+  I: Integer;
 begin
-  Result := False;
-
-  if ZLibHandle = 0 then
+  if LibHandle = 0 then
   begin
-    if ZLibHandle = 0 then
-      ZLibHandle := LoadLibrary(SLibName);
-  {$IF Defined(DARWIN)}
-    if ZLibHandle = 0 then
-      ZLibHandle := LoadLibrary('@executable_path/' + SLibName);
-  {$IFEND}
-
-    if ZLibHandle <> 0 then
+    for I := Low(LibNames) to High(LibNames) do
     begin
-      zlibVersion   := GetZLibProc('zlibVersion');
-      deflateInit_  := GetZLibProc('deflateInit_');
-      deflate       := GetZLibProc('deflate');
-      deflateEnd    := GetZLibProc('deflateEnd');
-      inflateInit_  := GetZLibProc('inflateInit_');
-      inflate       := GetZLibProc('inflate');
-      inflateEnd    := GetZLibProc('inflateEnd');
-      deflateInit2_ := GetZLibProc('deflateInit2_');
-      deflateReset  := GetZLibProc('deflateReset');
-      deflateBound  := GetZLibProc('deflateBound');
-      inflateInit2_ := GetZLibProc('inflateInit2_');
-      inflateReset  := GetZLibProc('inflateReset');
-      compressBound := GetZLibProc('compressBound');
-
-      Result := Assigned(zlibVersion) and
-        Assigned(deflateInit_) and Assigned(deflateInit2_) and
-        Assigned(deflate) and Assigned(deflateEnd) and Assigned(inflateInit_) and
-        Assigned(inflate) and Assigned(inflateEnd);
-
-      LoadedZLibVersion := zlibVersion;
+      if TryLoad(LibNames[I]) then
+        Break;
     end;
   end;
+
+  Result := LibHandle <> 0;
 end;
 
-procedure FreeZLibrary;
+function LoadZLibLibraryFromFile(const FileName: string): Boolean;
 begin
-  if ZLibHandle <> 0 then begin
-    FreeLibrary(ZLibHandle);
-    ZLibHandle := 0;
-  end;
+  UnloadLib;
+  Result := TryLoad(FileName);
+end;
+
+function IsZLibLibraryLoaded: Boolean;
+begin
+  Result := LibHandle <> 0;
 end;
 
 initialization
+  // The library is optional, nothing happens when it is not found
   LoadZLibLibrary;
 finalization
-  FreeZLibrary;
+  UnloadLib;
 end.

@@ -37,8 +37,7 @@ type
       OnlyFirstLevel: Boolean): Boolean; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   public
     function TestFormat(Handle: TImagingHandle): Boolean; override;
     procedure CheckOptionsValidity; override;
@@ -193,13 +192,12 @@ begin
   end;
 end;
 
-procedure TWebPFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
+function TWebPFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.HasAlphaChannel then
-    ConvertImage(Image, ifA8R8G8B8)
+    Result := ifA8R8G8B8
   else
-    ConvertImage(Image, ifR8G8B8);
+    Result := ifR8G8B8;
 end;
 
 function TWebPFileFormat.TestFormat(Handle: TImagingHandle): Boolean;

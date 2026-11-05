@@ -18,7 +18,7 @@ unit ImagingFormats;
 interface
 
 uses
-  ImagingTypes, Imaging, ImagingUtility;
+  Types, ImagingTypes, Imaging, ImagingUtility;
 
 type
   TImageFormatInfoArray = array[TImageFormat] of PImageFormatInfo;
@@ -52,7 +52,15 @@ procedure ReduceColorsMedianCut(NumPixels: NativeInt; Src, Dst: PByte; SrcInfo,
   in the same data format. Works for all data formats except special formats.}
 procedure StretchNearest(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
   SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
-  DstHeight: LongInt);
+  DstHeight: LongInt); overload;
+{ Same as StretchNearest above but only pixels of destination in DrawnRect
+  are written (DrawnRect from ClipStretchRects). Source positions are computed
+  from the whole source and destination rectangles, so the result is the same
+  as that part of unclipped stretching. Source rectangle may reach outside of
+  the image, reading is clamped to the image.}
+procedure StretchNearest(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
+  SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
+  DstHeight: LongInt; const DrawnRect: TRect); overload;
 type
   { Built-in sampling filters.}
   TSamplingFilter = (sfNearest, sfLinear, sfCosine, sfHermite, sfQuadratic,
@@ -85,6 +93,15 @@ procedure StretchResample(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
   SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
   DstHeight: LongInt; Filter: TFilterFunction; Radius: Single;
   WrapEdges: Boolean = False); overload;
+{ Same as StretchResample above but only pixels of destination in DrawnRect
+  are written (DrawnRect from ClipStretchRects). Filter positions are computed
+  from the whole source and destination rectangles, so the result is the same
+  as that part of unclipped stretching. Source rectangle may reach outside of
+  the image, reading is clamped to the part inside the image.}
+procedure StretchResample(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
+  SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
+  DstHeight: LongInt; Filter: TFilterFunction; Radius: Single;
+  WrapEdges: Boolean; const DrawnRect: TRect); overload;
 { Helper for functions that create mipmap levels. BiggerLevel is
   valid image and SmallerLevel is empty zeroed image. SmallerLevel is created
   with Width and Height dimensions and it is filled with pixels of BiggerLevel
@@ -180,7 +197,14 @@ type
 
 { Helper function for resampling.}
 function BuildMappingTable(DstLow, DstHigh, SrcLow, SrcHigh, SrcImageWidth: LongInt;
-  Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean): TMappingTable;
+  Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean): TMappingTable; overload;
+{ Helper function for resampling, makes table only for destination positions
+  DrawnLow..DrawnHigh - 1 (first item is for DrawnLow), filter positions are
+  computed from whole DstLow..DstHigh and SrcLow..SrcHigh ranges. Source
+  positions are clamped to ClampLow..ClampHigh - 1.}
+function BuildMappingTable(DstLow, DstHigh, SrcLow, SrcHigh, SrcImageWidth: LongInt;
+  Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean;
+  DrawnLow, DrawnHigh, ClampLow, ClampHigh: Integer): TMappingTable; overload;
 { Helper function for resampling.}
 procedure FindExtremes(const Map: TMappingTable; var MinPos, MaxPos: LongInt);
 
@@ -1438,50 +1462,65 @@ end;
 procedure StretchNearest(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
   SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
   DstHeight: LongInt);
+begin
+  StretchNearest(SrcImage, SrcX, SrcY, SrcWidth, SrcHeight, DstImage, DstX, DstY,
+                 DstWidth, DstHeight, BoundsToRect(DstX, DstY, DstWidth, DstHeight));
+end;
+
+procedure StretchNearest(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
+  SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
+  DstHeight: LongInt; const DrawnRect: TRect);
 var
   Info: TImageFormatInfo;
-  X, Y: LongInt;
-  ScaleX, ScaleY, Xp, Yp: Int64;
-  SrcPos: PtrInt;
+  X, Y, Bpp, SrcRow, MaxCol, MaxRow: Integer;
+  ScaleX, ScaleY: Int64;
+  Columns: TDynIntegerArray;
   DstPixel, SrcLine: PByte;
 begin
   GetImageFormatInfo(SrcImage.Format, Info);
   Assert(SrcImage.Format = DstImage.Format);
   Assert(not Info.IsSpecial);
-  // Use integers instead of floats for source image pixel coords
-  // Xp and Yp coords must be shifted right to get read source image coords.
-  // They are 64 bit, we use them as 48.16 fixed point numbers
-  // (16.16 fixed point numbers in 32 bits are not
-  // enough for images with 32768 or more pixels in one dimension).
+  if (DrawnRect.Right <= DrawnRect.Left) or (DrawnRect.Bottom <= DrawnRect.Top) then
+    Exit;
+
+  Bpp := Info.BytesPerPixel;
+  // Steps in source image are 48.16 fixed point numbers (16.16 numbers in 32
+  // bits are not enough for images with 32768 or more pixels in one dimension).
+  // Source position of destination pixel D is (D * Scale) shr 16 relative to
+  // the rectangles, the same for every DrawnRect.
   ScaleX := (Int64(SrcWidth) shl 16) div DstWidth;
   ScaleY := (Int64(SrcHeight) shl 16) div DstHeight;
-  Yp := 0;
+  // Reading is clamped to the part of source rectangle inside the image
+  MaxCol := Min(SrcX + SrcWidth, SrcImage.Width) - 1;
+  MaxRow := Min(SrcY + SrcHeight, SrcImage.Height) - 1;
 
-  for Y := 0 to DstHeight - 1 do
+  SetLength(Columns, DrawnRect.Right - DrawnRect.Left);
+  for X := 0 to Length(Columns) - 1 do
   begin
-    Xp := 0;
-    SrcPos := Yp shr 16;
-    SrcLine := GetPixelPointer(SrcImage, SrcX, SrcY + SrcPos, Info.BytesPerPixel);
-    DstPixel := GetPixelPointer(DstImage, DstX, DstY + Y, Info.BytesPerPixel);
+    Columns[X] := ClampInt(SrcX + Integer((Int64(DrawnRect.Left - DstX + X) * ScaleX) shr 16),
+                           Max(SrcX, 0), MaxCol);
+  end;
 
-    for X := 0 to DstWidth - 1 do
+  for Y := DrawnRect.Top to DrawnRect.Bottom - 1 do
+  begin
+    SrcRow := ClampInt(SrcY + Integer((Int64(Y - DstY) * ScaleY) shr 16), Max(SrcY, 0), MaxRow);
+    SrcLine := GetScanlinePointer(SrcImage, SrcRow, Bpp);
+    DstPixel := GetPixelPointer(DstImage, DrawnRect.Left, Y, Bpp);
+
+    for X := 0 to Length(Columns) - 1 do
     begin
-      SrcPos := Xp shr 16;
-
-      case Info.BytesPerPixel of
-        1: PByte(DstPixel)^ := PBuffer(SrcLine)[SrcPos];
-        2: PWord(DstPixel)^ := PWordBuffer(SrcLine)[SrcPos];
-        3: PColor24Rec(DstPixel)^ := PColor24RecBuffer(SrcLine)[SrcPos];
-        4: PColor32Rec(DstPixel)^ := PColor32RecBuffer(SrcLine)[SrcPos];
-        6: PColor48Rec(DstPixel)^ := PColor48RecBuffer(SrcLine)[SrcPos];
-        8: PColor64Rec(DstPixel)^ := PColor64RecBuffer(SrcLine)[SrcPos];
-        12: PColor96FPRec(DstPixel)^ := PColor96FPRecBuffer(SrcLine)[SrcPos];
-        16: PColorFPRec(DstPixel)^ := PColorFPRecBuffer(SrcLine)[SrcPos];
+      case Bpp of
+        1: PByte(DstPixel)^ := PBuffer(SrcLine)[Columns[X]];
+        2: PWord(DstPixel)^ := PWordBuffer(SrcLine)[Columns[X]];
+        3: PColor24Rec(DstPixel)^ := PColor24RecBuffer(SrcLine)[Columns[X]];
+        4: PColor32Rec(DstPixel)^ := PColor32RecBuffer(SrcLine)[Columns[X]];
+        6: PColor48Rec(DstPixel)^ := PColor48RecBuffer(SrcLine)[Columns[X]];
+        8: PColor64Rec(DstPixel)^ := PColor64RecBuffer(SrcLine)[Columns[X]];
+        12: PColor96FPRec(DstPixel)^ := PColor96FPRecBuffer(SrcLine)[Columns[X]];
+        16: PColorFPRec(DstPixel)^ := PColorFPRecBuffer(SrcLine)[Columns[X]];
       end;
-      Inc(DstPixel, Info.BytesPerPixel);
-      Inc(Xp, ScaleX);
+      Inc(DstPixel, Bpp);
     end;
-    Inc(Yp, ScaleY);
   end;
 end;
 
@@ -1654,56 +1693,84 @@ var
   library by Alex A. Denisov.}
 function BuildMappingTable(DstLow, DstHigh, SrcLow, SrcHigh, SrcImageWidth: LongInt;
   Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean): TMappingTable;
+begin
+  Result := BuildMappingTable(DstLow, DstHigh, SrcLow, SrcHigh, SrcImageWidth, Filter, Radius,
+                              WrapEdges, DstLow, DstHigh, SrcLow, SrcHigh);
+end;
+
+{ Divides weights of one destination pixel by their sum: filter values at
+  the sample positions add up to 1 only in some cases (and depend on where
+  the pixel falls when downsampling), flat areas would change brightness.}
+procedure NormalizeCluster(var Cluster: TCluster);
 var
-  I, J, K, N: LongInt;
+  K: Integer;
+  Sum: Double;
+begin
+  Sum := 0;
+  for K := 0 to Length(Cluster) - 1 do
+    Sum := Sum + Cluster[K].Weight;
+
+  if Sum <> 0 then
+  begin
+    for K := 0 to Length(Cluster) - 1 do
+      Cluster[K].Weight := Cluster[K].Weight / Sum;
+  end;
+end;
+
+function BuildMappingTable(DstLow, DstHigh, SrcLow, SrcHigh, SrcImageWidth: LongInt;
+  Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean;
+  DrawnLow, DrawnHigh, ClampLow, ClampHigh: Integer): TMappingTable;
+var
+  I, J, K, N, D: LongInt;
   Left, Right, SrcWidth, DstWidth: LongInt;
   Weight, Scale, Center: Single;
 begin
   Result := nil;
   SrcWidth := SrcHigh - SrcLow;
   DstWidth := DstHigh - DstLow;
+  if (SrcWidth <= 0) or (DstWidth <= 0) or (DrawnHigh <= DrawnLow) or (ClampHigh <= ClampLow) then
+    Exit;
+
+  // Items of the result are for destination positions DrawnLow..DrawnHigh - 1,
+  // D is position relative to DstLow used in filter computations
+  SetLength(Result, DrawnHigh - DrawnLow);
 
   // Check some special cases
   if SrcWidth = 1 then
   begin
-    SetLength(Result, DstWidth);
-    for I := 0 to DstWidth - 1 do
+    for I := 0 to Length(Result) - 1 do
     begin
       SetLength(Result[I], 1);
-      Result[I][0].Pos := 0;
+      Result[I][0].Pos := ClampInt(SrcLow, ClampLow, ClampHigh - 1);
       Result[I][0].Weight := 1.0;
     end;
     Exit;
-  end
-  else
-  if (SrcWidth = 0) or (DstWidth = 0) then
-    Exit;
+  end;
 
   if FullEdge then
     Scale := DstWidth / SrcWidth
   else
     Scale := (DstWidth - 1) / (SrcWidth - 1);
 
-  SetLength(Result, DstWidth);
-
   // Pre-calculate filter contributions for a row or column
   if Scale = 0.0 then
   begin
     Assert(Length(Result) = 1);
     SetLength(Result[0], 1);
-    Result[0][0].Pos := (SrcLow + SrcHigh) div 2;
+    Result[0][0].Pos := ClampInt((SrcLow + SrcHigh) div 2, ClampLow, ClampHigh - 1);
     Result[0][0].Weight := 1.0;
   end
   else if Scale < 1.0 then
   begin
     // Sub-sampling - scales from bigger to smaller
     Radius := Radius / Scale;
-    for I := 0 to DstWidth - 1 do
+    for I := 0 to Length(Result) - 1 do
     begin
+      D := DrawnLow - DstLow + I;
       if FullEdge then
-        Center := SrcLow - 0.5 + (I + 0.5) / Scale
+        Center := SrcLow - 0.5 + (D + 0.5) / Scale
       else
-        Center := SrcLow + I / Scale;
+        Center := SrcLow + D / Scale;
       Left := Floor(Center - Radius);
       Right := Ceil(Center + Radius);
       for J := Left to Right do
@@ -1713,28 +1780,32 @@ begin
         begin
           K := Length(Result[I]);
           SetLength(Result[I], K + 1);
-          Result[I][K].Pos := ClampInt(J, SrcLow, SrcHigh - 1);
+          Result[I][K].Pos := ClampInt(J, ClampLow, ClampHigh - 1);
           Result[I][K].Weight := Weight;
         end;
       end;
+
       if Length(Result[I]) = 0 then
       begin
         SetLength(Result[I], 1);
-        Result[I][0].Pos := Floor(Center);
+        Result[I][0].Pos := ClampInt(Floor(Center), ClampLow, ClampHigh - 1);
         Result[I][0].Weight := 1.0;
-      end;
+      end
+      else
+        NormalizeCluster(Result[I]);
     end;
   end
   else // if Scale > 1.0 then
   begin
     // Super-sampling - scales from smaller to bigger
     Scale := 1.0 / Scale;
-    for I := 0 to DstWidth - 1 do
+    for I := 0 to Length(Result) - 1 do
     begin
+      D := DrawnLow - DstLow + I;
       if FullEdge then
-        Center := SrcLow - 0.5 + (I + 0.5) * Scale
+        Center := SrcLow - 0.5 + (D + 0.5) * Scale
       else
-        Center := SrcLow + I * Scale;
+        Center := SrcLow + D * Scale;
       Left := Floor(Center - Radius);
       Right := Ceil(Center + Radius);
       for J := Left to Right do
@@ -1752,15 +1823,17 @@ begin
             else if J >= SrcImageWidth then
               N := J - SrcImageWidth
             else
-              N := ClampInt(J, SrcLow, SrcHigh - 1);
+              N := ClampInt(J, ClampLow, ClampHigh - 1);
           end
           else
-            N := ClampInt(J, SrcLow, SrcHigh - 1);
+            N := ClampInt(J, ClampLow, ClampHigh - 1);
 
           Result[I][K].Pos := N;
           Result[I][K].Weight := Weight;
         end;
       end;
+
+      NormalizeCluster(Result[I]);
     end;
   end;
 end;
@@ -1787,6 +1860,16 @@ end;
 procedure StretchResample(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
   SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
   DstHeight: LongInt; Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean);
+begin
+  StretchResample(SrcImage, SrcX, SrcY, SrcWidth, SrcHeight, DstImage, DstX, DstY,
+                  DstWidth, DstHeight, Filter, Radius, WrapEdges,
+                  BoundsToRect(DstX, DstY, DstWidth, DstHeight));
+end;
+
+procedure StretchResample(const SrcImage: TImageData; SrcX, SrcY, SrcWidth,
+  SrcHeight: LongInt; var DstImage: TImageData; DstX, DstY, DstWidth,
+  DstHeight: LongInt; Filter: TFilterFunction; Radius: Single; WrapEdges: Boolean;
+  const DrawnRect: TRect);
 var
   MapX, MapY: TMappingTable;
   I, J, X, Y: LongInt;
@@ -1802,11 +1885,16 @@ begin
   Assert(SrcImage.Format = DstImage.Format);
   Assert(not Info.IsSpecial and not Info.IsIndexed);
 
-  // Create horizontal and vertical mapping tables
+  // Create horizontal and vertical mapping tables for drawn pixels, reading
+  // is clamped to the part of source rectangle inside the image
   MapX := BuildMappingTable(DstX, DstX + DstWidth, SrcX, SrcX + SrcWidth,
-    SrcImage.Width, Filter, Radius, WrapEdges);
+                            SrcImage.Width, Filter, Radius, WrapEdges,
+                            DrawnRect.Left, DrawnRect.Right,
+                            Max(SrcX, 0), Min(SrcX + SrcWidth, SrcImage.Width));
   MapY := BuildMappingTable(DstY, DstY + DstHeight, SrcY, SrcY + SrcHeight,
-    SrcImage.Height, Filter, Radius, WrapEdges);
+                            SrcImage.Height, Filter, Radius, WrapEdges,
+                            DrawnRect.Top, DrawnRect.Bottom,
+                            Max(SrcY, 0), Min(SrcY + SrcHeight, SrcImage.Height));
 
   if (MapX = nil) or (MapY = nil) then
     Exit;
@@ -1816,7 +1904,7 @@ begin
     FindExtremes(MapX, XMinimum, XMaximum);
     SetLength(LineBufferFP, XMaximum - XMinimum + 1);
 
-    for J := 0 to DstHeight - 1 do
+    for J := 0 to Length(MapY) - 1 do
     begin
       // First for each pixel in the current line sample vertically
       // and store results in LineBuffer. Then sample horizontally
@@ -1852,10 +1940,10 @@ begin
         end;
       end;
 
-      DstLine := GetPixelPointer(DstImage, DstX, J + DstY, Info.BytesPerPixel);
+      DstLine := GetPixelPointer(DstImage, DrawnRect.Left, DrawnRect.Top + J, Info.BytesPerPixel);
       // Now compute final colors for target pixels in the current row
       // by sampling horizontally
-      for I := 0 to DstWidth - 1 do
+      for I := 0 to Length(MapX) - 1 do
       begin
         ClusterX := MapX[I];
         // Clear accumulator
@@ -1910,8 +1998,7 @@ begin
   if Info.IsSpecial then
   begin
     InitImage(CompatibleCopy);
-    CloneImage(BiggerLevel, CompatibleCopy);
-    ConvertImage(CompatibleCopy, ifDefault);
+    ConvertImageInto(BiggerLevel, CompatibleCopy, ifDefault);
   end
   else
     CompatibleCopy := BiggerLevel;

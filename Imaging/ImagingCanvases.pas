@@ -1412,6 +1412,7 @@ var
   DestLine: PByte;
   FilterFunction: TFilterFunction;
   Radius: Single;
+  DrawnRect, SrcValidRect: TRect;
 begin
   CheckBeforeBlending(SrcFactor, DestFactor, DestCanvas);
   SrcX := SrcRect.Left;
@@ -1427,18 +1428,23 @@ begin
   // Get actual resampling filter and radius
   FilterFunction := SamplingFilterFunctions[FilterMapping[Filter]];
   Radius := SamplingFilterRadii[FilterMapping[Filter]];
-  // Clip src and dst rects
-  ClipStretchBounds(SrcX, SrcY, SrcWidth, SrcHeight, DestX, DestY, DestWidth, DestHeight,
-      FPData.Width, FPData.Height, DestCanvas.ClipRect);
+  // Only pixels in DrawnRect are written, source positions are still computed
+  // from the whole rectangles so clipping does not shift the result
+  if not ClipStretchRects(SrcRect, DestRect, FPData.Width, FPData.Height, DestCanvas.ClipRect,
+                          DrawnRect, SrcValidRect) then
+    Exit;
+
   // Generate mapping tables
   MapX := BuildMappingTable(DestX, DestX + DestWidth, SrcX, SrcX + SrcWidth,
-    FPData.Width, FilterFunction, Radius, False);
+                            FPData.Width, FilterFunction, Radius, False,
+                            DrawnRect.Left, DrawnRect.Right, SrcValidRect.Left, SrcValidRect.Right);
   MapY := BuildMappingTable(DestY, DestY + DestHeight, SrcY, SrcY + SrcHeight,
-    FPData.Height, FilterFunction, Radius, False);
+                            FPData.Height, FilterFunction, Radius, False,
+                            DrawnRect.Top, DrawnRect.Bottom, SrcValidRect.Top, SrcValidRect.Bottom);
   FindExtremes(MapX, XMinimum, XMaximum);
   SetLength(LineBuffer, XMaximum - XMinimum + 1);
 
-  for J := 0 to DestHeight - 1 do
+  for J := 0 to Length(MapY) - 1 do
   begin
     ClusterY := MapY[J];
     for X := XMinimum to XMaximum do
@@ -1466,9 +1472,10 @@ begin
       end;
     end;
 
-    DestLine := @PBuffer(DestCanvas.FPData.Bits)[((J + DestY) * PtrInt(DestCanvas.FPData.Width) + DestX) * DestBpp];
+    DestLine := @PBuffer(DestCanvas.FPData.Bits)[((J + DrawnRect.Top) * PtrInt(DestCanvas.FPData.Width) +
+                                                  DrawnRect.Left) * DestBpp];
 
-    for I := 0 to DestWidth - 1 do
+    for I := 0 to Length(MapX) - 1 do
     begin
       ClusterX := MapX[I];
       AccumA := 0.0;
@@ -1860,6 +1867,7 @@ var
   FracX, FracY: Cardinal;
   SrcX, SrcY, SrcWidth, SrcHeight: LongInt;
   DestX, DestY, DestWidth, DestHeight: LongInt;
+  DrawnRect, SrcValidRect: TRect;
   SrcLine, SrcLine2: PColor32RecArray;
   DestPix: PColor32Rec;
   Accum: TColor32Rec;
@@ -1878,12 +1886,13 @@ begin
   DestY := DestRect.Top;
   DestWidth := DestRect.Right - DestRect.Left;
   DestHeight := DestRect.Bottom - DestRect.Top;
-  // Clip src and dst rects
-  ClipStretchBounds(SrcX, SrcY, SrcWidth, SrcHeight, DestX, DestY, DestWidth, DestHeight,
-      FPData.Width, FPData.Height, DestCanvas.ClipRect);
-  // Nothing left to draw after clipping
-  if (SrcWidth <= 0) or (SrcHeight <= 0) or (DestWidth <= 0) or (DestHeight <= 0) then
+  // Only pixels in DrawnRect are written, source positions are still computed
+  // from the whole rectangles so clipping does not shift the result. Reading
+  // is clamped to SrcValidRect (part of the source rectangle inside the image).
+  if not ClipStretchRects(SrcRect, DestRect, FPData.Width, FPData.Height, DestCanvas.ClipRect,
+                          DrawnRect, SrcValidRect) then
     Exit;
+
   ScaleX := (Int64(SrcWidth) shl 16) div DestWidth;
   ScaleY := (Int64(SrcHeight) shl 16) div DestHeight;
 
@@ -1891,59 +1900,84 @@ begin
 
   if Filter = rfNearest then
   begin
-    Yp := 0;
-    for Y := DestY to DestY + DestHeight - 1 do
+    for Y := DrawnRect.Top to DrawnRect.Bottom - 1 do
     begin
-      Xp := 0;
-      SrcLine := @FScanlines[SrcY + Integer(Yp shr 16), SrcX];
-      DestPix := @TFastARGB32Canvas(DestCanvas).FScanlines[Y, DestX];
-      for X := 0 to DestWidth - 1 do
+      T1 := ClampInt(SrcY + Integer((Int64(Y - DestY) * ScaleY) shr 16),
+                     SrcValidRect.Top, SrcValidRect.Bottom - 1);
+      SrcLine := FScanlines[T1];
+      DestPix := @TFastARGB32Canvas(DestCanvas).FScanlines[Y, DrawnRect.Left];
+      Xp := Int64(DrawnRect.Left - DestX) * ScaleX;
+
+      for X := DrawnRect.Left to DrawnRect.Right - 1 do
       begin
-        AlphaBlendPixels(@SrcLine[Integer(Xp shr 16)], DestPix);
+        T1 := ClampInt(SrcX + Integer(Xp shr 16), SrcValidRect.Left, SrcValidRect.Right - 1);
+        AlphaBlendPixels(@SrcLine[T1], DestPix);
         Inc(DestPix);
         Inc(Xp, ScaleX);
       end;
-      Inc(Yp, ScaleY);
     end;
   end
   else
   begin
-    Yp := (ScaleY shr 1) - $8000;
-    for Y := DestY to DestY + DestHeight - 1 do
+    Yp := (ScaleY shr 1) - $8000 + Int64(DrawnRect.Top - DestY) * ScaleY;
+    for Y := DrawnRect.Top to DrawnRect.Bottom - 1 do
     begin
-      DestPix := @TFastARGB32Canvas(DestCanvas).FScanlines[Y, DestX];
+      DestPix := @TFastARGB32Canvas(DestCanvas).FScanlines[Y, DrawnRect.Left];
       if Yp < 0 then
       begin
-        T1 := 0;
+        T1 := SrcY;
         FracY := 0;
-        InvFracY := $10000;
       end
       else
       begin
-        T1 := Yp shr 16;
+        T1 := SrcY + Integer(Yp shr 16);
         FracY := Yp and $FFFF;
-        InvFracY := (not Yp and $FFFF) + 1;
       end;
 
-      T2 := Iff(T1 < SrcHeight - 1, T1 + 1, T1);
-      SrcLine :=  @Scanlines[T1 + SrcY, SrcX];
-      SrcLine2 := @Scanlines[T2 + SrcY, SrcX];
-      Xp := (ScaleX shr 1) - $8000;
+      if T1 < SrcValidRect.Top then
+      begin
+        T1 := SrcValidRect.Top;
+        FracY := 0;
+      end;
+      if T1 < SrcValidRect.Bottom - 1 then
+        T2 := T1 + 1
+      else
+      begin
+        T1 := SrcValidRect.Bottom - 1;
+        T2 := T1;
+      end;
 
-      for X := 0 to DestWidth - 1 do
+      InvFracY := $10000 - Integer(FracY);
+      SrcLine := FScanlines[T1];
+      SrcLine2 := FScanlines[T2];
+      Xp := (ScaleX shr 1) - $8000 + Int64(DrawnRect.Left - DestX) * ScaleX;
+
+      for X := DrawnRect.Left to DrawnRect.Right - 1 do
       begin
         if Xp < 0 then
         begin
-          T1 := 0;
+          T1 := SrcX;
           FracX := 0;
         end
         else
         begin
-          T1 := Xp shr 16;
+          T1 := SrcX + Integer(Xp shr 16);
           FracX := Xp and $FFFF;
         end;
 
-        T2 := Iff(T1 < SrcWidth - 1, T1 + 1, T1);
+        if T1 < SrcValidRect.Left then
+        begin
+          T1 := SrcValidRect.Left;
+          FracX := 0;
+        end;
+        if T1 < SrcValidRect.Right - 1 then
+          T2 := T1 + 1
+        else
+        begin
+          T1 := SrcValidRect.Right - 1;
+          T2 := T1;
+        end;
+
         Weight2 := Integer((Cardinal(InvFracY) * FracX) shr 16); // cast to Card, Int can overflow here
         Weight1 := InvFracY - Weight2;
         Weight4 := Integer((Cardinal(FracY) * FracX) shr 16);
@@ -1964,7 +1998,7 @@ begin
         Inc(DestPix);
       end;
       Inc(Yp, ScaleY);
-     end;
+    end;
   end;
 end;
 

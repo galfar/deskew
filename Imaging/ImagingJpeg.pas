@@ -37,8 +37,7 @@ type
       OnlyFirstLevel: Boolean): Boolean; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   public
     function TestFormat(Handle: TImagingHandle): Boolean; override;
     procedure CheckOptionsValidity; override;
@@ -180,13 +179,12 @@ begin
   end;
 end;
 
-procedure TJpegFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
+function TJpegFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.HasGrayChannel then
-    ConvertImage(Image, ifGray8)
+    Result := ifGray8
   else
-    ConvertImage(Image, ifR8G8B8);
+    Result := ifR8G8B8;
 end;
 
 function TJpegFileFormat.TestFormat(Handle: TImagingHandle): Boolean;

@@ -34,8 +34,7 @@ type
       OnlyFirstLevel: Boolean): Boolean; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   public
     function TestFormat(Handle: TImagingHandle): Boolean; override;
   published
@@ -779,29 +778,24 @@ begin
   end;
 end;
 
-procedure TBitmapFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
-var
-  ConvFormat: TImageFormat;
+function TBitmapFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.IsFloatingPoint then
     // Convert FP image to RGB/ARGB according to presence of alpha channel
-    ConvFormat := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifR8G8B8)
+    Result := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifR8G8B8)
   else if Info.HasGrayChannel or Info.IsIndexed then
     // Convert all grayscale and indexed images to Index8 unless they have alpha
     // (preserve it)
-    ConvFormat := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifIndex8)
+    Result := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifIndex8)
   else if Info.HasAlphaChannel then
     // Convert images with alpha channel to A8R8G8B8
-    ConvFormat := ifA8R8G8B8
+    Result := ifA8R8G8B8
   else if Info.UsePixelFormat then
     // Convert 16bit RGB images (no alpha) to X1R5G5B5
-    ConvFormat := ifX1R5G5B5
+    Result := ifX1R5G5B5
   else
     // Convert all other formats to R8G8B8
-    ConvFormat := ifR8G8B8;
-
-  ConvertImage(Image, ConvFormat);
+    Result := ifR8G8B8;
 end;
 
 function TBitmapFileFormat.TestFormat(Handle: TImagingHandle): Boolean;
