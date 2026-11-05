@@ -48,8 +48,6 @@ jobs:
           install: |
             apt-get update -q -y
             apt-get install -q -y fpc
-            # Just get the -dev with unversioned symlink, instead of libtiff5 vs libtiff6 in different distro versions
-            apt-get install -q -y libtiff-dev
 
           run: |
             echo "OS:" $(grep PRETTY_NAME /etc/os-release | cut -d= -f2) "/" $(uname -m)

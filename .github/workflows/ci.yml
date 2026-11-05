@@ -86,9 +86,9 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          # For the test build that reads and writes TIFF through libtiff (see below).
-          # Just get the -dev with unversioned symlink, instead of libtiff5 vs libtiff6 in different distro versions
-          sudo apt install libtiff-dev -y
+          # Shared libraries Deskew uses when they are found (zlib is always there), so the
+          # tests go through them. -dev packages to get the same names in all distro versions.
+          sudo apt install libtiff-dev libturbojpeg0-dev libwebp-dev -y
 
       - name: Setup macOS
         if: runner.os == 'macOS'
@@ -133,16 +133,16 @@ jobs:
         shell: bash
         run:  lazbuild "Tests/tests.lpi"
 
-      # Deskew reads and writes TIFF with the Pascal codec of Imaging. This extra build
-      # leaves it out (TIFF_NO_BUNDLED), so TIFF goes through the libtiff shared library
-      # and the smoke tests check that path too.
-      - name: Build Deskew CLI with libtiff
+      # The Linux build above uses the shared libraries installed in Setup Linux. This
+      # extra build never looks for them (DESKEW_PASCAL_CODECS_ONLY, see ImagingUserOptions.inc),
+      # so the smoke tests check the Pascal codecs other users get too.
+      - name: Build Deskew CLI with Pascal codecs only
         if: runner.os == 'Linux'
         shell: bash
         run:  |
-          mkdir -p Bin/libtiff Dcu/libtiff
-          fpc -B -O1 -Mdelphi -vn- -FEBin/libtiff -FUDcu/libtiff -FuImaging -FuImaging/Libs \
-            -FiImaging -Fi. -dIMAGING_USER_OPTIONS -dTIFF_NO_BUNDLED deskew.lpr
+          mkdir -p Bin/pascal Dcu/pascal
+          fpc -B -O1 -Mdelphi -vn- -FEBin/pascal -FUDcu/pascal -FuImaging -FuImaging/Libs \
+            -FiImaging -Fi. -dIMAGING_USER_OPTIONS -dDESKEW_PASCAL_CODECS_ONLY deskew.lpr
 
       - name: List Bin directory
         shell: bash
@@ -155,9 +155,19 @@ jobs:
           ./tests -a -p --format=plain --no-addresses
 
           if [ "$RUNNER_OS" == "Linux" ]; then
+              # Each build must really use what it is meant to
+              ./deskew -s l -g d ../TestImages/F1550.jpg > libs.txt
+              for lib in "zlib: *dynlib" "JPEG: *TurboJPEG" "TIFF: *libtiff" "WebP: *libwebp"; do
+                  grep -q "$lib" libs.txt || { cat libs.txt; echo "Shared library not used: $lib"; exit 1; }
+              done
+              ./pascal/deskew -s l -g d ../TestImages/F1550.jpg > libs.txt
+              if grep -qiE "dynlib|turbojpeg|libtiff|libwebp" libs.txt; then
+                  cat libs.txt; echo "Pascal codecs only build uses a shared library"; exit 1
+              fi
+              rm libs.txt
+
               ./runtests.sh
-              # TIFF through libtiff (the build fails TIFF cases when libtiff cannot be loaded)
-              ./runtests.sh libtiff/deskew
+              ./runtests.sh pascal/deskew
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then
@@ -182,11 +192,10 @@ jobs:
           if-no-files-found: error
 
   # WebUI: CLI built for WebAssembly (wasm32-wasip1) with FPC trunk, tested in Node
-  # and headless Chromium. FPC trunk is a moving target, so this job does not fail CI.
+  # and headless Chromium
   web:
     # Not ubuntu-latest: Playwright has no browser builds for Ubuntu 26.04 yet
     runs-on: ubuntu-24.04
-    continue-on-error: true
     timeout-minutes: 60
     env:
       # Same fpclazup and commits as the FPC trunk job of Imaging (imaginglib ci.yml),
