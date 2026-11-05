@@ -37,8 +37,7 @@ type
       OnlyFirstLevel: Boolean): Boolean; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   public
     function TestFormat(Handle: TImagingHandle): Boolean; override;
   published
@@ -710,28 +709,23 @@ begin
   end;
 end;
 
-procedure TPSDFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
-var
-  ConvFormat: TImageFormat;
+function TPSDFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.IsFloatingPoint then
   begin
     if Info.ChannelCount = 1 then
-      ConvFormat := ifR32F
+      Result := ifR32F
     else if Info.HasAlphaChannel then
-      ConvFormat := ifA32R32G32B32F
+      Result := ifA32R32G32B32F
     else
-      ConvFormat := ifR32G32B32F;
+      Result := ifR32G32B32F;
   end
   else if Info.HasGrayChannel then
-    ConvFormat := IffFormat(Info.HasAlphaChannel, ifA16Gray16, ifGray16)
+    Result := IffFormat(Info.HasAlphaChannel, ifA16Gray16, ifGray16)
   else if Info.RBSwapFormat in GetSupportedFormats then
-    ConvFormat := Info.RBSwapFormat
+    Result := Info.RBSwapFormat
   else
-    ConvFormat := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifR8G8B8);
-
-  ConvertImage(Image, ConvFormat);
+    Result := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifR8G8B8);
 end;
 
 function TPSDFileFormat.TestFormat(Handle: TImagingHandle): Boolean;

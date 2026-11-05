@@ -54,12 +54,7 @@
   ------------------------------
 
   Each library is chosen automatically by its wrapper
-  unit when nothing is defined here, see the units for details. 
-
-  Names used before 2026-10 (not recognized anymore):
-    IMPASZLIB -> ZLIB_USE_BUNDLED, ZLIB_DYNLIB -> ZLIB_USE_DYNLIB,
-    IMPASJPEG -> JPEG_USE_BUNDLED, FPCPASJPEG -> JPEG_USE_FPC,
-    WEBP_NO_PASCAL_DECODER -> WEBP_NO_BUNDLED }
+  unit when nothing is defined here, see the units for details. }
 
 // ZLib (Source/Libs/ImagingZLib.pas)
 {.$DEFINE ZLIB_USE_BUNDLED}       // use bundled Pascal ZLib (ImPasZLib) instead of

@@ -51,8 +51,7 @@ type
       OnlyFirstLevel: Boolean): Boolean; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   public
     function TestFormat(Handle: TImagingHandle): Boolean; override;
     procedure CheckOptionsValidity; override;
@@ -992,9 +991,7 @@ begin
         // Input image must be resized or converted to different format
         // to become valid mipmap level
         InitImage(ImageToSave);
-        CloneImage(Images[I], ImageToSave);
-        if NeedsConvert then
-          ConvertImage(ImageToSave, Format);
+        ConvertImageInto(Images[I], ImageToSave, Format);
         if NeedsResize then
           ResizeImage(ImageToSave, CurrentWidth, CurrentHeight, rfBilinear);
       end
@@ -1015,45 +1012,40 @@ begin
   end;
 end;
 
-procedure TDDSFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
-var
-  ConvFormat: TImageFormat;
+function TDDSFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.IsIndexed or Info.IsSpecial then
     // convert indexed and unsupported special formatd to A8R8G8B8
-    ConvFormat := ifA8R8G8B8
+    Result := ifA8R8G8B8
   else if Info.IsFloatingPoint then
   begin
     if Info.Format = ifA16R16G16B16F then
       // only swap channels here
-      ConvFormat := ifA16B16G16R16F
+      Result := ifA16B16G16R16F
     else
       // convert other floating point formats to A32B32G32R32F
-      ConvFormat := ifA32B32G32R32F
+      Result := ifA32B32G32R32F
   end
   else if Info.HasGrayChannel then
   begin
     if Info.HasAlphaChannel then
       // convert grayscale with alpha to A8Gray8
-      ConvFormat := ifA8Gray8
+      Result := ifA8Gray8
     else if Info.BytesPerPixel = 1 then
       // convert 8bit grayscale to Gray8
-      ConvFormat := ifGray8
+      Result := ifGray8
     else
       // convert 16-64bit grayscales to Gray16
-      ConvFormat := ifGray16;
+      Result := ifGray16;
   end
   else if Info.BytesPerPixel > 4 then
-    ConvFormat := ifA16B16G16R16
+    Result := ifA16B16G16R16
   else if Info.HasAlphaChannel then
     // convert the other images with alpha channel to A8R8G8B8
-    ConvFormat := ifA8R8G8B8
+    Result := ifA8R8G8B8
   else
     // convert the other formats to X8R8G8B8
-    ConvFormat := ifX8R8G8B8;
-
-  ConvertImage(Image, ConvFormat);
+    Result := ifX8R8G8B8;
 end;
 
 function TDDSFileFormat.TestFormat(Handle: TImagingHandle): Boolean;

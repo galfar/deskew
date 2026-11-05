@@ -31,8 +31,7 @@ type
       OnlyFirstLevel: Boolean): Boolean; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   public
     function TestFormat(Handle: TImagingHandle): Boolean; override;
   end;
@@ -421,18 +420,13 @@ begin
   end;
 end;
 
-procedure TQoiFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
-var
-  ConvFormat: TImageFormat;
+function TQoiFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   // QOI supports RGB and RGBA. Convert other formats appropriately.
   if Info.HasAlphaChannel or Info.IsIndexed then // Indexed might have transparency
-    ConvFormat := ifA8R8G8B8
+    Result := ifA8R8G8B8
   else
-    ConvFormat := ifR8G8B8;
-
-  ConvertImage(Image, ConvFormat);
+    Result := ifR8G8B8;
 end;
 
 initialization

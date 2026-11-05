@@ -73,6 +73,14 @@ type
       result replaces the current image of DstImage. Nothing is done when
       DstImage is TMultiImage with no images.}
     procedure ResizeToFit(FitWidth, FitHeight: Integer; Filter: TResizeFilter; DstImage: TBaseImage);
+    { Converts current image to DstFormat, result replaces the current image
+      of DstImage and this image is not changed. Needs memory only for the
+      result (see ConvertImageInto), unlike DstImage.Assign followed by
+      setting DstImage.Format which makes a copy first. When the image is
+      already in DstFormat DstImage gets a copy of it. DstImage can be this
+      image, it is then converted in place as by setting Format. Nothing is
+      done when this image is not valid or DstImage is TMultiImage with no images.}
+    procedure ConvertInto(DstImage: TBaseImage; DstFormat: TImageFormat);
 
     { Fills whole current image with the given color. Color should point
       to the pixel in the same format as the image is in.}
@@ -564,6 +572,15 @@ begin
   begin
     Imaging.ResizeImageToFit(FPData^, FitWidth, FitHeight, Filter,
       DstImage.FPData^);
+    DstImage.DoDataSizeChanged;
+  end;
+end;
+
+procedure TBaseImage.ConvertInto(DstImage: TBaseImage; DstFormat: TImageFormat);
+begin
+  if Valid and Assigned(DstImage) and Assigned(DstImage.FPData) and
+    Imaging.ConvertImageInto(FPData^, DstImage.FPData^, DstFormat) then
+  begin
     DstImage.DoDataSizeChanged;
   end;
 end;

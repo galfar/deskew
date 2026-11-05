@@ -80,8 +80,7 @@ type
     procedure Define; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   end;
 
   { Portable Pixel Map is used to store RGB images with 8bit or 16bit channels.
@@ -91,8 +90,7 @@ type
     procedure Define; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   end;
 
   { Portable Arbitrary Map is format that can store image data formats
@@ -105,8 +103,7 @@ type
     procedure Define; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   end;
 
   { Portable Float Map is unofficial extension of PNM format family which
@@ -118,8 +115,7 @@ type
     procedure Define; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   end;
 
 implementation
@@ -775,26 +771,21 @@ begin
   Result := SaveDataInternal(Handle, Images, Index, MapInfo);
 end;
 
-procedure TPGMFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
-var
-  ConvFormat: TImageFormat;
+function TPGMFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.IsFloatingPoint then
     // All FP images go to 16bit
-    ConvFormat :=  ifGray16
+    Result :=  ifGray16
   else if Info.HasGrayChannel then
     // Grayscale will be 8 or 16 bit - depends on input's bitcount
-    ConvFormat := IffFormat(Info.BytesPerPixel div Info.ChannelCount > 1,
+    Result := IffFormat(Info.BytesPerPixel div Info.ChannelCount > 1,
       ifGray16, ifGray8)
   else if Info.BytesPerPixel > 4 then
     // Large bitcounts -> 16bit
-    ConvFormat := ifGray16
+    Result := ifGray16
   else
     // Rest of the formats -> 8bit 
-    ConvFormat := ifGray8;
-
-  ConvertImage(Image, ConvFormat);
+    Result := ifGray8;
 end;
 
 { TPPMFileFormat }
@@ -823,26 +814,21 @@ begin
   Result := SaveDataInternal(Handle, Images, Index, MapInfo);
 end;
 
-procedure TPPMFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
-var
-  ConvFormat: TImageFormat;
+function TPPMFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.IsFloatingPoint then
     // All FP images go to 48bit RGB
-    ConvFormat :=  ifR16G16B16
+    Result :=  ifR16G16B16
   else if Info.HasGrayChannel then
     // Grayscale will be 24 or 48 bit RGB - depends on input's bitcount
-    ConvFormat := IffFormat(Info.BytesPerPixel div Info.ChannelCount > 1,
+    Result := IffFormat(Info.BytesPerPixel div Info.ChannelCount > 1,
       ifR16G16B16, ifR8G8B8)
   else if Info.BytesPerPixel > 4 then
     // Large bitcounts -> 48bit RGB
-    ConvFormat := ifR16G16B16
+    Result := ifR16G16B16
   else
     // Rest of the formats -> 24bit RGB
-    ConvFormat := ifR8G8B8;
-
-  ConvertImage(Image, ConvFormat);
+    Result := ifR8G8B8;
 end;
 
 { TPAMFileFormat }
@@ -868,23 +854,19 @@ begin
   Result := SaveDataInternal(Handle, Images, Index, MapInfo);
 end;
 
-procedure TPAMFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
-var
-  ConvFormat: TImageFormat;
+function TPAMFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if Info.IsFloatingPoint then
-    ConvFormat := IffFormat(Info.HasAlphaChannel, ifA16R16G16B16, ifR16G16B16)
+    Result := IffFormat(Info.HasAlphaChannel, ifA16R16G16B16, ifR16G16B16)
   else if Info.HasGrayChannel then
-    ConvFormat := IffFormat(Info.HasAlphaChannel, ifA16Gray16, ifGray16)
+    Result := IffFormat(Info.HasAlphaChannel, ifA16Gray16, ifGray16)
   else
   begin
     if Info.BytesPerPixel <= 4 then
-      ConvFormat := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifR8G8B8)
+      Result := IffFormat(Info.HasAlphaChannel, ifA8R8G8B8, ifR8G8B8)
     else
-      ConvFormat := IffFormat(Info.HasAlphaChannel, ifA16R16G16B16, ifR16G16B16);
+      Result := IffFormat(Info.HasAlphaChannel, ifA16R16G16B16, ifR16G16B16);
   end;
-  ConvertImage(Image, ConvFormat);
 end;
 
 { TPFMFileFormat }
@@ -921,13 +903,12 @@ begin
   Result := SaveDataInternal(Handle, Images, Index, MapInfo);
 end;
 
-procedure TPFMFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
+function TPFMFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
   if (Info.ChannelCount > 1) or Info.IsIndexed then
-    ConvertImage(Image, ifB32G32R32F)
+    Result := ifB32G32R32F
   else
-    ConvertImage(Image, ifR32F);
+    Result := ifR32F;
 end;
 
 initialization

@@ -43,8 +43,7 @@ type
       OnlyFirstLevel: Boolean): Boolean; override;
     function SaveData(Handle: TImagingHandle; const Images: TDynImageDataArray;
       Index: LongInt): Boolean; override;
-    procedure ConvertToSupported(var Image: TImageData;
-      const Info: TImageFormatInfo); override;
+    function GetConversionFormat(const Info: TImageFormatInfo): TImageFormat; override;
   public
     function TestFormat(Handle: TImagingHandle): Boolean; override;
   published
@@ -1210,10 +1209,9 @@ begin
   Result := True;
 end;
 
-procedure TGIFFileFormat.ConvertToSupported(var Image: TImageData;
-  const Info: TImageFormatInfo);
+function TGIFFileFormat.GetConversionFormat(const Info: TImageFormatInfo): TImageFormat;
 begin
-  ConvertImage(Image, ifIndex8);
+  Result := ifIndex8;
 end;
 
 function TGIFFileFormat.TestFormat(Handle: TImagingHandle): Boolean;
