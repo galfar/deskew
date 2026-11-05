@@ -24,11 +24,17 @@
 
   Shared libraries are used when they are found at run time, the Pascal codecs
   compiled in are the fallback, so Deskew works without any of them. On targets
-  without dynamic libraries (WebAssembly) Imaging ignores these defines. }
+  without dynamic libraries (WebAssembly) Imaging ignores these defines.
+  DESKEW_PASCAL_CODECS_ONLY (given on the command line) makes a build that never
+  looks for them, CI tests the fallbacks with it. }
 
-{$DEFINE ZLIB_USE_DYNLIB}         // zlib (zlib1.dll, libz.so.1, libz.1.dylib), also zlib-ng compat
-{$DEFINE JPEG_USE_TURBO_DYNLIB}   // libjpeg-turbo 2.0+ (TurboJPEG API)
-{$DEFINE TIFF_USE_LIBTIFF_DYNLIB} // libtiff 4
+{$IFNDEF DESKEW_PASCAL_CODECS_ONLY}
+  {$DEFINE ZLIB_USE_DYNLIB}         // zlib (zlib1.dll, libz.so.1, libz.1.dylib), also zlib-ng compat
+  {$DEFINE JPEG_USE_TURBO_DYNLIB}   // libjpeg-turbo 2.0+ (TurboJPEG API)
+  {$DEFINE TIFF_USE_LIBTIFF_DYNLIB} // libtiff 4
+{$ELSE}
+  {$DEFINE WEBP_NO_DYNLIB}
+{$ENDIF}
 
 // libwebp is looked for without a define (WEBP_NO_DYNLIB turns that off), the
 // Pascal decoder is the fallback: WebP input works everywhere, WebP output only
