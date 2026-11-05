@@ -470,7 +470,8 @@ end;
 
 function FileEof(Handle: TImagingHandle): Boolean; cdecl;
 begin
-  Result := TBufferedStream(Handle).Position = TBufferedStream(Handle).Size;
+  // Seek can go past the end, it is the end of input too
+  Result := TBufferedStream(Handle).Position >= TBufferedStream(Handle).Size;
 end;
 
 function FileSeek(Handle: TImagingHandle; Offset: Int64; Mode: TSeekMode): Int64; cdecl;
@@ -506,7 +507,7 @@ end;
 
 function StreamEof(Handle: TImagingHandle): Boolean; cdecl;
 begin
-  Result := TStream(Handle).Position = TStream(Handle).Size;
+  Result := TStream(Handle).Position >= TStream(Handle).Size;
 end;
 
 function StreamSeek(Handle: TImagingHandle; Offset: Int64; Mode: TSeekMode): Int64; cdecl;
@@ -579,7 +580,7 @@ end;
 
 function MemoryEof(Handle: TImagingHandle): Boolean; cdecl;
 begin
-  Result := PMemoryIORec(Handle).Position = PMemoryIORec(Handle).Size;
+  Result := PMemoryIORec(Handle).Position >= PMemoryIORec(Handle).Size;
 end;
 
 function MemorySeek(Handle: TImagingHandle; Offset: Int64; Mode: TSeekMode): Int64; cdecl;
@@ -608,6 +609,13 @@ begin
   Result := Count;
   if Rec.Position + Count > Rec.Size then
     Result := Rec.Size - Rec.Position;
+  // Position can be past the end after Seek
+  if Result <= 0 then
+  begin
+    Result := 0;
+    Exit;
+  end;
+
   Move(Rec.Data[Rec.Position], Buffer^, Result);
   Rec.Position := Rec.Position + Result;
 end;
@@ -621,6 +629,12 @@ begin
   Result := Count;
   if Rec.Position + Count > Rec.Size then
     Result := Rec.Size - Rec.Position;
+  if Result <= 0 then
+  begin
+    Result := 0;
+    Exit;
+  end;
+
   Move(Buffer^, Rec.Data[Rec.Position], Result);
   Rec.Position := Rec.Position + Result;
 end;

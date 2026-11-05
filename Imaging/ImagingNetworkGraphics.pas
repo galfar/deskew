@@ -569,9 +569,11 @@ var
     GetIO.Seek(Handle, Int64(Chunk.DataSize) + SizeOf(ChunkCrc), smFromCurrent);
   end;
 
-  procedure ReadChunk;
+  { Reads chunk header, returns False when the input ends before it is
+    complete (also when a skipped chunk was longer than the rest of input). }
+  function ReadChunk: Boolean;
   begin
-    GetIO.Read(Handle, @Chunk, SizeOf(Chunk));
+    Result := GetIO.Read(Handle, @Chunk, SizeOf(Chunk)) = SizeOf(Chunk);
     Chunk.DataSize := SwapEndianUInt32(Chunk.DataSize);
   end;
 
@@ -833,7 +835,8 @@ begin
     if FileType = ngMNG then
     begin
       // Store MNG header if present
-      ReadChunk;
+      if not ReadChunk then
+        Exit;
       ReadChunkData;
       MHDR := PMHDR(ChunkData)^;
       SwapEndianUInt32(@MHDR, SizeOf(MHDR) div SizeOf(UInt32));
@@ -841,7 +844,8 @@ begin
 
     // Read chunks until ending chunk or EOF is reached
     repeat
-      ReadChunk;
+      if not ReadChunk then
+        Break;
       if (Chunk.ChunkID = IHDRChunk) or (Chunk.ChunkID = fcTLChunk) then StartNewPNGImage
       else if Chunk.ChunkID = JHDRChunk then StartNewJNGImage
       else if (Chunk.ChunkID = IDATChunk) or (Chunk.ChunkID = fdATChunk) then AppendIDAT

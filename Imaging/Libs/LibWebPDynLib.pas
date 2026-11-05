@@ -94,7 +94,7 @@ const
   LibNames: array[0..3] of string = ('libwebp.7.dylib', 'libwebp.dylib',
     '@executable_path/libwebp.7.dylib', '@executable_path/libwebp.dylib');
 {$ELSE}
-  LibNames: array[0..1] of string = ('libwebp.so.7', 'libwebp.so');
+  LibNames: array[0..2] of string = ('libwebp.so.7', 'libwebp.so.6', 'libwebp.so');
 {$IFEND}
 
 var
