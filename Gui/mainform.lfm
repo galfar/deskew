@@ -1,11 +1,11 @@
 object FormMain: TFormMain
   Left = 1017
-  Height = 713
+  Height = 739
   Top = 437
   Width = 530
   AllowDropFiles = True
   Caption = 'Deskew GUI'
-  ClientHeight = 713
+  ClientHeight = 739
   ClientWidth = 530
   Constraints.MinHeight = 560
   Constraints.MinWidth = 520
@@ -18,7 +18,7 @@ object FormMain: TFormMain
   OnDropFiles = FormDropFiles
   object Notebook: TNotebook
     Left = 8
-    Height = 697
+    Height = 723
     Top = 8
     Width = 514
     PageIndex = 0
@@ -28,19 +28,19 @@ object FormMain: TFormMain
     object PageIn: TPage
       object PanelFiles: TPanel
         Left = 0
-        Height = 352
+        Height = 356
         Top = 0
         Width = 514
         Align = alClient
         BevelOuter = bvNone
-        ClientHeight = 352
+        ClientHeight = 356
         ClientWidth = 514
         TabOrder = 0
         object MemoFiles: TMemo
           Left = 0
-          Height = 261
+          Height = 260
           Hint = 'Image files to deskew, one path per line. Files can be dragged and dropped here too.'
-          Top = 37
+          Top = 42
           Width = 514
           Align = alClient
           BorderSpacing.Bottom = 54
@@ -53,10 +53,10 @@ object FormMain: TFormMain
           WordWrap = False
         end
         object BtnAbout: TButton
-          Left = 477
-          Height = 25
+          Left = 478
+          Height = 26
           Top = 0
-          Width = 37
+          Width = 36
           Action = ActShowAbout
           Anchors = [akTop, akRight]
           AutoSize = True
@@ -66,7 +66,7 @@ object FormMain: TFormMain
         object BtnAddFiles: TBitBtn
           Left = 0
           Height = 31
-          Top = 314
+          Top = 318
           Width = 120
           Action = ActAddFiles
           Anchors = [akLeft, akBottom]
@@ -77,7 +77,7 @@ object FormMain: TFormMain
         object BtnClear: TBitBtn
           Left = 392
           Height = 31
-          Top = 314
+          Top = 318
           Width = 120
           Action = ActClearFiles
           Anchors = [akRight, akBottom]
@@ -87,7 +87,7 @@ object FormMain: TFormMain
         end
         object Label1: TLabel
           Left = 0
-          Height = 23
+          Height = 28
           Top = 4
           Width = 514
           Align = alTop
@@ -103,25 +103,24 @@ object FormMain: TFormMain
       end
       object PanelOptions: TPanel
         Left = 0
-        Height = 270
-        Top = 358
+        Height = 300
+        Top = 362
         Width = 514
         Align = alBottom
         BorderSpacing.Top = 6
         BorderSpacing.Bottom = 14
         BevelOuter = bvNone
-        ClientHeight = 270
+        ClientHeight = 300
         ClientWidth = 514
         TabOrder = 1
         object Panel1: TPanel
           Left = 0
-          Height = 235
-          Top = 31
+          Height = 264
+          Top = 36
           Width = 514
           Align = alClient
-          BorderSpacing.Bottom = 4
           BevelOuter = bvNone
-          ClientHeight = 235
+          ClientHeight = 264
           ClientWidth = 514
           TabOrder = 0
           object ColorBtnBackground: TColorButton
@@ -130,10 +129,10 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabBackColor
             AnchorSideTop.Side = asrCenter
             AnchorSideBottom.Side = asrCenter
-            Left = 117
+            Left = 130
             Height = 28
             Hint = 'Color of the empty areas added around the rotated page.'
-            Top = 209
+            Top = 233
             Width = 64
             BorderSpacing.Left = 12
             BorderWidth = 2
@@ -145,34 +144,32 @@ object FormMain: TFormMain
             AnchorSideTop.Control = CheckDefaultOutputFileOptions
             AnchorSideTop.Side = asrBottom
             Left = 8
-            Height = 15
-            Top = 43
-            Width = 75
+            Height = 16
+            Top = 42
+            Width = 85
             BorderSpacing.Top = 12
             Caption = 'Output folder:'
             ParentColor = False
           end
           object LabBackColor: TLabel
-            AnchorSideTop.Control = LabContentArea
+            AnchorSideTop.Control = Shape1
             AnchorSideTop.Side = asrBottom
             AnchorSideBottom.Control = Panel1
             AnchorSideBottom.Side = asrBottom
             Left = 8
-            Height = 15
-            Top = 216
-            Width = 97
-            Anchors = [akLeft, akBottom]
-            BorderSpacing.Top = 18
-            BorderSpacing.Bottom = 4
+            Height = 16
+            Top = 239
+            Width = 110
+            BorderSpacing.Top = 24
             Caption = 'Background color:'
             ParentColor = False
           end
           object CheckDefaultOutputFileOptions: TCheckBox
             Left = 8
-            Height = 19
+            Height = 18
             Hint = 'Save each output file next to its input file, in the same file format and with "deskewed-" added to its name.'#13#10'Uncheck to choose the folder and the file format.'
             Top = 12
-            Width = 178
+            Width = 210
             Caption = 'Use default output file options'
             Checked = True
             State = cbChecked
@@ -182,9 +179,9 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabOptOutputFolder
             AnchorSideTop.Side = asrBottom
             Left = 8
-            Height = 15
+            Height = 16
             Top = 76
-            Width = 60
+            Width = 68
             BorderSpacing.Top = 18
             Caption = 'File format:'
             ParentColor = False
@@ -194,11 +191,12 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabOptFileFormat
             AnchorSideTop.Side = asrCenter
             AnchorSideBottom.Side = asrCenter
-            Left = 95
-            Height = 23
+            Left = 105
+            Height = 19
             Hint = 'File format of the output files.'
-            Top = 72
-            Width = 161
+            Top = 75
+            Width = 100
+            Constraints.MinWidth = 100
             ItemHeight = 15
             Style = csDropDownList
             TabOrder = 3
@@ -209,11 +207,11 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabOptOutputFolder
             AnchorSideTop.Side = asrCenter
             AnchorSideRight.Control = BtnBrowseOutputDir
-            Left = 95
-            Height = 23
+            Left = 105
+            Height = 21
             Hint = 'Folder where the output files are saved.'#13#10'Leave empty to save them next to the input files with "deskewed-" added to their names.'
-            Top = 39
-            Width = 332
+            Top = 40
+            Width = 317
             Anchors = [akTop, akLeft, akRight]
             BorderSpacing.Left = 12
             BorderSpacing.Right = 4
@@ -226,10 +224,10 @@ object FormMain: TFormMain
             AnchorSideRight.Control = Panel1
             AnchorSideRight.Side = asrBottom
             AnchorSideBottom.Side = asrCenter
-            Left = 433
-            Height = 25
-            Top = 38
-            Width = 73
+            Left = 428
+            Height = 26
+            Top = 37
+            Width = 78
             Action = ActBrowseOutputDir
             Anchors = [akTop, akRight]
             AutoSize = True
@@ -238,13 +236,13 @@ object FormMain: TFormMain
             TabOrder = 2
           end
           object LabContentArea: TLabel
-            AnchorSideTop.Control = LabOptFileFormat
+            AnchorSideTop.Control = Shape2
             AnchorSideTop.Side = asrBottom
             Left = 8
-            Height = 15
-            Top = 131
-            Width = 71
-            BorderSpacing.Top = 40
+            Height = 16
+            Top = 141
+            Width = 82
+            BorderSpacing.Top = 23
             Caption = 'Content area:'
             ParentColor = False
           end
@@ -252,11 +250,11 @@ object FormMain: TFormMain
             AnchorSideLeft.Control = EdDirOutput
             AnchorSideTop.Control = LabContentArea
             AnchorSideTop.Side = asrCenter
-            Left = 95
-            Height = 19
+            Left = 105
+            Height = 18
             Hint = 'Find the area with the content of each page automatically and look for the skew only there.'#13#10'Dark scanner bed around the page and stray dots are left out.'
-            Top = 129
-            Width = 80
+            Top = 140
+            Width = 97
             Caption = 'Auto detect'
             TabOrder = 4
           end
@@ -265,10 +263,10 @@ object FormMain: TFormMain
             AnchorSideLeft.Side = asrBottom
             AnchorSideTop.Control = LabContentArea
             AnchorSideTop.Side = asrCenter
-            Left = 199
-            Height = 15
-            Top = 131
-            Width = 46
+            Left = 226
+            Height = 16
+            Top = 141
+            Width = 52
             BorderSpacing.Left = 24
             Caption = 'Margins:'
             ParentColor = False
@@ -278,10 +276,10 @@ object FormMain: TFormMain
             AnchorSideLeft.Side = asrBottom
             AnchorSideTop.Control = LabContentArea
             AnchorSideTop.Side = asrCenter
-            Left = 253
-            Height = 23
+            Left = 286
+            Height = 21
             Hint = 'Margins of the page that are left out when looking for the skew (punch holes, borders, shadows).'#13#10'One value for all the sides, "horizontal,vertical" or "left,top,right,bottom".'#13#10'Unit can follow: px (default), %, mm, cm or in. Decimal point is used in numbers.'#13#10'Examples:  5,%    10,20,mm    2.5,in    50,80,50,120'
-            Top = 127
+            Top = 139
             Width = 163
             BorderSpacing.Left = 8
             TabOrder = 5
@@ -292,11 +290,11 @@ object FormMain: TFormMain
             AnchorSideLeft.Side = asrBottom
             AnchorSideTop.Control = LabBackColor
             AnchorSideTop.Side = asrCenter
-            Left = 221
-            Height = 19
+            Left = 234
+            Height = 18
             Hint = 'Keep the size of the input image. Corners of the rotated page are cut off instead of making the image larger.'
-            Top = 214
-            Width = 91
+            Top = 238
+            Width = 108
             BorderSpacing.Left = 40
             Caption = 'Crop To Input'
             TabOrder = 6
@@ -306,13 +304,15 @@ object FormMain: TFormMain
             AnchorSideTop.Side = asrCenter
             AnchorSideRight.Control = BtnBrowseOutputDir
             AnchorSideRight.Side = asrBottom
-            Left = 418
-            Height = 25
-            Top = 211
-            Width = 88
+            Left = 400
+            Height = 28
+            Top = 233
+            Width = 106
             Action = ActShowAdvOptions
             Anchors = [akTop, akRight]
             AutoSize = True
+            Font.Height = -16
+            ParentFont = False
             TabOrder = 7
           end
           object LabMaxAngle: TLabel
@@ -320,11 +320,11 @@ object FormMain: TFormMain
             AnchorSideTop.Control = LabContentArea
             AnchorSideTop.Side = asrBottom
             Left = 8
-            Height = 15
-            Top = 163
-            Width = 113
+            Height = 16
+            Top = 174
+            Width = 89
             BorderSpacing.Top = 17
-            Caption = 'Max. angle [degrees]:'
+            Caption = 'Max. angle [°]:'
             ParentColor = False
           end
           object SpinEditMaxAngle: TFloatSpinEdit
@@ -332,10 +332,10 @@ object FormMain: TFormMain
             AnchorSideLeft.Side = asrBottom
             AnchorSideTop.Control = LabMaxAngle
             AnchorSideTop.Side = asrCenter
-            Left = 129
-            Height = 23
+            Left = 105
+            Height = 21
             Hint = 'The largest skew angle that is looked for, in both directions. Larger value takes more time.'#13#10'Pages skewed more than this are left as they are.'
-            Top = 159
+            Top = 172
             Width = 64
             BorderSpacing.Left = 8
             DecimalPlaces = 1
@@ -348,21 +348,23 @@ object FormMain: TFormMain
           end
           object Shape1: TShape
             AnchorSideLeft.Control = Panel1
+            AnchorSideTop.Control = SpinEditMaxAngle
             AnchorSideTop.Side = asrBottom
             AnchorSideRight.Control = Panel1
             AnchorSideRight.Side = asrBottom
             AnchorSideBottom.Control = ColorBtnBackground
             Left = 8
             Height = 2
-            Top = 197
+            Top = 213
             Width = 498
-            Anchors = [akLeft, akRight, akBottom]
+            Anchors = [akTop, akLeft, akRight]
             BorderSpacing.Left = 8
-            BorderSpacing.Top = 26
+            BorderSpacing.Top = 20
             BorderSpacing.Right = 8
             BorderSpacing.Bottom = 10
             Brush.Style = bsClear
-            Pen.Color = 15724527
+            Pen.Color = clWindowFrame
+            Pen.Width = 2
           end
           object Shape2: TShape
             AnchorSideLeft.Control = Panel1
@@ -373,19 +375,20 @@ object FormMain: TFormMain
             AnchorSideBottom.Control = ColorBtnBackground
             Left = 8
             Height = 2
-            Top = 113
+            Top = 116
             Width = 498
             Anchors = [akTop, akLeft, akRight]
             BorderSpacing.Left = 8
-            BorderSpacing.Top = 18
+            BorderSpacing.Top = 22
             BorderSpacing.Right = 8
             Brush.Style = bsClear
-            Pen.Color = 15724527
+            Pen.Color = clWindowFrame
+            Pen.Width = 2
           end
         end
         object Label2: TLabel
           Left = 0
-          Height = 23
+          Height = 28
           Top = 4
           Width = 514
           Align = alTop
@@ -401,8 +404,8 @@ object FormMain: TFormMain
       end
       object BtnDeskew: TBitBtn
         Left = 0
-        Height = 55
-        Top = 642
+        Height = 47
+        Top = 676
         Width = 514
         Action = ActDeskew
         Align = alBottom
