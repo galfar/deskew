@@ -19,7 +19,7 @@
     <i18n>
       <EnableI18N LFM="False"/>
     </i18n>
-    <BuildModes Count="5">
+    <BuildModes Count="3">
       <Item1 Name="Release" Default="True"/>
       <Item2 Name="Debug">
         <CompilerOptions>
@@ -64,89 +64,7 @@
           </Other>
         </CompilerOptions>
       </Item2>
-      <Item3 Name="Release-Win64">
-        <CompilerOptions>
-          <Version Value="11"/>
-          <PathDelim Value="\"/>
-          <Target>
-            <Filename Value="Bin\deskew"/>
-          </Target>
-          <SearchPaths>
-            <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
-            <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
-            <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
-          </SearchPaths>
-          <Parsing>
-            <SyntaxOptions>
-              <SyntaxMode Value="Delphi"/>
-            </SyntaxOptions>
-          </Parsing>
-          <CodeGeneration>
-            <SmartLinkUnit Value="True"/>
-            <TargetCPU Value="x86_64"/>
-            <TargetOS Value="win64"/>
-            <Optimizations>
-              <OptimizationLevel Value="3"/>
-              <VariablesInRegisters Value="True"/>
-            </Optimizations>
-          </CodeGeneration>
-          <Linking>
-            <Debugging>
-              <GenerateDebugInfo Value="False"/>
-            </Debugging>
-            <LinkSmart Value="True"/>
-          </Linking>
-          <Other>
-            <Verbosity>
-              <ShowNotes Value="False"/>
-              <ShowHints Value="False"/>
-            </Verbosity>
-            <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
-          </Other>
-        </CompilerOptions>
-      </Item3>
-      <Item4 Name="Release-Win32">
-        <CompilerOptions>
-          <Version Value="11"/>
-          <PathDelim Value="\"/>
-          <Target>
-            <Filename Value="Bin\deskew32"/>
-          </Target>
-          <SearchPaths>
-            <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
-            <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
-            <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
-          </SearchPaths>
-          <Parsing>
-            <SyntaxOptions>
-              <SyntaxMode Value="Delphi"/>
-            </SyntaxOptions>
-          </Parsing>
-          <CodeGeneration>
-            <SmartLinkUnit Value="True"/>
-            <TargetCPU Value="i386"/>
-            <TargetOS Value="win32"/>
-            <Optimizations>
-              <OptimizationLevel Value="3"/>
-              <VariablesInRegisters Value="True"/>
-            </Optimizations>
-          </CodeGeneration>
-          <Linking>
-            <Debugging>
-              <GenerateDebugInfo Value="False"/>
-            </Debugging>
-            <LinkSmart Value="True"/>
-          </Linking>
-          <Other>
-            <Verbosity>
-              <ShowNotes Value="False"/>
-              <ShowHints Value="False"/>
-            </Verbosity>
-            <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
-          </Other>
-        </CompilerOptions>
-      </Item4>
-      <Item5 Name="Release-macOS">
+      <Item3 Name="Release-macOS">
         <CompilerOptions>
           <Version Value="11"/>
           <PathDelim Value="\"/>
@@ -165,7 +83,6 @@
           </Parsing>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
-            <TargetCPU Value="x86_64"/>
             <TargetOS Value="darwin"/>
             <Optimizations>
               <OptimizationLevel Value="3"/>
@@ -186,7 +103,7 @@
             <CustomOptions Value="-dIMAGING_USER_OPTIONS"/>
           </Other>
         </CompilerOptions>
-      </Item5>
+      </Item3>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
