@@ -52,6 +52,7 @@ type
     LabAngleStep: TLabel;
     LabSkipAngle: TLabel;
     Panel1: TPanel;
+    Panel2: TPanel;
     Shape1: TShape;
     Shape2: TShape;
     SpinThresholdValue: TSpinEdit;
