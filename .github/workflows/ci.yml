@@ -90,6 +90,16 @@ jobs:
           # tests go through them. -dev packages to get the same names in all distro versions.
           sudo apt install libtiff-dev libturbojpeg0-dev libwebp-dev -y
 
+          # For the GUI test builds with other LCL widget sets than the default GTK2
+          sudo apt install libgtk-3-dev libqt5pas-dev -y
+          # libqt6pas of Ubuntu is too old for Lazarus 4.x, get a newer release
+          BASE_URL=https://github.com/davidbannon/libqt6pas/releases/download/v6.2.10
+          if [ "$RUNNER_ARCH" == "X64" ]; then DEB_ARCH=amd64; else DEB_ARCH=arm64; fi
+          for pkg in libqt6pas6 libqt6pas6-dev; do
+              wget -q $BASE_URL/${pkg}_6.2.10-1_$DEB_ARCH.deb
+              sudo apt install ./${pkg}_6.2.10-1_$DEB_ARCH.deb -y
+          done
+
       - name: Setup macOS
         if: runner.os == 'macOS'
         shell: bash
@@ -109,25 +119,23 @@ jobs:
 
       - name: Build Deskew CLI
         shell: bash
-        run:  |
-          if [ "$RUNNER_OS" == "macOS" ]; then
-              # Release-macOS build mode has x86_64 target CPU set, override it for ARM runners
-              if [ "$RUNNER_ARCH" == "ARM64" ]; then CPU=aarch64; else CPU=x86_64; fi
-              lazbuild --build-mode=Release-macOS --cpu=$CPU "deskew.lpi"
-          else
-              lazbuild --build-mode=Release "deskew.lpi"
-          fi
+        run:  lazbuild --build-mode=Release "deskew.lpi"
 
+      # On macOS the project gives the minimal macOS version itself (linking of LCL fails
+      # with recent Xcode otherwise)
       - name: Build Deskew GUI
         shell: bash
-        run:   |
-          if [ "$RUNNER_OS" == "macOS" ]; then
-              if [ "$RUNNER_ARCH" == "ARM64" ]; then CPU=aarch64; else CPU=x86_64; fi
-              # Need to specify some older macOS as minimum version, otherwise the LCL linking may fail (new XCode, latest ARM macOS) with "Error: ld: malformed method list atom 'ltmp5' "
-              lazbuild --build-mode=Release-macOS --cpu=$CPU --opt="-WM10.14" "Gui/deskewgui.lpi"
-          else
-              lazbuild --build-mode=Release "Gui/deskewgui.lpi"
-          fi
+        run:  lazbuild --build-mode=Release "Gui/deskewgui.lpi"
+
+      # Checks that the GUI builds with the other LCL widget sets of Linux (other than 
+      # the default GTK2). Built after the default one as LCL is rebuilt for each.
+      - name: Build Deskew GUI with Qt5, Qt6 and GTK3
+        if: runner.os == 'Linux'
+        shell: bash
+        run:  |
+          for ws in qt5 qt6 gtk3; do
+              lazbuild --build-mode=Release --ws=$ws --opt="-o$PWD/Bin/deskewgui-$ws" "Gui/deskewgui.lpi"
+          done
 
       - name: Build unit tests
         shell: bash
@@ -171,7 +179,7 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
           elif [ "$RUNNER_OS" == "macOS" ]; then
-              ./runtests.sh deskew-mac
+              ./runtests.sh
           fi
 
       - name: Upload binaries

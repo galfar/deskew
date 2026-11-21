@@ -22,7 +22,7 @@
       <MajorVersionNr Value="1"/>
       <StringTable CompanyName="Galfar&apos;s Lair" FileDescription="Deskew GUI" ProductName="Deskew GUI"/>
     </VersionInfo>
-    <BuildModes Count="3">
+    <BuildModes Count="2">
       <Item1 Name="Debug" Default="True"/>
       <Item2 Name="Release">
         <CompilerOptions>
@@ -60,49 +60,11 @@
               </Win32>
             </Options>
           </Linking>
+          <Conditionals Value="// Some older macOS must be given as the minimal version, linking of LCL&#xD;&#xA;// fails with recent Xcode otherwise (&quot;ld: malformed method list atom&quot;)&#xD;&#xA;if TargetOS = &apos;darwin&apos; then&#xD;&#xA;  CustomOptions += &apos;-WM10.13&apos;;"/>
         </CompilerOptions>
       </Item2>
-      <Item3 Name="Release-macOS">
-        <CompilerOptions>
-          <Version Value="11"/>
-          <PathDelim Value="\"/>
-          <Target>
-            <Filename Value="..\Bin\deskewgui-mac"/>
-          </Target>
-          <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="..\Imaging"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
-          </SearchPaths>
-          <Parsing>
-            <SyntaxOptions>
-              <SyntaxMode Value="Delphi"/>
-            </SyntaxOptions>
-          </Parsing>
-          <CodeGeneration>
-            <SmartLinkUnit Value="True"/>
-            <TargetOS Value="darwin"/>
-            <Optimizations>
-              <OptimizationLevel Value="3"/>
-            </Optimizations>
-          </CodeGeneration>
-          <Linking>
-            <Debugging>
-              <GenerateDebugInfo Value="False"/>
-              <DebugInfoType Value="dsDwarf2Set"/>
-            </Debugging>
-            <LinkSmart Value="True"/>
-            <Options>
-              <Win32>
-                <GraphicApplication Value="True"/>
-              </Win32>
-            </Options>
-          </Linking>
-        </CompilerOptions>
-      </Item3>
-      <SharedMatrixOptions Count="2">
-        <Item1 ID="382385632331" Modes="Release-macOS" Value="-WM10.13"/>
-        <Item2 ID="590039250505" Modes="Debug" Value="-dDEBUG"/>
+      <SharedMatrixOptions Count="1">
+        <Item1 ID="590039250505" Modes="Debug" Value="-dDEBUG"/>
       </SharedMatrixOptions>
     </BuildModes>
     <PublishOptions>
@@ -214,6 +176,7 @@
         </Win32>
       </Options>
     </Linking>
+    <Conditionals Value="// Some older macOS must be given as the minimal version, linking of LCL&#xD;&#xA;// fails with recent Xcode otherwise (&quot;ld: malformed method list atom&quot;)&#xD;&#xA;if TargetOS = &apos;darwin&apos; then&#xD;&#xA;  CustomOptions += &apos;-WM10.13&apos;;"/>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

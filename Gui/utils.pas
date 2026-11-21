@@ -76,10 +76,6 @@ begin
     if FileExists(S) then
       Exit(S);
 {$ELSEIF Defined(DARWIN)}
-    S := ExeDir + 'deskew-mac';
-    if FileExists(S) then
-      Exit(S);
-
     S := ExeDir + 'deskew';
     if FileExists(S) then
       Exit(S);
@@ -87,7 +83,7 @@ begin
     if AnsiContainsText(ExeDir, '.app/Contents/MacOS') then
     begin
       // Get out af the bundle
-      S := ExtractFileDir(ExtractFileDir(ExtractFileDir(ExcludeTrailingPathDelimiter(ExeDir)))) + '/deskew-mac';
+      S := ExtractFileDir(ExtractFileDir(ExtractFileDir(ExcludeTrailingPathDelimiter(ExeDir)))) + '/deskew';
       if FileExists(S) then
         Exit(S);
     end;
