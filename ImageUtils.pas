@@ -79,6 +79,12 @@ const
 procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;
   ResamplingFilter: TResamplingFilter; FitRotated: Boolean);
 
+{ Returns the format (one of SupportedRotationFormats) the image must be converted
+  to before it is rotated with the given background color: the closest one
+  to the format of the image, with alpha when the image or the background has it
+  and with color when the background is not gray. }
+function GetRotationFormat(const Image: TImageData; BackgroundColor: TColor32): TImageFormat;
+
 implementation
 
 uses
@@ -462,6 +468,48 @@ begin
     Min(Bounds.Right, Bounds.Left + LastCol + 1 + Padding),
     Min(Bounds.Bottom, Bounds.Top + LastRow + 1 + Padding));
   Result := True;
+end;
+
+function GetRotationFormat(const Image: TImageData; BackgroundColor: TColor32): TImageFormat;
+var
+  FormatInfo: TImageFormatInfo;
+  Background: TColor32Rec;
+begin
+  Result := Image.Format;
+  Background.Color := BackgroundColor;
+
+  // Rotation is optimized for Gray8, RGB24, and ARGB32 formats at this time
+  if not (Result in SupportedRotationFormats) then
+  begin
+    GetImageFormatInfo(Image.Format, FormatInfo);
+
+    if Image.Format = ifIndex8 then
+    begin
+      if PaletteHasAlpha(Image.Palette, FormatInfo.PaletteEntries) then
+        Result := ifA8R8G8B8
+      else if PaletteIsGrayScale(Image.Palette, FormatInfo.PaletteEntries) then
+        Result := ifGray8
+      else
+        Result := ifR8G8B8;
+    end
+    else if FormatInfo.HasAlphaChannel then
+      Result := ifA8R8G8B8
+    else if (Image.Format = ifBinary) or FormatInfo.HasGrayChannel then
+      Result := ifGray8
+    else
+      Result := ifR8G8B8;
+  end;
+
+  if Background.A <> $FF then
+  begin
+    // User explicitly requested some alpha in background color
+    Result := ifA8R8G8B8;
+  end
+  else if (Result = ifGray8) and not ((Background.R = Background.G) and (Background.B = Background.G)) then
+  begin
+    // Some non-grayscale background for gray image was requested
+    Result := ifR8G8B8;
+  end;
 end;
 
 procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;
