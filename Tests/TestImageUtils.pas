@@ -36,6 +36,8 @@ type
     procedure TestDrawRectFrame_Inside;
     procedure TestDrawRectFrame_Outside;
     procedure TestDrawRectFrame_ClippedToImage;
+
+    procedure TestIsImageDataEqual;
   end;
 
   TTestImageRotation = class(TDeskewTestCase)
@@ -78,6 +80,8 @@ type
     procedure Test_Rotate45Degrees_FitTrue_AllFormatsAndFilters;
     procedure Test_FlatAreaKeepsValue_AllFilters;
     procedure Test_GradientSubpixelAccuracy_AllFilters;
+    procedure Test_TinyImages_AllFormatsAndFilters;
+    procedure Test_BackgroundWithAlpha_AllFormatsAndFilters;
   end;
 
 implementation
@@ -375,6 +379,35 @@ begin
         AssertEquals(Format('Pixel (%d,%d) outside CR should be unchanged', [X, Y]), OutsideColor, RowPtr[X]);
       end;
     end;
+  end;
+end;
+
+procedure TTestImageUtils.TestIsImageDataEqual;
+var
+  Other: TSingleImage;
+  Empty1, Empty2: TImageData;
+begin
+  Other := TSingleImage.CreateFromImage(FTestImage);
+  try
+    AssertTrue('Copy', IsImageDataEqual(FTestImage.ImageDataPointer^, Other.ImageDataPointer^));
+
+    Other.FillRect(Rect(127, 127, 128, 128), 254);
+    AssertFalse('Last pixel different', IsImageDataEqual(FTestImage.ImageDataPointer^, Other.ImageDataPointer^));
+
+    Other.Assign(FTestImage);
+    Other.Format := ifA8Gray8;
+    AssertFalse('Different format', IsImageDataEqual(FTestImage.ImageDataPointer^, Other.ImageDataPointer^));
+
+    Other.RecreateImageData(128, 127, ifGray8);
+    Other.Fill(255);
+    AssertFalse('Different size', IsImageDataEqual(FTestImage.ImageDataPointer^, Other.ImageDataPointer^));
+
+    InitImage(Empty1);
+    InitImage(Empty2);
+    AssertTrue('Both empty', IsImageDataEqual(Empty1, Empty2));
+    AssertFalse('One empty', IsImageDataEqual(Empty1, FTestImage.ImageDataPointer^));
+  finally
+    Other.Free;
   end;
 end;
 
@@ -818,7 +851,15 @@ begin
                 Expected := Gradient(SrcX, SrcY);
               end;
 
-              Err := Abs(FTestImage.GetPixelColor32(X, Y).B - Expected);
+              Pixel := FTestImage.GetPixelColor32(X, Y);
+              Err := Abs(Pixel.B - Expected);
+              if Formats[F] <> ifGray8 then
+              begin
+                // Green is the inverted gradient, alpha is flat: all the channels
+                // must be interpolated the same way
+                Err := Math.Max(Err, Abs(Pixel.G - (255 - Expected)));
+                Err := Math.Max(Err, Abs(Pixel.A - 255.0));
+              end;
               if Err > MaxErr then
                 MaxErr := Err;
             end;
@@ -826,6 +867,99 @@ begin
           AssertTrue(Format('%s: max error %.2f > %.2f', [Name, MaxErr, MaxErrors[Filter]]),
             MaxErr <= MaxErrors[Filter] + 0.001);
         end;
+  end;
+end;
+
+procedure TTestImageRotation.Test_TinyImages_AllFormatsAndFilters;
+const
+  Sizes: array[0..4, 0..1] of Integer = ((1, 1), (1, 7), (7, 1), (2, 2), (3, 2));
+  Formats: array[0..2] of TImageFormat = (ifGray8, ifR8G8B8, ifA8R8G8B8);
+  Angles: array[0..3] of Integer = (1, 45, -30, 100);
+  FilterNames: array[TResamplingFilter] of string = ('nearest', 'linear', 'cubic', 'lanczos');
+var
+  S, F, I, ExpectedW, ExpectedH: Integer;
+  Filter: TResamplingFilter;
+  Fit: Boolean;
+  Name: string;
+begin
+  // In images of one or two pixels the filter kernels reach outside of the image
+  // for every pixel: no crash, reads outside of the image, or wrong size
+  for S := Low(Sizes) to High(Sizes) do
+    for F := Low(Formats) to High(Formats) do
+      for Filter := Low(TResamplingFilter) to High(TResamplingFilter) do
+        for I := Low(Angles) to High(Angles) do
+          for Fit := False to True do
+          begin
+            Name := Format('%dx%d %s %s %d deg fit=%s', [Sizes[S, 0], Sizes[S, 1],
+              string(Imaging.GetFormatName(Formats[F])), FilterNames[Filter], Angles[I],
+              SysUtils.BoolToStr(Fit, True)]);
+
+            FTestImage.RecreateImageData(Sizes[S, 0], Sizes[S, 1], Formats[F]);
+            if Formats[F] = ifGray8 then
+              FTestImage.Fill(C8_GRAY2)
+            else
+              FTestImage.Fill(@C32_RED);
+
+            RotateImage(FTestImage.ImageDataPointer^, Angles[I], pcBlack, Filter, Fit);
+
+            if Fit then
+              CalcRotatedImageSize(Sizes[S, 0], Sizes[S, 1], Angles[I], Filter, ExpectedW, ExpectedH)
+            else
+            begin
+              ExpectedW := Sizes[S, 0];
+              ExpectedH := Sizes[S, 1];
+            end;
+
+            AssertEquals(Name + ': width', ExpectedW, FTestImage.Width);
+            AssertEquals(Name + ': height', ExpectedH, FTestImage.Height);
+            AssertTrue(Name + ': format', FTestImage.Format = Formats[F]);
+          end;
+end;
+
+procedure TTestImageRotation.Test_BackgroundWithAlpha_AllFormatsAndFilters;
+const
+  Formats: array[0..2] of TImageFormat = (ifGray8, ifR8G8B8, ifA8R8G8B8);
+  FilterNames: array[TResamplingFilter] of string = ('nearest', 'linear', 'cubic', 'lanczos');
+var
+  F: Integer;
+  Filter: TResamplingFilter;
+  Background, Expected: TColor32Rec;
+  Name: string;
+begin
+  // Semi-transparent background (-b with alpha): ARGB image gets it exactly,
+  // RGB image without alpha, gray image its blue channel (the CLI widens the
+  // format first when the background is not gray or has alpha)
+  Background.Color := $80336699;
+
+  for F := Low(Formats) to High(Formats) do
+  begin
+    Expected := Background;
+    if Formats[F] <> ifA8R8G8B8 then
+      Expected.A := 255;
+    if Formats[F] = ifGray8 then
+    begin
+      Expected.R := Background.B;
+      Expected.G := Background.B;
+    end;
+
+    for Filter := Low(TResamplingFilter) to High(TResamplingFilter) do
+    begin
+      Name := string(Imaging.GetFormatName(Formats[F])) + ' ' + FilterNames[Filter];
+      FOrigImage.RecreateImageData(IMG_WIDTH, IMG_HEIGHT, Formats[F]);
+      CreateQuadrantPattern(FOrigImage);
+      FTestImage.Assign(FOrigImage);
+
+      RotateImage(FTestImage.ImageDataPointer^, 10.0, Background.Color, Filter, True);
+
+      AssertEquals(Name + ': Top-Left corner', Expected, FTestImage.GetPixelColor32(0, 0));
+      AssertEquals(Name + ': Top-Right corner', Expected, FTestImage.GetPixelColor32(FTestImage.Width - 1, 0));
+      AssertEquals(Name + ': Bottom-Left corner', Expected, FTestImage.GetPixelColor32(0, FTestImage.Height - 1));
+      AssertEquals(Name + ': Bottom-Right corner', Expected,
+        FTestImage.GetPixelColor32(FTestImage.Width - 1, FTestImage.Height - 1));
+      // Middle of the image stays opaque
+      AssertEquals(Name + ': center alpha', 255,
+        FTestImage.GetPixelColor32(FTestImage.Width div 2, FTestImage.Height div 4).A);
+    end;
   end;
 end;
 
