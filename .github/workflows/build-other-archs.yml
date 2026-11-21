@@ -47,7 +47,7 @@ jobs:
 
           install: |
             apt-get update -q -y
-            apt-get install -q -y fpc
+            apt-get install -q -y fpc python3
 
           run: |
             echo "OS:" $(grep PRETTY_NAME /etc/os-release | cut -d= -f2) "/" $(uname -m)
@@ -62,6 +62,7 @@ jobs:
 
             ./tests -a -p --format=plain --no-addresses
             ./runtests.sh
+            python3 ../Tests/cli/check_cli.py ./deskew
 
       - name: Upload binaries
         uses: actions/upload-artifact@v7
