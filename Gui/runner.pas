@@ -37,6 +37,7 @@ type
 
     FInputPos: Integer;
     FFailures: Integer;
+    FFailedFiles: TStringList;
     FOptions: TOptions;
     FRunning: Boolean;
     FStopped: Boolean;
@@ -54,6 +55,7 @@ type
 
     property IsRunning: Boolean read FRunning;
     property Failures: Integer read FFailures;
+    property FailedFiles: TStringList read FFailedFiles;
     property InputPos: Integer read FInputPos;
     property OnFinished: TFinishedEvent read FOnFinished write FOnFinished;
     property OnProgress: TProgressEvent read FOnProgress write FOnProgress;
@@ -78,12 +80,14 @@ begin
   FTimer.OnTimer := TimerTicked;
 
   FOutputMemo := AOutputMemo;
+  FFailedFiles := TStringList.Create;
 end;
 
 destructor TRunner.Destroy;
 begin
   FProcess.Free;
   FTimer.Free;
+  FFailedFiles.Free;
   inherited Destroy;
 end;
 
@@ -109,7 +113,12 @@ end;
 procedure TRunner.RunNextItem(IsFirstRun: Boolean);
 begin
   if not IsFirstRun and (FProcess.ExitCode <> 0) then
+  begin
     Inc(FFailures);
+    FFailedFiles.Add(FOptions.Files[FInputPos]);
+    FOutputMemo.Append(Format('>>> FAILED (exit code %d): %s', [FProcess.ExitCode, FOptions.Files[FInputPos]]));
+    FOutputMemo.Append('');
+  end;
 
   Inc(FInputPos);
 
@@ -139,7 +148,7 @@ begin
   except
     on Ex: Exception do
     begin
-      FOutputMemo.Append(Ex.ClassName + ': ' + Ex.Message);
+      FOutputMemo.Append('>>> ' + Ex.Message);
       Dialogs.MessageDlg('Failed to execute Deskew',
         'Deskew command line executable failed to start. Check that it is in the correct location ' +
         'and has the right permissions.' + sLineBreak + sLineBreak +
@@ -167,6 +176,7 @@ procedure TRunner.Run(AOptions: TOptions);
 begin
   FInputPos := -1;
   FFailures := 0;
+  FFailedFiles.Clear;
   FOptions := AOptions;
   FStopped := False;
   FRunning := True;

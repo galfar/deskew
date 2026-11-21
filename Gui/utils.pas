@@ -31,11 +31,14 @@ type
   end;
 
 
+// Returns the path of Deskew CLI next to the GUI or in PATH, empty string if not found
 function FindDeskewExePath: string;
 function DetermineConfigFolder: string;
 function ColorToString(Color: TColor32): string;
 function StringToColorDef(const Str: string; Default: TColor32): TColor32;
 function StrArrayJoin(const StringArray: array of string; const Separator: string): string;
+// Returns the first of FontNames that is installed, Default if there is none
+function FindFirstFont(const FontNames: array of string; const Default: string): string;
 
 function Color32(A, R, G, B: Byte): TColor32Rec; inline;
 function GetRedValue(Color32: TColor32): Byte; inline;
@@ -51,27 +54,16 @@ uses
 {$IF Defined(DARWIN)}
   StrUtils,
 {$ENDIF}
-  LazFileUtils, Forms;
+  LazFileUtils, FileUtil, Forms;
 
 function FindDeskewExePath: string;
 var
   ExeDir, S: string;
 begin
-  Result := './deskew';
-
   ExeDir := Application.Location;
   if DirectoryExists(ExeDir) then
   begin
 {$IF Defined(MSWINDOWS)}
-  {$IF Defined(CPU386)}
-    S := ExeDir + 'deskew32.exe';
-    if FileExists(S) then
-      Exit(S);
-  {$ELSE}
-    S := ExeDir + 'deskew64.exe';
-    if FileExists(S) then
-      Exit(S);
-  {$ENDIF}
     S := ExeDir + 'deskew.exe';
     if FileExists(S) then
       Exit(S);
@@ -93,6 +85,21 @@ begin
       Exit(S);
 {$ENDIF}
   end;
+
+  // Installed elsewhere, e.g. by a package manager
+  Result := FindDefaultExecutablePath('deskew');
+{$IF Defined(DARWIN)}
+  // Apps started from Finder do not get PATH of the shell, try where Homebrew installs
+  if Result = '' then
+  begin
+    S := '/opt/homebrew/bin/deskew'; // Apple Silicon
+    if FileExists(S) then
+      Exit(S);
+    S := '/usr/local/bin/deskew'; // Intel
+    if FileExists(S) then
+      Exit(S);
+  end;
+{$ENDIF}
 end;
 
 function DetermineConfigFolder: string;
@@ -128,6 +135,18 @@ begin
     Result := Result + StringArray[I] + Separator;
 
   Delete(Result, Length(Result), 1);
+end;
+
+function FindFirstFont(const FontNames: array of string; const Default: string): string;
+var
+  I: Integer;
+begin
+  for I := Low(FontNames) to High(FontNames) do
+  begin
+    if Screen.Fonts.IndexOf(FontNames[I]) >= 0 then
+      Exit(FontNames[I]);
+  end;
+  Result := Default;
 end;
 
 function Color32(A, R, G, B: Byte): TColor32Rec;

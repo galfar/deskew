@@ -52,6 +52,7 @@ type
   TOptions = class
   private
     FFiles: TStrings;
+    // Empty when the executable is not found
     function GetEffectiveExecutablePath: string;
     function GetOutputFilePath(const InputFilePath: string): string;
     function GetOutputFolder(const InputFilePath: string): string;
@@ -119,7 +120,7 @@ const
 implementation
 
 uses
-  ImagingUtility, Utils, TypInfo, LazFileUtils;
+  ImagingUtility, Utils, TypInfo, LazFileUtils, FileUtil;
 
 const
   DefaultBackgroundColor = $FFFFFFFF; // white
@@ -187,8 +188,10 @@ function TOptions.GetEffectiveExecutablePath: string;
 begin
   if DefaultExecutable then
     Result := Utils.FindDeskewExePath
+  else if Trim(CustomExecutablePath) <> '' then
+    Result := FindDefaultExecutablePath(Trim(CustomExecutablePath))
   else
-    Result := CustomExecutablePath;
+    Result := '';
 end;
 
 function TOptions.GetOutputFilePath(const InputFilePath: string): string;
