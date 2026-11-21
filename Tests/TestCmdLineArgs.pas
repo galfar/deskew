@@ -471,13 +471,16 @@ const
   JpegIndex = 5;
 var
   Meta: TMetadata;
-  I: Integer;
+  I, Scheme, Given: Integer;
   Replaced: Boolean;
 
   function Resolve(const Spec: string): Boolean;
   begin
     AssertParseSuccesAndEmptyError(FCmdOptions.Parse(['-c', Spec, 'in.tif']), Spec);
-    Result := FCmdOptions.TrySetTiffCompressionFromMetadata(Meta, Replaced);
+    Given := FCmdOptions.TiffCompressionScheme;
+    Result := FCmdOptions.TryGetTiffCompressionFromMetadata(Meta, Scheme, Replaced);
+    // The option itself stays as given, it is reported in the parameters
+    AssertEquals(Spec + ': option unchanged', Given, FCmdOptions.TiffCompressionScheme);
   end;
 
 begin
@@ -489,18 +492,18 @@ begin
       Meta.SetMetaItem(SMetaTiffCompressionName, InputNames[I]);
 
       AssertTrue('input: resolved for ' + InputNames[I], Resolve('tinput'));
-      AssertEquals('input: scheme for ' + InputNames[I], Expected[I], FCmdOptions.TiffCompressionScheme);
+      AssertEquals('input: scheme for ' + InputNames[I], Expected[I], Scheme);
       AssertFalse('input: nothing replaced for ' + InputNames[I], Replaced);
 
       AssertTrue('input-lossless: resolved for ' + InputNames[I], Resolve('tinput-lossless'));
       if I = JpegIndex then
       begin
-        AssertEquals('input-lossless: JPEG => LZW', TiffCompressionOptionLzw, FCmdOptions.TiffCompressionScheme);
+        AssertEquals('input-lossless: JPEG => LZW', TiffCompressionOptionLzw, Scheme);
         AssertTrue('input-lossless: JPEG replaced', Replaced);
       end
       else
       begin
-        AssertEquals('input-lossless: scheme for ' + InputNames[I], Expected[I], FCmdOptions.TiffCompressionScheme);
+        AssertEquals('input-lossless: scheme for ' + InputNames[I], Expected[I], Scheme);
         AssertFalse('input-lossless: nothing replaced for ' + InputNames[I], Replaced);
       end;
     end;
@@ -509,17 +512,17 @@ begin
     Meta.ClearMetaItems;
     Meta.SetMetaItem(SMetaTiffCompressionName, 'Old JPEG');
     AssertFalse('input: unsupported scheme', Resolve('tinput'));
-    AssertEquals('input: unsupported => default', -1, FCmdOptions.TiffCompressionScheme);
+    AssertEquals('input: unsupported => default', -1, Scheme);
     AssertFalse('input-lossless: unsupported scheme', Resolve('tinput-lossless'));
-    AssertEquals('input-lossless: unsupported => default', -1, FCmdOptions.TiffCompressionScheme);
+    AssertEquals('input-lossless: unsupported => default', -1, Scheme);
     AssertFalse('unsupported: nothing replaced', Replaced);
 
     // Input without TIFF compression info (not a TIFF)
     Meta.ClearMetaItems;
     AssertFalse('input: no info', Resolve('tinput'));
-    AssertEquals('input: no info => default', -1, FCmdOptions.TiffCompressionScheme);
+    AssertEquals('input: no info => default', -1, Scheme);
     AssertFalse('input-lossless: no info', Resolve('tinput-lossless'));
-    AssertEquals('input-lossless: no info => default', -1, FCmdOptions.TiffCompressionScheme);
+    AssertEquals('input-lossless: no info => default', -1, Scheme);
   finally
     Meta.Free;
   end;
