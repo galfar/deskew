@@ -227,6 +227,7 @@ button.primary:disabled { opacity: .5; cursor: default; }
 .result .warn { color: var(--warn); }
 .result .bad { color: var(--bad); }
 .result .muted { color: var(--muted); }
+.result .note { color: var(--accent); cursor: help; }
 
 .canvas-wrap {
   position: relative;

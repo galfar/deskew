@@ -21,7 +21,8 @@ const DETECTION_INPUTS = ['maxAngle', 'thresholdAuto', 'thresholdLevel', 'conten
 const OUTPUT_INPUTS = ['background', 'filter', 'crop', 'force', 'format', 'jpegQuality'];
 
 const state = {
-  file: null,        // { name, bytes }
+  file: null,        // { name, bytes } as opened
+  input: null,       // { bytes, ext, convertedFrom, kind } what Deskew gets, a browser decoded copy if it cannot read the file
   bitmap: null,      // decoded input for the view
   report: null,      // JSON report of the last detection
   workBitmap: null,  // work image of the last detection
@@ -86,14 +87,32 @@ function outputArgs() {
   return args;
 }
 
-function inputExt() {
-  const m = /\.([^.]+)$/.exec(state.file.name);
+function fileExt(name) {
+  const m = /\.([^.]+)$/.exec(name);
   return m ? m[1].toLowerCase() : '';
+}
+
+// Formats Deskew can write, from the Output line of deskew -h, null until the engine answers
+let outputFormats = null;
+// Extensions listed under another name in deskew -h (Imaging format masks)
+const EXT_FORMATS = {
+  jpg: 'JPEG', jpeg: 'JPEG', jfif: 'JPEG', jpe: 'JPEG', jif: 'JPEG', tif: 'TIFF', tiff: 'TIFF', dib: 'BMP',
+};
+
+function canDeskewWrite(ext) {
+  return !outputFormats || outputFormats.has(EXT_FORMATS[ext] ?? ext.toUpperCase());
+}
+
+// "Same as input" falls back to PNG (lossless) when Deskew cannot write the input format,
+// e.g. AVIF converted by the browser or WebP which Deskew reads but does not write
+function sameExt() {
+  const ext = fileExt(state.file.name);
+  return !state.input?.convertedFrom && ext && canDeskewWrite(ext) ? ext : 'png';
 }
 
 function outputExt() {
   const fmt = $('format').value;
-  return fmt === 'same' ? inputExt() : fmt;
+  return fmt === 'same' ? sameExt() : fmt;
 }
 
 function baseName(name) {
@@ -102,7 +121,16 @@ function baseName(name) {
 
 // Keeps names simple for the WASI file system, the original name is used for the download
 function inputPath() {
-  return `/in/input.${inputExt() || 'img'}`;
+  return `/in/input.${state.input.ext || 'img'}`;
+}
+
+function inputFiles() {
+  return { [inputPath()]: state.input.bytes, '/out/': null };
+}
+
+// Name of the opened file's format for messages, e.g. AVIF
+function formatLabel() {
+  return (fileExt(state.file.name) || state.file.type.replace(/^image\//, '') || 'this format').toUpperCase();
 }
 
 // ---- Runs ----
@@ -110,21 +138,33 @@ function inputPath() {
 async function detect() {
   if (!state.file) return;
   const seq = ++state.detectSeq;
+  const file = state.file;
   setBusy(true);
   try {
-    const args = ['-g', 'd', '-s', 'jw', '-o', '/out/', ...detectionArgs(), inputPath()];
-    const result = await runDeskew(args, { [inputPath()]: state.file.bytes, '/out/': null });
+    let run = await runDetection();
     if (seq !== state.detectSeq) return;  // newer detection already started
-    showLog(args, result);
 
-    let report = null;
-    try {
-      report = JSON.parse(result.stdout);
-    } catch {
-      showError(`Unexpected output from Deskew (exit code ${result.exitCode}), see the output below.`);
+    // Deskew cannot read the file (AVIF, HEIC, ...), the browser can: give Deskew a lossless copy
+    if (inputUnreadable(run.report) && state.bitmap && !state.input.convertedFrom) {
+      const copy = await encodeForDeskew(state.bitmap);
+      if (seq !== state.detectSeq || state.file !== file) return;
+      if (copy) {
+        state.input = { ...copy, convertedFrom: formatLabel() };
+        updateFormatOptions();
+        updateVisibility();
+        run = await runDetection();
+        if (seq !== state.detectSeq) return;
+      }
     }
+
+    const { args, result, report } = run;
+    showLog(args, result);
+    if (!report) showError(`Unexpected output from Deskew (exit code ${result.exitCode}), see the output below.`);
     state.report = report;
-    if (report?.error) showError(report.error);
+    if (report?.error) {
+      const browserToo = inputUnreadable(report) && !state.bitmap;
+      showError(browserToo ? `${report.error} The browser cannot decode ${formatLabel()} either.` : report.error);
+    }
 
     const workPath = Object.keys(result.files).find((p) => p.endsWith('.work.png'));
     state.workBitmap = workPath ? await decode(result.files[workPath]) : null;
@@ -143,10 +183,63 @@ async function detect() {
   }
 }
 
+async function runDetection() {
+  const args = ['-g', 'd', '-s', 'jw', '-o', '/out/', ...detectionArgs(), inputPath()];
+  const result = await runDeskew(args, inputFiles());
+  let report = null;
+  try {
+    report = JSON.parse(result.stdout);
+  } catch { /* reported by the caller */ }
+  return { args, result, report };
+}
+
+// Parameters were fine but the input was not loaded: unsupported format or a variant
+// of a supported one the codec cannot read
+function inputUnreadable(report) {
+  return Boolean(report?.error && report.input && report.input.width == null);
+}
+
+// Lossless copy of what the browser decoded, 8 bits per channel, metadata like DPI is not kept.
+// Canvas pixels are always RGBA, so opaque images go as PGM (gray) or PPM (color) to keep
+// Deskew's memory use and the output as small as for the original, PNG only with transparency.
+async function encodeForDeskew(bitmap) {
+  try {
+    const { width, height } = bitmap;
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(bitmap, 0, 0);
+    const rgba = ctx.getImageData(0, 0, width, height).data;
+    let opaque = true;
+    let gray = true;
+    for (let i = 0; i < rgba.length && opaque; i += 4) {
+      opaque = rgba[i + 3] === 255;
+      gray &&= rgba[i] === rgba[i + 1] && rgba[i] === rgba[i + 2];
+    }
+    if (!opaque) {
+      const blob = await canvas.convertToBlob({ type: 'image/png' });
+      return { bytes: new Uint8Array(await blob.arrayBuffer()), ext: 'png', kind: 'PNG' };
+    }
+    const header = new TextEncoder().encode(`${gray ? 'P5' : 'P6'}\n${width} ${height}\n255\n`);
+    const channels = gray ? 1 : 3;
+    const bytes = new Uint8Array(header.length + width * height * channels);
+    bytes.set(header);
+    for (let i = 0, o = header.length; i < rgba.length; i += 4) {
+      bytes[o++] = rgba[i];
+      if (!gray) {
+        bytes[o++] = rgba[i + 1];
+        bytes[o++] = rgba[i + 2];
+      }
+    }
+    return gray ? { bytes, ext: 'pgm', kind: 'grayscale' } : { bytes, ext: 'ppm', kind: 'RGB' };
+  } catch {
+    return null;  // too big for a canvas, for example
+  }
+}
+
 async function deskewDecode() {
   // Skip angle at its maximum: Deskew only converts the input to PNG
   const args = ['-l', '90', '-o', '/out/view.png', inputPath()];
-  const result = await runDeskew(args, { [inputPath()]: state.file.bytes, '/out/': null });
+  const result = await runDeskew(args, inputFiles());
   const png = result.files['/out/view.png'];
   return png ? decode(png) : null;
 }
@@ -159,7 +252,7 @@ async function download() {
     const ext = outputExt();
     const outPath = `/out/output.${ext}`;
     const args = ['-s', 'j', '-o', outPath, ...outputArgs(), ...detectionArgs(), inputPath()];
-    const result = await runDeskew(args, { [inputPath()]: state.file.bytes, '/out/': null });
+    const result = await runDeskew(args, inputFiles());
     showLog(args, result);
 
     const data = result.files[outPath];
@@ -466,6 +559,13 @@ function showReport(report, timeMs) {
     ['muted', ` · ${Math.round(timeMs)} ms`],
   ];
   if (!willRotate(report)) parts.push(['muted', ' · output will not be rotated']);
+  const from = state.input?.convertedFrom;
+  if (from) {
+    parts.push(['note', ` · ${from} decoded by the browser`,
+      `Deskew cannot read ${from}, so the browser decoded it and gave Deskew a lossless ` +
+      `${state.input.kind} copy (8 bits per channel, metadata like DPI is not kept). ` +
+      `Deskew cannot write ${from} either, "Same as input" saves PNG.`]);
+  }
   for (const [cls, text, title] of parts) {
     const span = document.createElement('span');
     span.className = cls;
@@ -487,6 +587,18 @@ function updateTabs() {
   }
 }
 
+// "Same as input" says what it actually means for the opened file
+function updateFormatOptions() {
+  const option = $('format').querySelector('option[value=same]');
+  if (!state.file) {
+    option.textContent = 'Same as input';
+    return;
+  }
+  const ext = sameExt();
+  const fallback = ext === 'png' && fileExt(state.file.name) !== 'png';
+  option.textContent = `Same as input (${fallback ? `PNG, no ${formatLabel()} output` : (EXT_FORMATS[ext] ?? ext.toUpperCase())})`;
+}
+
 function updateVisibility() {
   $('thresholdLevel').disabled = $('thresholdAuto').checked;
   $('marginsRow').hidden = $('contentArea').value !== 'margins';
@@ -495,7 +607,8 @@ function updateVisibility() {
 
 async function openFile(file) {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  state.file = { name: file.name, bytes };
+  state.file = { name: file.name, type: file.type, bytes };
+  state.input = { bytes, ext: fileExt(file.name), convertedFrom: null };
   state.report = null;
   state.workBitmap = null;
   state.bitmap = await decode(bytes);
@@ -503,6 +616,7 @@ async function openFile(file) {
   $('fileName').textContent = `${file.name} (${formatSize(bytes.length)})`;
   $('downloadBtn').disabled = false;
   $('result').textContent = 'Detecting skew...';
+  updateFormatOptions();
   updateVisibility();
   updateTabs();
   draw();
@@ -585,6 +699,12 @@ function getUsage() {
 async function showEngineVersion() {
   try {
     const usage = await getUsage();
+    const outputs = /Output:\s*(.*)/.exec(usage)?.[1];
+    if (outputs) outputFormats = new Set(outputs.split(',').map((s) => s.trim().toUpperCase()));
+    if (state.file) {
+      updateFormatOptions();
+      updateVisibility();
+    }
     const title = usage.split('\n')[0].trim();
     const version = /^Deskew\s+(\S+)/.exec(title)?.[1];
     if (!version) return;
