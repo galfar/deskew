@@ -222,22 +222,51 @@ jobs:
           fpclazup-lazcommit: 121cf87c5e # Lazarus trunk 2026-11-03
           fpclazup-fpccommit: 4cb8012b64 # FPC trunk 3.3.1 2026-11-03
 
-      # Cross compiler and wasm-ld (--autotools) are added to the cached installation,
-      # the cache is saved at the end of the job that built them
+      # The cross compiler is added to the installation of FPC trunk. setup-lazarus saves
+      # the installation in its post step only when its cache key was missing, apparently also
+      # when the job fails, so a cache without the cross compiler is possible: then it is
+      # built in every run (until that cache expires or is deleted).
+      # wasm-ld comes from lld and libc.a (which fpclazup requires) from wasi-libc of
+      # Ubuntu. fpclazup is not asked to download them (--autotools), those downloads
+      # failed often and fpclazup then crashed.
       - name: Install FPC cross compiler for WASM (wasip1)
         shell: bash
         run: |
           INSTALL_DIR="$RUNNER_TEMP/fpclazup/"
+          # Installed in every run, the cached installation refers to them
+          sudo apt-get install -y -q lld llvm wasi-libc
+          CROSS_BIN="$INSTALL_DIR/cross-system/wasm32-wasip1/bin"
+          mkdir -p "$CROSS_BIN"
+          CROSS_LIB=$(dirname "$(dpkg -L wasi-libc | grep -E '/wasm32-wasi(p1)?/libc\.a$' | head -1)")
+          if [ ! -f "$CROSS_LIB/libc.a" ]; then echo "libc.a of wasi-libc not found"; exit 1; fi
+          echo "wasi-libc: $CROSS_LIB"
+          for tool in wasm-ld llvm-mc; do
+            TOOL_PATH=$(command -v $tool || ls /usr/lib/llvm-*/bin/$tool 2>/dev/null | sort -V | tail -1)
+            if [ -z "$TOOL_PATH" ]; then echo "$tool not found"; exit 1; fi
+            # Also with the binutils prefix of the target, in case it is used
+            ln -sf "$TOOL_PATH" "$CROSS_BIN/$tool"
+            ln -sf "$TOOL_PATH" "$CROSS_BIN/wasm32-wasip1-$tool"
+          done
+          "$CROSS_BIN/wasm-ld" --version
+
           if [ -n "$(find "$INSTALL_DIR" -type f -name ppcrosswasm32 -print -quit)" ]; then
             echo "Cross compiler for wasm32-wasip1 already installed"
           else
             FPCLAZUP_BIN="$RUNNER_TEMP/fpclazupbin"
             if [ ! -x "$FPCLAZUP_BIN" ]; then
-              curl -sSfL -o "$FPCLAZUP_BIN" "$FPCLAZUP_URL"
+              curl -sSfL --retry 3 -o "$FPCLAZUP_BIN" "$FPCLAZUP_URL"
               chmod +x "$FPCLAZUP_BIN"
             fi
-            "$FPCLAZUP_BIN" --only=FPCCleanOnly,FPCBuildOnly --cputarget=wasm32 --ostarget=wasip1 \
-              --autotools --noconfirm --verbose --installdir="$INSTALL_DIR"
+            for attempt in 1 2 3; do
+              if "$FPCLAZUP_BIN" --only=FPCCleanOnly,FPCBuildOnly --cputarget=wasm32 --ostarget=wasip1 \
+                  --crossbindir="$CROSS_BIN" --crosslibdir="$CROSS_LIB" \
+                  --noconfirm --verbose --installdir="$INSTALL_DIR"; then
+                break
+              fi
+              if [ $attempt = 3 ]; then exit 1; fi
+              echo "fpclazup failed, attempt $attempt of 3, trying again in 30 s"
+              sleep 30
+            done
           fi
           # setup-lazarus in fpclazup mode puts only Lazarus on PATH, use fpc.sh wrapper of the install
           FPC=$(ls "$INSTALL_DIR"/fpc/bin/*/fpc.sh | head -1)
