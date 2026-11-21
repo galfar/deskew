@@ -36,6 +36,10 @@
             <OtherUnitFiles Value="..\Imaging"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
+          <Conditionals Value="// Some older macOS must be given as the minimal version, linking of LCL
+// fails with recent Xcode otherwise (&quot;ld: malformed method list atom&quot;)
+if TargetOS = &apos;darwin&apos; then
+  CustomOptions += &apos;-WM10.13&apos;;"/>
           <Parsing>
             <SyntaxOptions>
               <SyntaxMode Value="Delphi"/>
@@ -60,7 +64,6 @@
               </Win32>
             </Options>
           </Linking>
-          <Conditionals Value="// Some older macOS must be given as the minimal version, linking of LCL&#xD;&#xA;// fails with recent Xcode otherwise (&quot;ld: malformed method list atom&quot;)&#xD;&#xA;if TargetOS = &apos;darwin&apos; then&#xD;&#xA;  CustomOptions += &apos;-WM10.13&apos;;"/>
         </CompilerOptions>
       </Item2>
       <SharedMatrixOptions Count="1">
@@ -150,6 +153,10 @@
       <OtherUnitFiles Value="..\Imaging"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Conditionals Value="// Some older macOS must be given as the minimal version, linking of LCL
+// fails with recent Xcode otherwise (&quot;ld: malformed method list atom&quot;)
+if TargetOS = &apos;darwin&apos; then
+  CustomOptions += &apos;-WM10.13&apos;;"/>
     <Parsing>
       <SyntaxOptions>
         <SyntaxMode Value="Delphi"/>
@@ -176,7 +183,6 @@
         </Win32>
       </Options>
     </Linking>
-    <Conditionals Value="// Some older macOS must be given as the minimal version, linking of LCL&#xD;&#xA;// fails with recent Xcode otherwise (&quot;ld: malformed method list atom&quot;)&#xD;&#xA;if TargetOS = &apos;darwin&apos; then&#xD;&#xA;  CustomOptions += &apos;-WM10.13&apos;;"/>
   </CompilerOptions>
   <Debugging>
     <Exceptions Count="3">

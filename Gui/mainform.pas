@@ -88,6 +88,8 @@ type
   private
     FRunner: TRunner;
 
+    procedure ShowDeskewNotFound;
+
     procedure RunnerFinished(Sender: TObject; Reason: TFinishReason);
     procedure RunnerProgress(Sender: TObject; Index: Integer);
 
@@ -106,16 +108,23 @@ implementation
 uses
   ImagingUtility, DataModule, AdvOptionsForm, AboutForm, Utils;
 
+const
+  FailureColor = TColor($3030D0);
+
 { TFormMain }
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
 {$IF Defined(MSWINDOWS)}
   Color := clWhite;
-  // macOS has Courier New but changing the font from default messes up colors in dark mode.
+{$ENDIF}
+{$IF Defined(MSWINDOWS) or Defined(DARWIN)}
   MemoOutput.Font.Name := 'Courier New';
-{$ELSEIF Defined(LINUX)}
-  MemoOutput.Font.Name := 'Monospace';
+{$ELSE}
+  // "Monospace" is an alias known to GTK (fontconfig) but not to Qt, so look for
+  // a common monospaced font first
+  MemoOutput.Font.Name := FindFirstFont(['DejaVu Sans Mono', 'Noto Sans Mono',
+    'Liberation Mono'], 'Monospace');
 {$ENDIF}
 
   FRunner := TRunner.Create(MemoOutput);
@@ -214,7 +223,13 @@ begin
 
   LabProgressTitle.Caption := Format('%d files processed', [FRunner.InputPos]);
   if FRunner.Failures > 0 then
+  begin
     LabProgressTitle.Caption := LabProgressTitle.Caption + Format(', %d failed', [FRunner.Failures]);
+    LabProgressTitle.Font.Color := FailureColor;
+    // List of the failed files at the end of the log, the outputs of all the files can be long
+    MemoOutput.Append(Format('>>> %d of %d files failed:', [FRunner.Failures, FRunner.InputPos]));
+    MemoOutput.Append(FRunner.FailedFiles.Text);
+  end;
 end;
 
 procedure TFormMain.RunnerProgress(Sender: TObject; Index: Integer);
@@ -222,8 +237,30 @@ begin
   ProgressBar.Position := Index + 1;
   LabCurrentFile.Caption := Format('%s [%d/%d]', [
     ExtractFileName(Module.Options.Files[Index]), Index + 1, Module.Options.Files.Count]);
+  if FRunner.Failures > 0 then
+    LabCurrentFile.Caption := LabCurrentFile.Caption + Format(', %d failed', [FRunner.Failures]);
   LabCurrentFile.Visible := True;
   LabProgressTitle.Visible := True;
+end;
+
+procedure TFormMain.ShowDeskewNotFound;
+var
+  Msg: string;
+begin
+  if Module.Options.DefaultExecutable then
+    Msg := 'Deskew command line tool was not found. It is looked for next to this application ' +
+      'and in the folders of PATH environment variable.'
+  else
+    Msg := 'Deskew command line tool set in Advanced Options was not found:' + LineEnding +
+      Module.Options.CustomExecutablePath;
+
+  Msg := Msg + LineEnding + LineEnding + 'Put it there or set its location in Advanced Options.';
+
+  if QuestionDlg('Deskew Not Found', Msg, mtError,
+    [mrYes, 'Advanced Options...', mrCancel, 'Close'], 0) = mrYes then
+  begin
+    ActShowAdvOptions.Execute;
+  end;
 end;
 
 procedure TFormMain.ActDeskewUpdate(Sender: TObject);
@@ -263,7 +300,15 @@ begin
 
   GatherOptions(Module.Options);
 
+  if Module.Options.EffectiveExecutablePath = '' then
+  begin
+    ShowDeskewNotFound;
+    Exit;
+  end;
+
   ActFinish.Caption := 'Stop';
+  LabDeskewProgressTitle.Caption := 'Deskew in Progress';
+  LabProgressTitle.Font.Color := clDefault;
   MemoOutput.Clear;
   ProgressBar.Position := 0;
   ProgressBar.Max := Module.Options.Files.Count;
