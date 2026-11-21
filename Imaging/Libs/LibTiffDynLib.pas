@@ -567,11 +567,17 @@ const
   LibNames: array[0..2] of string = ('libtiff.so.6', 'libtiff.so.5', 'libtiff.so');
 {$IFEND}
 
-{$IFDEF MSWINDOWS}
+  // C runtime with vsnprintf; FPC takes 'libc.so' as -lc on all POSIX
+  // targets, Delphi passes the name to its linker as it is
+{$IF Defined(MSWINDOWS)}
   SRuntimeLib = 'msvcrt.dll';
+{$ELSEIF Defined(DCC) and Defined(MACOS)}
+  SRuntimeLib = '/usr/lib/libc.dylib';
+{$ELSEIF Defined(DCC) and Defined(LINUX)}
+  SRuntimeLib = 'libc.so.6';
 {$ELSE}
   SRuntimeLib = 'libc.so';
-{$ENDIF}
+{$IFEND}
 
 type
   TIFFSetHandlerFunc = function(Handler: TIFFErrorHandler): TIFFErrorHandler; cdecl;
