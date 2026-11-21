@@ -49,9 +49,9 @@ check('engine version in status', true, await page.textContent('#engineStatus'))
 const webuiVersion = await page.textContent('#webuiVersion');
 check('WebUI version in footer', /development build|build \d{4}-\d\d-\d\d/.test(webuiVersion), webuiVersion);
 
-async function openImage(name) {
+async function openImage(name, dir = join(root, 'TestImages')) {
   await page.$eval('#result', (el) => { el.innerHTML = ''; });
-  await page.setInputFiles('#fileInput', join(root, 'TestImages', name));
+  await page.setInputFiles('#fileInput', join(dir, name));
   await page.waitForSelector('#result .angle', { timeout: 60000 });
   await page.waitForSelector('#busy', { state: 'hidden', timeout: 60000 });
   return page.textContent('#result');
@@ -123,9 +123,23 @@ check('download JPEG', download.suggestedFilename() === 'deskewed-2.jpg' && out[
 
 // TIFF: the browser cannot decode it, Deskew converts it for the view
 const rt = await openImage('1-g4.tif');
+check('same as input keeps TIFF', (await page.$eval('#format option[value=same]', (o) => o.textContent)) === 'Same as input (TIFF)');
 await page.waitForFunction(() => document.querySelector('#canvas').dataset.content === '2076x3086', null, { timeout: 30000 });
 check('TIFF detected and shown', rt.includes('-1.35°'), rt);
 if (shotDir) await page.screenshot({ path: join(shotDir, 'tiff.png') });
+
+// AVIF: Deskew cannot read it, the browser converts it to PNG first
+const ra = await openImage('2.avif', join(root, 'Tests/web'));
+check('AVIF decoded by the browser and detected', /-2\.1\d°|-2\.2\d°/.test(ra) && ra.includes('AVIF decoded by the browser') && ra.includes('Gray8'), ra);
+const sameLabel = await page.$eval('#format option[value=same]', (o) => o.textContent);
+check('same as input says PNG for AVIF', sameLabel === 'Same as input (PNG, no AVIF output)', sameLabel);
+if (shotDir) await page.screenshot({ path: join(shotDir, 'avif.png') });
+await page.selectOption('#format', 'same');
+const [dlAvif] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('#downloadBtn')]);
+const outAvif = await readFile(await dlAvif.path());
+check('AVIF downloads as PNG', dlAvif.suggestedFilename() === 'deskewed-2.png' && outAvif[1] === 0x50 && outAvif[2] === 0x4e,
+  `${dlAvif.suggestedFilename()}, ${outAvif.length} bytes`);
+await page.selectOption('#format', 'png');
 
 // Blank page
 const rb = await openImage('blank.png');

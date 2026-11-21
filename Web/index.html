@@ -48,6 +48,8 @@
         <li>Zoom with the mouse wheel or a pinch, drag to pan, double click toggles between fit and 100&nbsp;%.</li>
         <li>Outcome other than <em>detected</em> means the angle is not reliable and the image is not
           rotated. <em>Force rotation</em> rotates it anyway.</li>
+        <li>Formats Deskew cannot read itself, like AVIF or HEIC, are decoded by your browser
+          (if it can) and handed to Deskew as a lossless copy. The output is PNG then.</li>
         <li>Pages with dark scanner borders or photos often do better with
           <em>Content area: Find automatically</em> or with margins.</li>
         <li>If the angle hits the limit (<em>At max angle limit</em>), raise <em>Max angle</em>.</li>
@@ -72,7 +74,7 @@
     <aside id="options">
       <section>
         <label class="drop" id="dropZone">
-          <input type="file" id="fileInput" accept="image/*,.tif,.tiff,.tga,.pbm,.pgm,.ppm,.pnm,.webp,.qoi,.gif">
+          <input type="file" id="fileInput" accept="image/*,.tif,.tiff,.tga,.pbm,.pgm,.ppm,.pnm,.webp,.qoi,.gif,.avif,.heic,.heif,.jxl">
           <strong>Open image</strong>
           <span>or drop it here</span>
           <span id="fileName" class="file-name"></span>

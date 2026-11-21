@@ -35,6 +35,14 @@ the build date and commit when it assembles the site.
 Formats the browser cannot display (TIFF, TGA, PNM) are converted to PNG by Deskew
 itself for the view.
 
+The other way round, formats Deskew cannot read (AVIF, HEIC, JPEG XL, ... whatever the
+browser can decode) are decoded by the browser and handed to Deskew as a lossless copy:
+PGM for grayscale, PPM for color, PNG when there is transparency. That needs a failed
+detection run first (Deskew refuses the file before decoding anything, so it is quick), the
+copy is then used for all later runs. The result line says so. Such formats cannot be
+written by Deskew either, so "Same as input" saves PNG then, the same as for WebP, which
+Deskew reads but does not write. The copy has 8 bits per channel and no metadata (DPI).
+
 Building
 ------------------------
 
