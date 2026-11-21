@@ -57,6 +57,10 @@ type
     procedure TestLongLinesDoNotOutvoteText;
     procedure TestDetectionArea;
     procedure TestTooLargeAccumulator;
+    procedure TestTinyImages;
+    procedure TestCoarseAngleStep;
+    procedure TestFullAngleRange;
+    procedure TestColumnsAndTable;
   end;
 
   TTestContentDetection = class(TPageImageTestCase)
@@ -74,6 +78,8 @@ type
     procedure TestEmptyPageOnBed;
     procedure TestTextPageOnBed;
     procedure TestSearchRect;
+    procedure TestPictureOverPageEdge;
+    procedure TestContentInCorner;
   end;
 
 implementation
@@ -338,6 +344,93 @@ begin
   AssertTrue('Exception raised', Raised);
 end;
 
+procedure TTestSkewDetection.TestTinyImages;
+const
+  Sizes: array[0..5, 0..1] of Integer = ((1, 1), (2, 1), (600, 1), (1, 2), (5, 5), (1, 800));
+var
+  I: Integer;
+  Name: string;
+  Angle: Double;
+begin
+  // One pixel high images have no row to test against, the others too few
+  // base line pixels: nothing to detect, no crash
+  for I := Low(Sizes) to High(Sizes) do
+  begin
+    Name := Format('%dx%d', [Sizes[I, 0], Sizes[I, 1]]);
+    FImage.RecreateImageData(Sizes[I, 0], Sizes[I, 1], ifGray8);
+    FImage.Fill(ColorWhite);
+    FImage.FillRect(Rect(0, 0, Sizes[I, 0], 1), ColorBlack);
+
+    Angle := Detect;
+    AssertOutcome(Name, sdoNoContent);
+    // With a few tested pixels the angle is that of some of their one pixel
+    // "lines", it is used only when the rotation is forced (-g f)
+    if FStats.TestedPixels = 0 then
+      AssertEquals(Name + ': angle', 0.0, Angle)
+    else
+      AssertTrue(Name + ': angle in range', Abs(Angle) <= 10);
+  end;
+
+  // Two rows and a long line is enough
+  FImage.RecreateImageData(600, 2, ifGray8);
+  FImage.Fill(ColorWhite);
+  FImage.FillRect(Rect(0, 0, 600, 1), ColorBlack);
+  AssertAngle('600x2 line', 0, Detect);
+  AssertOutcome('600x2 line', sdoDetected);
+end;
+
+procedure TTestSkewDetection.TestCoarseAngleStep;
+const
+  Steps: array[0..2] of Double = (0.25, 0.5, 1.0);
+var
+  I: Integer;
+begin
+  // Result is within one step of the real angle, outcome is not influenced by the step
+  DrawTextLines(2.3, Rect(60, 60, 540, 740));
+  for I := Low(Steps) to High(Steps) do
+  begin
+    AssertAngle('Step ' + FloatToStr(Steps[I]), 2.3, Detect(10, Steps[I]), Steps[I]);
+    AssertOutcome('Step ' + FloatToStr(Steps[I]), sdoDetected);
+  end;
+end;
+
+procedure TTestSkewDetection.TestFullAngleRange;
+begin
+  // -a 90 is the largest max angle the CLI accepts
+  DrawTextLines(-3, Rect(60, 60, 540, 740));
+  AssertAngle('Max angle 90', -3, Detect(90, 0.5), 0.5);
+  AssertOutcome('Max angle 90', sdoDetected);
+end;
+
+procedure TTestSkewDetection.TestColumnsAndTable;
+const
+  Angle = 1.5;
+var
+  Slope: Double;
+  I, Y, X, Shift: Integer;
+begin
+  // Two columns with different line spacing and a table with horizontal and
+  // vertical rules below them, everything skewed by the same angle
+  DrawTextLines(Angle, Rect(40, 60, 290, 500), 24);
+  DrawTextLines(Angle, Rect(310, 60, 560, 500), 31);
+
+  for I := 0 to 3 do
+    DrawRule(Angle, Rect(40, 0, 560, 800), 540 + I * 60);
+
+  // Vertical rules lean by the same angle (rotation of the page)
+  Slope := Tan(DegToRad(Angle));
+  for I := 0 to 3 do
+    for Y := 520 to 720 do
+    begin
+      X := 40 + I * 173;
+      Shift := Round(-(Y - 400) * Slope);
+      FImage.FillRect(Rect(X + Shift, Y, X + Shift + 2, Y + 1), ColorBlack);
+    end;
+
+  AssertAngle('Columns and table', Angle, Detect);
+  AssertOutcome('Columns and table', sdoDetected);
+end;
+
 { TTestContentDetection }
 
 function TTestContentDetection.DetectContent(SearchRect: PRect): Boolean;
@@ -435,6 +528,25 @@ begin
   // Search area outside of the image
   SearchRect := Rect(700, 900, 800, 1000);
   AssertFalse('Outside', DetectContent(@SearchRect));
+end;
+
+procedure TTestContentDetection.TestPictureOverPageEdge;
+begin
+  // Dark picture reaching over the edge of the page is taken as the scanner bed
+  // and is left out, the text is found
+  DrawTextLines(0, Rect(100, 150, 400, 450));
+  FImage.FillRect(Rect(450, 300, PageWidth, 500), ColorBlack);
+  AssertTrue('Text with picture over the edge', DetectContent);
+  // Last base line is at 438
+  AssertContentRect('Text with picture over the edge', Rect(100, 150 + 24 - 10, 380, 438), 24);
+end;
+
+procedure TTestContentDetection.TestContentInCorner;
+begin
+  // Small block of text in the corner, close to the edges but not touching them
+  DrawTextLines(0, Rect(12, 8, 200, 104));
+  AssertTrue('Text in corner', DetectContent);
+  AssertContentRect('Text in corner', Rect(12, 8 + 24 - 14, 180, 104), 24);
 end;
 
 initialization
