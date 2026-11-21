@@ -19,6 +19,7 @@ type
     procedure TestCalcRectInPixelsWithoutDpi;
     procedure TestPathDelimiterAndDirectory;
     procedure TestEndsWithPathDelimiterPerPlatform;
+    procedure TestImagingLibraries;
   end;
 
   TTestJsonWriter = class(TDeskewTestCase)
@@ -186,6 +187,35 @@ begin
   // Backslash is an ordinary character in file names here
   AssertFalse('backslash is not a delimiter', EndsWithPathDelimiter('reports\'));
 {$ENDIF}
+end;
+
+procedure TTestUtils.TestImagingLibraries;
+const
+  Names: array[0..3] of string = ('zlib', 'JPEG', 'TIFF', 'WebP');
+  // Allowed backends of each library, separated and enclosed by spaces
+  Backends: array[0..3] of string = (
+    ' bundled fpc delphi dynlib ', ' pascal turbojpeg ', ' pastiff libtiff ', ' pascal libwebp ');
+var
+  Libraries: TImagingLibraryInfos;
+  I: Integer;
+begin
+  Libraries := GetImagingLibraries;
+  AssertEquals('Number of libraries', Length(Names), Length(Libraries));
+  for I := 0 to High(Libraries) do
+  begin
+    AssertEquals('Name', Names[I], Libraries[I].Name);
+    // Pascal codecs are always there to fall back to, so "none" must not happen
+    AssertTrue(Names[I] + ' backend: ' + Libraries[I].Backend,
+      Pos(' ' + Libraries[I].Backend + ' ', Backends[I]) > 0);
+    AssertTrue(Names[I] + ' description', Libraries[I].Description <> '');
+    // Shared libraries tell their version (zlib has one for all backends)
+    if (Libraries[I].Backend = 'dynlib') or (Libraries[I].Backend = 'libtiff') or
+      (Libraries[I].Backend = 'libwebp') then
+      AssertTrue(Names[I] + ' version', Libraries[I].Version <> '');
+  end;
+  AssertTrue('zlib version', Libraries[0].Version <> '');
+  // The same answer when asked again
+  AssertEquals('Asked again', Libraries[2].Backend, GetImagingLibraries[2].Backend);
 end;
 
 { TTestJsonWriter }
