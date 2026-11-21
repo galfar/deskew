@@ -1,6 +1,6 @@
 // Runs Web/deskew.wasm under the web GUI's in-memory WASI host in Node.
 // Usage: node Tests/web/test-wasi.mjs [path/to/deskew.wasm]
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runWasi } from '../../Web/wasi.js';
@@ -15,12 +15,17 @@ function check(name, cond, detail = '') {
   if (!cond) failures++;
 }
 
+// Results the native builds give, checked by Tests/cli/check_cli.py too
+const expected = JSON.parse(readFileSync(join(root, 'Tests/expected-detection.json'), 'utf8')).auto;
+
 function run(args, files) {
   return runWasi(module, { args, files: { ...files, '/out/': null } });
 }
 
 // Detection on every test image, as the page does it
-for (const name of readdirSync(join(root, 'TestImages')).sort()) {
+// Files only, local copies can have folders with more images in TestImages/
+const testImages = readdirSync(join(root, 'TestImages')).filter((n) => statSync(join(root, 'TestImages', n)).isFile());
+for (const name of testImages.sort()) {
   const ext = name.split('.').pop();
   const input = `/in/input.${ext}`;
   const t = performance.now();
@@ -33,6 +38,16 @@ for (const name of readdirSync(join(root, 'TestImages')).sort()) {
   const work = Object.keys(r.files).find((p) => p.endsWith('.work.png'));
   check(`detect ${name}`, r.exitCode === 0 && det && work,
     det ? `${det.skewAngle} deg, ${det.outcome}, ${ms} ms` : `exit ${r.exitCode} ${r.stdout}${r.stderr}`.slice(0, 300));
+  const exp = expected[name];
+  if (det && exp) {
+    const same = Math.abs(det.skewAngle - exp.skewAngle) <= 1e-6 && det.outcome === exp.outcome &&
+      det.threshold === exp.threshold && JSON.stringify(det.contentRect) === JSON.stringify(exp.contentRect);
+    check(`same as native ${name}`, same, same ? '' :
+      `${det.skewAngle} ${det.outcome} ${det.threshold} ${JSON.stringify(det.contentRect)}, native: ` +
+      `${exp.skewAngle} ${exp.outcome} ${exp.threshold} ${JSON.stringify(exp.contentRect)}`);
+  } else if (det) {
+    check(`same as native ${name}`, false, 'not in Tests/expected-detection.json');
+  }
 }
 
 // Full run with output, PNG and JPEG

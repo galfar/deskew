@@ -176,10 +176,15 @@ jobs:
 
               ./runtests.sh
               ./runtests.sh pascal/deskew
+              # Results (angles, output formats, copies, errors), not only exit codes
+              python3 ../Tests/cli/check_cli.py ./deskew
+              python3 ../Tests/cli/check_cli.py ./pascal/deskew
           elif [ "$RUNNER_OS" == "Windows" ]; then
               ./RunTests.bat
+              python ../Tests/cli/check_cli.py ./deskew.exe
           elif [ "$RUNNER_OS" == "macOS" ]; then
               ./runtests.sh
+              python3 ../Tests/cli/check_cli.py ./deskew
           fi
 
       - name: Upload binaries

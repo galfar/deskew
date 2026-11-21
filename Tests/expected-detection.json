@@ -1,0 +1,177 @@
+{
+  "default": {
+    "1-g4.tif": {
+      "skewAngle": -1.375,
+      "outcome": "detected",
+      "threshold": 1
+    },
+    "1-lzw.tif": {
+      "skewAngle": -1.375,
+      "outcome": "detected",
+      "threshold": 1
+    },
+    "1big.png": {
+      "skewAngle": -1.375,
+      "outcome": "detected",
+      "threshold": 1
+    },
+    "2.png": {
+      "skewAngle": -2.185,
+      "outcome": "detected",
+      "threshold": 1
+    },
+    "3.png": {
+      "skewAngle": -6.25,
+      "outcome": "detected",
+      "threshold": 1
+    },
+    "4.png": {
+      "skewAngle": 7.095,
+      "outcome": "detected",
+      "threshold": 1
+    },
+    "5.png": {
+      "skewAngle": 3.41,
+      "outcome": "detected",
+      "threshold": 159
+    },
+    "6.png": {
+      "skewAngle": -2.81,
+      "outcome": "detected",
+      "threshold": 178
+    },
+    "F1550.jpg": {
+      "skewAngle": -1.21,
+      "outcome": "detected",
+      "threshold": 201
+    },
+    "blank.png": {
+      "skewAngle": 0,
+      "outcome": "noContent",
+      "threshold": 151
+    },
+    "tiff-jpeg.tif": {
+      "skewAngle": 3.395,
+      "outcome": "detected",
+      "threshold": 183
+    }
+  },
+  "auto": {
+    "1-g4.tif": {
+      "skewAngle": -1.355,
+      "outcome": "detected",
+      "threshold": 1,
+      "contentRect": [
+        117,
+        59,
+        1949,
+        2999
+      ]
+    },
+    "1-lzw.tif": {
+      "skewAngle": -1.355,
+      "outcome": "detected",
+      "threshold": 1,
+      "contentRect": [
+        117,
+        59,
+        1949,
+        2999
+      ]
+    },
+    "1big.png": {
+      "skewAngle": -1.38,
+      "outcome": "detected",
+      "threshold": 1,
+      "contentRect": [
+        108,
+        118,
+        3898,
+        5998
+      ]
+    },
+    "2.png": {
+      "skewAngle": -2.185,
+      "outcome": "detected",
+      "threshold": 1,
+      "contentRect": [
+        15,
+        30,
+        1195,
+        1748
+      ]
+    },
+    "3.png": {
+      "skewAngle": -6.265,
+      "outcome": "detected",
+      "threshold": 1,
+      "contentRect": [
+        0,
+        104,
+        1241,
+        1619
+      ]
+    },
+    "4.png": {
+      "skewAngle": 7.115,
+      "outcome": "detected",
+      "threshold": 1,
+      "contentRect": [
+        36,
+        52,
+        1237,
+        1748
+      ]
+    },
+    "5.png": {
+      "skewAngle": 3.43,
+      "outcome": "detected",
+      "threshold": 159,
+      "contentRect": [
+        25,
+        54,
+        1063,
+        697
+      ]
+    },
+    "6.png": {
+      "skewAngle": -2.81,
+      "outcome": "detected",
+      "threshold": 178,
+      "contentRect": [
+        21,
+        20,
+        1089,
+        1390
+      ]
+    },
+    "F1550.jpg": {
+      "skewAngle": -1.21,
+      "outcome": "detected",
+      "threshold": 201,
+      "contentRect": [
+        0,
+        0,
+        1275,
+        1738
+      ]
+    },
+    "blank.png": {
+      "skewAngle": 0,
+      "outcome": "noContent",
+      "threshold": 151,
+      "contentRect": null
+    },
+    "tiff-jpeg.tif": {
+      "skewAngle": 3.385,
+      "outcome": "detected",
+      "threshold": 183,
+      "contentRect": [
+        11,
+        0,
+        321,
+        566
+      ]
+    }
+  }
+}
