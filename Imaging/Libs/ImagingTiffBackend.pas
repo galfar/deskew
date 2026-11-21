@@ -178,6 +178,9 @@ type
 { Returns TIFF implementation in use. Looks for libtiff (if compiled in)
   when called for the first time. }
 function TiffBackend: TTiffBackend;
+{ Returns version of the shared library when it is the current backend
+  (e.g. '4.5.1' for libtiff), empty string otherwise. }
+function TiffBackendVersion: string;
 { Makes the given backend current (e.g. PasTiff although libtiff is loaded).
   Returns False and keeps the current one if it is not available. }
 function SelectTiffBackend(Backend: TTiffBackend): Boolean;
@@ -262,6 +265,15 @@ begin
   {$ENDIF}
   end;
   Result := Backend;
+end;
+
+function TiffBackendVersion: string;
+begin
+  Result := '';
+{$IFDEF TIFF_USE_LIBTIFF}
+  if TiffBackend = tbLibTiff then
+    Result := GetLibTiffVersion;
+{$ENDIF}
 end;
 
 function SelectTiffBackend(Backend: TTiffBackend): Boolean;

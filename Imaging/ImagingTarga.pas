@@ -334,7 +334,7 @@ end;
 function TTargaFileFormat.SaveData(Handle: TImagingHandle;
   const Images: TDynImageDataArray; Index: LongInt): Boolean;
 var
-  I: LongInt;
+  I: Integer;
   Hdr: TTargaHeader;
   FmtInfo: TImageFormatInfo;
   Pal: PPalette24;
@@ -347,11 +347,11 @@ var
     BufLen: NativeInt;
     RowMaxSize, Written, Y: Integer;
 
-    function CountDiff(Data: PByte; Bpp, PixelCount: Longint): LongInt;
+    function CountDiff(Data: PByte; Bpp, PixelCount: Integer): Integer;
     var
       Pixel: UInt32;
       NextPixel: UInt32;
-      N: LongInt;
+      N: Integer;
     begin
       N := 0;
       Pixel := 0;
@@ -388,11 +388,11 @@ var
         Result := N + 1;
     end;
 
-    function CountSame(Data: PByte; Bpp, PixelCount: LongInt): LongInt;
+    function CountSame(Data: PByte; Bpp, PixelCount: Integer): Integer;
     var
       Pixel: UInt32;
       NextPixel: UInt32;
-      N: LongInt;
+      N: Integer;
     begin
       N := 1;
       Pixel := 0;
@@ -421,14 +421,14 @@ var
       Result := N;
     end;
 
-    procedure RleCompressLine(Data: PByte; PixelCount, Bpp: LongInt; Dest:
-      PByte; out Written: LongInt);
+    procedure RleCompressLine(Data: PByte; PixelCount, Bpp: Integer; Dest:
+      PByte; out Written: Integer);
     const
       MaxRun = 128;
     var
-      DiffCount: LongInt;
-      SameCount: LongInt;
-      RleBufSize: LongInt;
+      DiffCount: Integer;
+      SameCount: Integer;
+      RleBufSize: Integer;
     begin
       RleBufSize := 0;
       while PixelCount > 0 do

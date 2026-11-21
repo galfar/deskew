@@ -71,6 +71,9 @@ type
 { Returns WebP implementation in use. Looks for libwebp (in default locations)
   when called for the first time. }
 function WebPBackend: TWebPBackend;
+{ Returns version of libwebp when it is the current backend, empty string
+  otherwise. }
+function WebPBackendVersion: string;
 function WebPCanLoad: Boolean;
 function WebPCanSave: Boolean;
 
@@ -168,6 +171,15 @@ begin
     SelectBackend;
   end;
   Result := Backend;
+end;
+
+function WebPBackendVersion: string;
+begin
+  Result := '';
+{$IFDEF WEBP_USE_DYNLIB}
+  if WebPBackend = wbLibWebP then
+    Result := GetLibWebPVersion;
+{$ENDIF}
 end;
 
 function WebPCanLoad: Boolean;
