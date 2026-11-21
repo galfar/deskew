@@ -85,6 +85,9 @@ type
     OutputWritten: TOutputWritten;
     OutputWidth, OutputHeight: Integer;
     OutputFormat: string;
+    // TIFF compression scheme asked from the TIFF writer for the output
+    // ("as input" resolved), -1 when the default of the writer is used
+    TiffCompression: Integer;
     // Full path of the work image when it was saved (-s w)
     WorkImageFile: string;
     // In microseconds, negative for steps that did not run
@@ -277,6 +280,7 @@ begin
   Report.Rotated := False;
   Report.OutputWritten := owNone;
   Report.OutputFormat := '';
+  Report.TiffCompression := -1;
   Report.ErrorMessage := '';
   for Step := Low(TTimedStep) to High(TTimedStep) do
     Report.Timings[Step] := -1;
@@ -389,6 +393,10 @@ begin
         Json.AddNull('height');
         Json.AddNull('format');
       end;
+      if (Report.OutputWritten = owSaved) and (Report.TiffCompression >= 0) then
+        Json.AddString('tiffCompression', TiffCompressionNames[Report.TiffCompression])
+      else
+        Json.AddNull('tiffCompression');
       Json.EndObject;
 
       if Report.WorkImageFile <> '' then
@@ -575,15 +583,17 @@ var
     // Special handling for TIFF compression
     if Imaging.FindImageFileFormatByName(Options.OutputFileName) is TTiffFileFormat then
     begin
+      Report.TiffCompression := Options.TiffCompressionScheme;
       if Options.TiffCompressionScheme in [TiffCompressionOptionAsInput, TiffCompressionOptionAsInputLossless] then
       begin
-        if not Options.TrySetTiffCompressionFromMetadata(Imaging.GlobalMetadata, ReplacedLossy) then
+        if not Options.TryGetTiffCompressionFromMetadata(Imaging.GlobalMetadata, Report.TiffCompression, ReplacedLossy) then
           WriteLn(Log^, 'Could not set TIFF output compression from input, using default.')
         else if ReplacedLossy then
           WriteLn(Log^, 'Input TIFF is JPEG-compressed, using lossless LZW compression for output instead.');
       end;
 
-      if Options.TiffCompressionScheme = TiffCompressionOptionGroup4 then
+      // Also G4 input with "as input" compression
+      if Report.TiffCompression = TiffCompressionOptionGroup4 then
       begin
         // User explicitly requested
         // CCITT Group 4 (T.6) compression which is for 1bit images only.
@@ -765,8 +775,8 @@ procedure RunDeskew;
       Imaging.SetOption(ImagingJNGQuality, Options.JpegCompressionQuality);
     end;
     // "As input" schemes were already resolved to a real one in ChangeOutputFormatIfNeeded
-    if Options.TiffCompressionScheme in [TiffCompressionOptionNone..TiffCompressionOptionGroup4] then
-      Imaging.SetOption(ImagingTiffCompression, Options.TiffCompressionScheme);
+    if Report.TiffCompression in [TiffCompressionOptionNone..TiffCompressionOptionGroup4] then
+      Imaging.SetOption(ImagingTiffCompression, Report.TiffCompression);
   end;
 
 var
