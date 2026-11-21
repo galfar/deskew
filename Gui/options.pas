@@ -132,7 +132,7 @@ const
   DefaultJpegCompressionQuality = 90; // imaginglib default
   DefaultTiffCompressionScheme = TiffCompressionOptionLzw; // imaginglib default
   DefaultOutputFileNamePrefix = 'deskewed-';
-  DefaultPrintParams = {$IFNDEF DEBUG}False{$ELSE}True{$ENDIF};
+  DefaultPrintParams = False;
 
   // From CmdLineOptions.pas
   MarginUnits: array[0..4] of string = ('px', '%', 'mm', 'cm', 'in');

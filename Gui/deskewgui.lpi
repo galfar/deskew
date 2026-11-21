@@ -32,7 +32,7 @@
             <Filename Value="..\Bin\deskewgui"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="$(ProjOutDir);..\Imaging"/>
             <OtherUnitFiles Value="..\Imaging"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -84,7 +84,7 @@ if TargetOS = &apos;darwin&apos; then
         <PackageName Value="LCL"/>
       </Item2>
     </RequiredPackages>
-    <Units Count="9">
+    <Units Count="10">
       <Unit0>
         <Filename Value="deskewgui.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -140,6 +140,10 @@ if TargetOS = &apos;darwin&apos; then
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="AboutForm"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="..\Imaging\ImagingOptions.inc"/>
+        <IsPartOfProject Value="True"/>
+      </Unit9>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -149,7 +153,7 @@ if TargetOS = &apos;darwin&apos; then
       <Filename Value="..\Bin\deskewgui"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="$(ProjOutDir);..\Imaging"/>
       <OtherUnitFiles Value="..\Imaging"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
