@@ -38,6 +38,7 @@ type
     procedure TestDrawRectFrame_ClippedToImage;
 
     procedure TestIsImageDataEqual;
+    procedure TestGetRotationFormat;
   end;
 
   TTestImageRotation = class(TDeskewTestCase)
@@ -409,6 +410,75 @@ begin
   finally
     Other.Free;
   end;
+end;
+
+procedure TTestImageUtils.TestGetRotationFormat;
+const
+  Opaque = TColor32($FFFFFFFF);
+  OpaqueGray = TColor32($FF777777);
+  OpaqueRed = TColor32($FFFF0000);
+  HalfWhite = TColor32($80FFFFFF);
+type
+  TPaletteKind = (pkGray, pkColor, pkAlpha);
+
+  function FormatFor(Format: TImageFormat; Background: TColor32; PaletteKind: TPaletteKind = pkGray): TImageFormat;
+  var
+    Image: TImageData;
+    I: Integer;
+  begin
+    InitImage(Image);
+    NewImage(4, 4, Format, Image);
+    try
+      if Format = ifIndex8 then
+        for I := 0 to 255 do
+          with Image.Palette[I] do
+          begin
+            A := 255;
+            R := I;
+            G := I;
+            B := I;
+            if PaletteKind = pkColor then
+              G := 255 - I
+            else if (PaletteKind = pkAlpha) and (I = 5) then
+              A := 128;
+          end;
+      Result := GetRotationFormat(Image, Background);
+    finally
+      FreeImage(Image);
+    end;
+  end;
+
+  procedure Check(const Name: string; Expected, Actual: TImageFormat);
+  begin
+    AssertEquals(Name, string(Imaging.GetFormatName(Expected)), string(Imaging.GetFormatName(Actual)));
+  end;
+
+begin
+  // Supported formats stay as they are with opaque gray background
+  Check('Gray8', ifGray8, FormatFor(ifGray8, OpaqueGray));
+  Check('R8G8B8', ifR8G8B8, FormatFor(ifR8G8B8, Opaque));
+  Check('A8R8G8B8', ifA8R8G8B8, FormatFor(ifA8R8G8B8, Opaque));
+
+  // Others are converted to the closest supported one
+  Check('Binary', ifGray8, FormatFor(ifBinary, Opaque));
+  Check('Gray16', ifGray8, FormatFor(ifGray16, Opaque));
+  Check('A8Gray8', ifA8R8G8B8, FormatFor(ifA8Gray8, Opaque));
+  Check('R16G16B16', ifR8G8B8, FormatFor(ifR16G16B16, Opaque));
+  Check('A16B16G16R16', ifA8R8G8B8, FormatFor(ifA16B16G16R16, Opaque));
+  Check('X8R8G8B8', ifR8G8B8, FormatFor(ifX8R8G8B8, Opaque));
+  Check('R5G6B5', ifR8G8B8, FormatFor(ifR5G6B5, Opaque));
+  Check('Index8 gray palette', ifGray8, FormatFor(ifIndex8, Opaque, pkGray));
+  Check('Index8 color palette', ifR8G8B8, FormatFor(ifIndex8, Opaque, pkColor));
+  Check('Index8 palette with alpha', ifA8R8G8B8, FormatFor(ifIndex8, Opaque, pkAlpha));
+
+  // Background widens the format
+  Check('Gray8, color background', ifR8G8B8, FormatFor(ifGray8, OpaqueRed));
+  Check('Binary, color background', ifR8G8B8, FormatFor(ifBinary, OpaqueRed));
+  Check('Index8 gray palette, color background', ifR8G8B8, FormatFor(ifIndex8, OpaqueRed, pkGray));
+  Check('Gray8, background with alpha', ifA8R8G8B8, FormatFor(ifGray8, HalfWhite));
+  Check('R8G8B8, background with alpha', ifA8R8G8B8, FormatFor(ifR8G8B8, HalfWhite));
+  Check('Index8 color palette, background with alpha', ifA8R8G8B8, FormatFor(ifIndex8, HalfWhite, pkColor));
+  Check('R8G8B8, color background', ifR8G8B8, FormatFor(ifR8G8B8, OpaqueRed));
 end;
 
 procedure TTestImageRotation.CreateQuadrantPattern(AImage: TSingleImage);

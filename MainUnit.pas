@@ -530,39 +530,12 @@ var
   end;
 
   procedure EnsurePixelFormatForRotation;
+  var
+    RotationFormat: TImageFormat;
   begin
-    // Rotation is optimized for Gray8, RGB24, and ARGB32 formats at this time
-    if not (OutputImage.Format in ImageUtils.SupportedRotationFormats) then
-    begin
-      if OutputImage.Format = ifIndex8 then
-      begin
-        if PaletteHasAlpha(OutputImage.Palette, OutputImage.PaletteEntries) then
-          OutputImage.Format := ifA8R8G8B8
-        else if PaletteIsGrayScale(OutputImage.Palette, OutputImage.PaletteEntries) then
-          OutputImage.Format := ifGray8
-        else
-          OutputImage.Format := ifR8G8B8;
-      end
-      else if OutputImage.FormatInfo.HasAlphaChannel then
-        OutputImage.Format := ifA8R8G8B8
-      else if (OutputImage.Format = ifBinary) or OutputImage.FormatInfo.HasGrayChannel then
-        OutputImage.Format := ifGray8
-      else
-        OutputImage.Format := ifR8G8B8;
-    end;
-
-    if (Options.BackgroundColor and $FF000000) <> $FF000000 then
-    begin
-      // User explicitly requested some alpha in background color
-      OutputImage.Format := ifA8R8G8B8;
-    end
-    else if (OutputImage.Format = ifGray8) and not (
-      (GetRedValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor)) and
-      (GetBlueValue(Options.BackgroundColor) = GetGreenValue(Options.BackgroundColor))) then
-    begin
-      // Some non-grayscale background for gray image was requested
-      OutputImage.Format := ifR8G8B8;
-    end;
+    RotationFormat := GetRotationFormat(OutputImage.ImageDataPointer^, Options.BackgroundColor);
+    if RotationFormat <> OutputImage.Format then
+      OutputImage.Format := RotationFormat;
   end;
 
   function ChangeOutputFormatIfNeeded: Boolean;
