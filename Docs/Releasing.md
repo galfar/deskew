@@ -24,7 +24,9 @@ LAZBUILD=/c/Programs/Lazarus/lazbuild.exe LAZARUSDIR='C:\Programs\Lazarus' ./Scr
 
 Each platform is built on that platform. The CI workflow (`.github/workflows/ci.yml`) does it for all
 of them on every push to `master`, on `v*` tags and on manual runs, and uploads the archives as artifacts
-(`deskew-<target>`). `linux-armv7` comes from the manually started "Build on other architectures" workflow.
+(`deskew-<version>-<target>.zip`). `linux-armv7` comes from the manually
+started "Build on other architectures" workflow. The WebUI (static site, `Web/`) is packed by the
+web job of the same workflow into `deskew-<version>-web.zip`.
 
 ## Checklist
 
@@ -49,7 +51,8 @@ of them on every push to `master`, on `v*` tags and on manual runs, and uploads 
 5. Tag `vX.YY`, push the tag, download the archives from the CI run of the tag
    (plus `linux-armv7` from the other workflow).
 6. Try the archives: extract, run `Examples/run-examples` script, start the GUI and deskew a file with it
-   (Linux: both `deskewgui` and `deskewgui-gtk2`).
+   (Linux: both `deskewgui` and `deskewgui-gtk2`). WebUI: serve the extracted folder as its Readme
+   says, footer shows the build date and commit of the tag.
 7. Create the release as a draft, check it and publish:
    `gh release create vX.YY --draft --title "Deskew X.YY" --notes-file notes.md deskew-*.zip`
 8. After the release: Homebrew formula (`Scripts/homebrew/deskew.rb`: tag URL and its sha256),
