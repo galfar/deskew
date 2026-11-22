@@ -141,6 +141,12 @@ jobs:
         shell: bash
         run:  lazbuild "Tests/tests.lpi"
 
+      # GUI settings, helpers and their parameters checked with the CLI built above.
+      # Console program with the LCL "nogui" widgetset, no display needed.
+      - name: Build GUI unit tests
+        shell: bash
+        run:  lazbuild "Tests/gui/guitests.lpi"
+
       # The Linux build above uses the shared libraries installed in Setup Linux. This
       # extra build never looks for them (DESKEW_PASCAL_CODECS_ONLY, see ImagingUserOptions.inc),
       # so the smoke tests check the Pascal codecs other users get too.
@@ -161,6 +167,7 @@ jobs:
         run:   |
           cd Bin
           ./tests -a -p --format=plain --no-addresses
+          ./guitests -a -p --format=plain --no-addresses
 
           if [ "$RUNNER_OS" == "Linux" ]; then
               # Each build must really use what it is meant to
