@@ -11,6 +11,7 @@ Targets: `win-x64`, `win-x86`, `linux-x64`, `linux-arm64`, `linux-armv7` (CLI on
 | Script | What it does |
 |---|---|
 | `Scripts/get_versions.sh` | prints CLI version (from `SAppVersion` in `MainUnit.pas`) and GUI version (from `Gui/deskewgui.lpi`) |
+| `Scripts/ci/release_suffix.sh` | CI: `dev-<date>` suffix of the archive names for runs that are not `v*` tags, checks that the tag matches the version |
 | `Scripts/build_release.sh <target>` | builds CLI and GUI in release mode with lazbuild into `Bin/` (Linux GUI with Qt6 and GTK2) |
 | `Scripts/package_release.sh <target>` | makes `Releases/deskew-<version>-<target>` folder and archive from the binaries in `Bin/`: executables, readmes, license, `Docs/`, `Examples/` |
 | `Scripts/make_macos_app.sh` | called by the packaging on macOS: `DeskewGui.app` with GUI and CLI, signed ad hoc |
@@ -25,7 +26,9 @@ LAZBUILD=/c/Programs/Lazarus/lazbuild.exe LAZARUSDIR='C:\Programs\Lazarus' ./Scr
 Each platform is built on that platform. The CI workflow (`.github/workflows/ci.yml`) does it for all
 of them on every push to `master`, on `v*` tags and on manual runs, and uploads the archives as artifacts
 (`deskew-<version>-<target>.zip`). `linux-armv7` comes from the manually
-started "Build on other architectures" workflow. The WebUI (static site, `Web/`) is packed by the
+started "Build on other architectures" workflow. Only the runs of `v*` tags have these names, and
+they fail when the tag is not the version in the sources; other runs add the date of the commit:
+`deskew-<version>-dev-<YYYYMMDD>-<target>.zip` (`Scripts/ci/release_suffix.sh`). The WebUI (static site, `Web/`) is packed by the
 web job of the same workflow into `deskew-<version>-web.zip`.
 
 ## Checklist

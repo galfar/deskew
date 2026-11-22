@@ -1,6 +1,8 @@
 #!/bin/bash
 # Makes the release archive of Deskew for one platform out of the binaries
 # built by Scripts/build_release.sh: Releases/deskew-<version>-<target>.zip
+# (<version> is RELEASE_VERSION of Scripts/get_versions.sh: CI builds that are not
+# releases have a suffix, e.g. deskew-1.35-dev-20261122-win-x64.zip)
 #
 # Usage: Scripts/package_release.sh <target> [--cli-only]
 #
@@ -49,7 +51,7 @@ esac
 cd "$ROOT"
 . Scripts/get_versions.sh
 
-NAME="deskew-$CLI_VERSION-$TARGET"
+NAME="deskew-$RELEASE_VERSION-$TARGET"
 STAGE="Releases/$NAME"
 
 for bin in "$CLI_BIN" $([ "$CLI_ONLY" = 0 ] && echo $GUI_BIN); do

@@ -214,8 +214,10 @@ from the extracted folder: `xattr -dr com.apple.quarantine <folder>`.
 
 **Linux** GUI (`deskewgui`) uses Qt6: it needs Qt6 libraries of your distribution (Debian and Ubuntu:
 `libqt6printsupport6`, Fedora: `qt6-qtbase-gui`, Arch: `qt6-base`), `libQt6Pas.so.6` that connects it
-to Qt6 is in the archive next to it. On systems without Qt6 use `deskewgui-gtk2`, the same GUI with
-GTK2. Binaries are built on Ubuntu 24.04.
+to Qt6 is in the archive next to it. Desktop installations often have no Qt6 (Ubuntu does not), then
+`deskewgui` does not start: install the package above, or run it from a terminal to see the missing
+library. `deskewgui-gtk2` is the same GUI with GTK2 for systems that have GTK2 but no Qt6 (Ubuntu 24.04
+has it, 26.04 does not). Binaries are built on Ubuntu 24.04.
 `unzip` keeps the executable permission of the files in the archive. If your archive tool does not,
 set it after the extraction: `chmod +x deskew deskewgui deskewgui-gtk2`.
 

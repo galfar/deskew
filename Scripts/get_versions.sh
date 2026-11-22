@@ -2,6 +2,9 @@
 # Versions of Deskew CLI and GUI taken from the sources:
 #   CLI_VERSION from SAppVersion constant in MainUnit.pas, e.g. 1.35
 #   GUI_VERSION from version info in Gui/deskewgui.lpi, e.g. 1.00
+#   RELEASE_VERSION version in the names of the release archives: CLI_VERSION, plus
+#                   "-$DESKEW_RELEASE_SUFFIX" when that is set (CI builds that are not
+#                   releases, see Scripts/ci/release_suffix.sh), e.g. 1.35-dev-20261122
 #
 # Source it to get the variables, or run it to have them printed:
 #   . Scripts/get_versions.sh
@@ -21,8 +24,11 @@ if [ -z "$CLI_VERSION" ]; then
   return 1 2>/dev/null || exit 1
 fi
 
+RELEASE_VERSION="$CLI_VERSION${DESKEW_RELEASE_SUFFIX:+-$DESKEW_RELEASE_SUFFIX}"
+
 # Executed, not sourced
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
   echo "CLI_VERSION=$CLI_VERSION"
   echo "GUI_VERSION=$GUI_VERSION"
+  echo "RELEASE_VERSION=$RELEASE_VERSION"
 fi
