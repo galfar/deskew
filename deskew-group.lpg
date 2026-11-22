@@ -19,6 +19,11 @@
           <Mode Name="Default"/>
         </BuildModes>
       </Target>
+      <Target FileName="Tests\gui\guitests.lpi">
+        <BuildModes>
+          <Mode Name="Default"/>
+        </BuildModes>
+      </Target>
     </Targets>
   </ProjectGroup>
 </CONFIG>

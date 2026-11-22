@@ -155,7 +155,7 @@ if TargetOS = &apos;darwin&apos; then
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\Imaging"/>
       <OtherUnitFiles Value="..\Imaging"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="..\Dcu\Gui\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Conditionals Value="// Some older macOS must be given as the minimal version, linking of LCL
 // fails with recent Xcode otherwise (&quot;ld: malformed method list atom&quot;)

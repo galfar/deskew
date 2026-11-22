@@ -14,6 +14,9 @@
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
+    <MacroValues Count="1">
+      <Macro1 Name="LCLWidgetType" Value="nogui"/>
+    </MacroValues>
     <BuildModes>
       <Item Name="Default" Default="True"/>
       <SharedMatrixOptions Count="1">
