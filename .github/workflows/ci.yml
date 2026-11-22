@@ -194,6 +194,28 @@ jobs:
               python3 ../Tests/cli/check_cli.py ./deskew
           fi
 
+      # GUI builds are started and must show their main window: catches startup crashes
+      # and missing shared libraries. Screenshots go to Bin/gui-smoke (in the artifacts).
+      - name: GUI smoke test (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          # Window manager: Qt does not paint its dialogs under bare Xvfb
+          sudo apt install -y -q xvfb xdotool imagemagick openbox
+          xvfb-run -a -s "-screen 0 1280x1024x24" bash Scripts/ci/gui_smoke.sh Bin/gui-smoke Bin/deskewgui Bin/deskewgui-qt5 Bin/deskewgui-qt6
+          # GTK3 build is known to be broken with Lazarus 4.8, reported only
+          xvfb-run -a -s "-screen 0 1280x1024x24" bash Scripts/ci/gui_smoke.sh Bin/gui-smoke Bin/deskewgui-gtk3 || echo "::warning::GTK3 GUI build did not show its window"
+
+      - name: GUI smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./Scripts/ci/gui_smoke.ps1 -OutDir Bin/gui-smoke -Exe Bin/deskewgui.exe
+
+      - name: GUI smoke test (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: bash Scripts/ci/gui_smoke.sh Bin/gui-smoke Bin/deskewgui
+
       - name: Upload binaries
         uses: actions/upload-artifact@v7
         with:
