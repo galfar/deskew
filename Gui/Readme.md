@@ -1,9 +1,9 @@
 GUI Frontend for Deskew Command Line Tool
 ===========================================
 
-by Marek Mauder
-<https://galfar.vevb.net/deskew>
-<https://github.com/galfar/deskew>
+by Marek Mauder  
+<https://github.com/galfar/deskew>  
+<https://galfar.vevb.net/deskew>  
 
 
 **v1.00 2026-10-05**
@@ -52,12 +52,12 @@ License: MPL 2.0
 ### Downloads And Releases
 
 <https://github.com/galfar/deskew/releases>
-<https://galfar.vevb.net/deskew#downloads>
 
 ### Bugs, Issues, Proposals
 
-File them here, mark as "GUI":
-<https://github.com/galfar/deskew/issues>
+File them here:  
+<https://github.com/galfar/deskew/issues>  
+<https://github.com/galfar/deskew/discussions>  
 
 Version History
 ------------------------
@@ -76,7 +76,7 @@ v1.00 2026-10-05:
 - output log uses a monospaced font with all the widget sets and on macOS
 - fixed: skip angle 0 and max angle just next to the default value were ignored
 - fixed behavior with empty output folder
-- macOS ARM64 build
+- macOS and Linux ARM64 builds
 - Linux: Qt6 build (GTK2 build is still there for systems without Qt6)
 
 v0.95 2021-06-01:

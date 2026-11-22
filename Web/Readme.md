@@ -1,7 +1,8 @@
 Deskew WebUI
 ===========================
 
-Live version: <https://galfar.github.io/deskew-webui>
+Live version:  
+<https://galfar.github.io/deskew-webui>
 
 A static web page that runs the Deskew command line tool compiled to WebAssembly
 (`wasm32-wasip1`) in the browser. Images are processed locally and never leave the
@@ -76,7 +77,7 @@ Limits
 
 - WebAssembly memory is 32-bit, so the huge image cases (hundreds of megapixels) do not fit.
 - TIFF, PNG, JPEG, BMP, TGA, PNM and WebP input work (Imaging's own Pascal codecs), WebP output
-  does not (it would need libwebp).
+  does not (it would need libwebp) and is saved as PNG by default.
 - Each detection decodes the input again, large scans take a moment per toggle change.
   Moving to a library build with the image kept in memory is the next step if that is
   too slow.
