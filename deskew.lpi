@@ -31,7 +31,7 @@
           <SearchPaths>
             <IncludeFiles Value="$(ProjPath);Imaging;$(ProjOutDir)"/>
             <OtherUnitFiles Value="Imaging;Imaging\Libs"/>
-            <UnitOutputDirectory Value="dcu\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="Dcu\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
