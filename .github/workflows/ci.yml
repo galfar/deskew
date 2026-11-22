@@ -120,6 +120,11 @@ jobs:
           fi
           ./Scripts/get_versions.sh
 
+      # Suffix of the archive names: none for v* tags (must match the version), dev-<date> otherwise
+      - name: Release archive names
+        shell: bash
+        run:  bash Scripts/ci/release_suffix.sh
+
       - name: Build Deskew CLI and GUI
         shell: bash
         run:  ./Scripts/build_release.sh ${{ matrix.target }}
@@ -354,9 +359,14 @@ jobs:
           mkdir -p Bin/web-screenshots
           node Tests/web/test-page.mjs Bin/web-screenshots
 
+      - name: Release archive names
+        shell: bash
+        run:  bash Scripts/ci/release_suffix.sh
+
       # Static site, ready to be served (python3 -m http.server, GitHub Pages, ...),
       # packed like the other release archives: Releases/deskew-<version>-web.zip with
-      # a deskew-<version>-web folder inside (version of the CLI = the engine)
+      # a deskew-<version>-web folder inside (version of the CLI = the engine,
+      # RELEASE_VERSION with the dev-<date> suffix for builds that are not releases)
       - name: Assemble WebUI
         shell: bash
         env:
@@ -364,7 +374,7 @@ jobs:
           BUILD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           . Scripts/get_versions.sh
-          NAME=deskew-$CLI_VERSION-web
+          NAME=deskew-$RELEASE_VERSION-web
           SITE=Releases/$NAME
           mkdir -p "$SITE"
           cp Web/index.html Web/app.js Web/worker.js Web/wasi.js Web/style.css Web/deskew.wasm Web/Readme.md "$SITE/"

@@ -36,6 +36,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      # Suffix of the archive names (dev-<date>, none for v* tags), computed here
+      # as the container may have no git
+      - name: Release archive names
+        shell: bash
+        run:  bash Scripts/ci/release_suffix.sh
+
       - uses: uraimo/run-on-arch-action@v3
         name: Build binaries
         id: build
@@ -44,6 +51,9 @@ jobs:
           distro: ${{ matrix.distro }}
 
           githubToken: ${{ github.token }}
+
+          env: |
+            DESKEW_RELEASE_SUFFIX: ${{ env.DESKEW_RELEASE_SUFFIX }}
 
           install: |
             apt-get update -q -y

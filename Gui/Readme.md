@@ -18,8 +18,10 @@ It needs the command line tool which is called for each input file. Both come to
 in the release archives, so there is nothing to set up:
 
 - Windows and Linux: `deskewgui` and `deskew` executables are in the same folder.
-  On Linux `deskewgui` uses Qt6 and `deskewgui-gtk2` is the same GUI for systems without Qt6
-  (see Platform Notes in the [Readme](../Readme.md#platform-notes)).
+  On Linux `deskewgui` uses Qt6, which desktop installations often do not have: when it does
+  not start, install Qt6 (Debian and Ubuntu: `sudo apt install libqt6printsupport6`).
+  `deskewgui-gtk2` is the same GUI for systems with GTK2 but without Qt6 (see Platform Notes
+  in the [Readme](../Readme.md#platform-notes)).
 - macOS: `DeskewGui.app` is a self-contained application bundle with the command line tool inside.
 
 When the command line tool is not next to the GUI, it is looked for in `PATH` (on macOS also in
