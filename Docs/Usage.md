@@ -482,9 +482,8 @@ BigTIFF files, in 64-bit builds.
   that is about 8.3 GB for a 4 GiB image. Detect only run (`-g d`) needs about 1.4 times the size.
 - **Time** for the 4 GiB image on a desktop PC: loading 6 to 12 s, detection 5 s,
   rotation 70 s with the linear filter and 3 minutes with Lanczos.
-- **Output formats**: TIFF, PNG, QOI, JPEG and BMP work.
-- **TIFF**: files over 4 GB need BigTIFF. It is read in all builds and written automatically when
-  the classic TIFF is not enough.
+- **Input and output formats**: Deskew can work with TIFF, PNG, JPEG, QOI, and BMP files over 4 GB. Exact limits depend on file format but mainly on the available memory.
+- **TIFF**: files over 4 GB need BigTIFF. It is read in all builds and written automatically when the classic TIFF is not enough.
 - 32-bit builds cannot work with images anywhere near these sizes.
 
 ## Good to know
@@ -495,8 +494,7 @@ BigTIFF files, in 64-bit builds.
   `deskew.exe` or in `PATH`). `-s l` shows what is used, the JSON report has it in `deskew.libraries`.
   Saving WebP needs libwebp.
 - **Output location**: without `-o` the output goes next to the input file, not to the current folder.
-- **1-bit images** report `using threshold 1` with automatic threshold. That is right: they only have
-  black (0) and white (255) pixels.
+- **1-bit images** report `using threshold 1` with automatic threshold. That is right: they only have black (0) and white (255) pixels.
 - **File size after deskewing 1-bit scans**: the output is 8-bit grayscale by default and it is much larger.
   `-f b1` keeps it 1-bit (use it with TIFF or PNG output), `-q nearest` keeps the pixels black and white
   in the 8-bit output so it compresses much better.
@@ -506,11 +504,13 @@ BigTIFF files, in 64-bit builds.
 - **Speed**: the time of the detection depends mostly on the number of dark pixels and on the max angle
   and angle step. Dense pages in high resolution can take several seconds. Larger angle step (`-d 0.2`) or
   smaller max angle (`-a 5`) helps.
-- **Skew larger than the max angle** is reported as not reliable, not as the max angle. Raise `-a`.
+- **Skew larger than the max angle** is not fixed and its angle is not reported. A page skewed
+  just beyond the max angle ends as `atRangeLimit`, one skewed much more as `lowConfidence`
+  (the same as noise). Raise `-a` when pages can be skewed that much.
 - **`-g f` on a blank page** rotates by a meaningless angle. Forcing is meant for pages where you know
   better than the detection.
-- **Metadata**: print resolution (DPI) is carried over to the output. Other metadata (EXIF, PNG text
-  chunks, ICC profiles) is not.
+- **Metadata**: print resolution (DPI) is carried over to JPEG, PNG and TIFF output. 
+  Other metadata (EXIF, PNG text chunks, ICC profiles) is not carried over.
 - **Piping the output** into a program that stops reading early (`deskew ... | head -3`) can end with an
   I/O error message, the image was processed anyway.
 - **Reading the results in scripts**: use the [JSON report](#json-report). The text output is meant

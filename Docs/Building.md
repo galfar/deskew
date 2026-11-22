@@ -18,12 +18,15 @@ Lazarus) and with Delphi, the GUI needs Lazarus.
 | `deskew.dproj` | Delphi XE3 and newer | command line tool (`deskew.dpr`) |
 | `Gui/deskewgui.lpi` | Lazarus 4.x | GUI (LCL, Free Pascal only) |
 | `Tests/tests.lpi`, `Tests/tests.dproj` | Lazarus, Delphi | unit tests |
-| `deskew-group.groupproj` | Delphi | command line tool and unit tests together |
+| `Tests/gui/guitests.lpi` | Lazarus 4.x | unit tests of the GUI (Free Pascal only) |
+| `deskew-group.lpg` | Lazarus | project group: all the Lazarus projects above |
+| `deskew-group.groupproj` | Delphi | project group: command line tool and unit tests |
 
-Each program has an `.lpr` file for Free Pascal and a `.dpr` file for Delphi, the units are shared
-by both compilers. Binaries go to `Bin/` and have the same names on all the platforms (`deskew`,
-`deskewgui`), other targets are selected with `--cpu` and `--os` of lazbuild. The minimal macOS
-version the GUI needs for linking is set in the project.
+The command line tool and its unit tests have an `.lpr` file for Free Pascal and a `.dpr` file
+for Delphi, the units are shared by both compilers. The GUI and its unit tests are Free Pascal
+only and have just the `.lpr` file. Binaries go to `Bin/` and have the same names on all the
+platforms (`deskew`, `deskewgui`), other targets are selected with `--cpu` and `--os` of
+lazbuild. The minimal macOS version the GUI needs for linking is set in the project.
 
 ## Building from the command line
 
@@ -47,13 +50,13 @@ see [WebUI's Readme](../Web/Readme.md).
 
 ## Imaging library and its options
 
-Image files are read and written by Vampyre Imaging Library. A copy of it is in `Imaging/`, made by
+Image files are read and written by [Vampyre Imaging Library](https://github.com/galfar/imaginglib). A copy of it is in `Imaging/`, made by
 `Scripts/sync_imaging.sh` from the upstream repository, so do not change anything there.
 No other libraries are needed for compiling.
 
 Deskew's own settings of the library are in `ImagingUserOptions.inc` in the root folder. It is used
 when `IMAGING_USER_OPTIONS` is defined, all the projects and scripts do that (the root folder and
-`Imaging/` must be on the include path). It
+`Imaging/` must be on the include path). Our options:
 
 - leaves out the file formats Deskew does not need (`DONT_LINK_...` defines),
 - makes Imaging use zlib, libjpeg-turbo (2.0+) and libtiff shared libraries when they are found at

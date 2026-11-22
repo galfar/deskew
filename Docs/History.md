@@ -14,7 +14,7 @@ v1.35 2026-10-05:
 - new `-p`: print resolution (DPI) override (#11)
 - new `-c tinput` and `tinput-lossless`: TIFF output compression same as of the input (#30)
 - new `-s j` and `-s r`: machine readable JSON report on standard output or in a file
-- skew detection is several times faster on large and dense pages
+- skew detection is several times faster on large and dense pages (precomputed SinCos)
 - new `-h`, invalid values of options and unknown options are refused with a clear message (#68)
 - fix: wrong automatic threshold for scans with more than 16.7 million pixels of one gray level (e.g. A4 at 600 DPI)
 - fix: rotation with nearest filter read past the end of the image
@@ -29,11 +29,11 @@ v1.35 2026-10-05:
 - work image of `-s w` is named after the output file (`<output file name>.work.png`), has the detection area and the found content marked
 - "auto crop" flag is now "crop to input size"
 - TIFF is read and written without libtiff on all platforms, zlib, libjpeg-turbo, libtiff and libwebp are used when the system has them
-- BigTIFF, QOI and WebP (input only) file formats, images with over 4 GiB of pixel data and over 2^31 pixels (#73)
+- BigTIFF, QOI and WebP file formats, images with over 4 GiB of pixel data and over 2^31 pixels (#73)
 - **DDS, MNG, JNG and PSD file formats are not supported anymore**
 - less memory needed: about 2 times the size of the image for deskewing, 1.4 times for detect only
-- macOS ARM64 build
-- WebUI: Deskew running in the web browser
+- macOS and Linux ARM64 builds
+- WebUI: Deskew running in the web browser (WebAssembly)
 - releases have one archive for each platform, with CLI and GUI together
 
 v1.30 2019-06-07:
