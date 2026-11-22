@@ -52,6 +52,10 @@ documentation and a few example images with a script to try them out.
 
 See [Platform Notes](#platform-notes) for what each of them needs.
 
+Development snapshot: <https://github.com/galfar/deskew/releases/tag/snapshot>
+Archives of the latest successful build of the development version, the same as above with
+`dev-<date>` in the name, plus the WebUI. Tested by CI, but not as much as the releases.
+
 Usage
 ------------------------
 

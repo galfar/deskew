@@ -7,6 +7,11 @@ on:
     tags: [ "v*" ]
     paths-ignore: [ "**/Readme.md" ]
   workflow_dispatch:
+    inputs:
+      snapshot_tag:
+        description: "Publish the archives as a pre-release with this tag (to test the snapshot job, e.g. snapshot-test; tag snapshot is for master only). Empty: nothing is published"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -398,3 +403,42 @@ jobs:
           name: deskew-web-screenshots
           path: Bin/web-screenshots
           if-no-files-found: ignore
+
+  # Rolling pre-release "snapshot" with the dev archives of the latest successful build
+  # of master (all jobs above must pass). Manual runs publish only when given a tag
+  # (snapshot_tag input), for testing. Never for v* tags: releases are made by hand.
+  snapshot:
+    needs: [imaging-sync-check, build, web]
+    if: >-
+      !startsWith(github.ref, 'refs/tags/') &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+       (github.event_name == 'workflow_dispatch' && inputs.snapshot_tag != ''))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: snapshot-${{ inputs.snapshot_tag || 'snapshot' }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download release archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: deskew-*-dev-*.zip
+          path: snapshot
+          merge-multiple: true
+          # The artifacts are the release ZIPs themselves, keep them packed
+          skip-decompress: true
+
+      - name: Publish snapshot release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          # Through the environment, not pasted into the script
+          SNAPSHOT_TAG: ${{ inputs.snapshot_tag || 'snapshot' }}
+        run: |
+          ls -lR snapshot | head -50
+          bash Scripts/ci/publish_snapshot.sh "$SNAPSHOT_TAG" snapshot
