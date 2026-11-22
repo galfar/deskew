@@ -62,12 +62,10 @@ Running locally
 ------------------------
 
 The page uses a module worker and `fetch`, so it must be served over HTTP, opening
-`index.html` as a file does not work:
+`index.html` as a file does not work. 
 
-    cd Web
-    python3 -m http.server 8000
-
-Then open <http://localhost:8000>.
+With Python installed, run `python3 -m http.server 8000` in WebUI folder and 
+then open <http://localhost:8000>.
 
 `Tests/web/test-wasi.mjs` runs `deskew.wasm` under the same WASI host in Node, and
 `Tests/web/test-page.mjs` drives the page in a headless browser with Playwright.

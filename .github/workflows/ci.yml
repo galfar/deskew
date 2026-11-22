@@ -197,9 +197,10 @@ jobs:
 
       - name: Upload release archive
         uses: actions/upload-artifact@v7
+        # archive: false uploads the release ZIP as it is, not wrapped in another ZIP
         with:
-          name: deskew-${{ matrix.target }}
           path: Releases/deskew-*.zip
+          archive: false
           if-no-files-found: error
 
       # GUIs are started and must show their main window: catches startup crashes and
@@ -241,8 +242,8 @@ jobs:
         if: matrix.target == 'win-x64'
         uses: actions/upload-artifact@v7
         with:
-          name: deskew-win-x86
           path: Releases/deskew-*-win-x86.zip
+          archive: false
           if-no-files-found: error
 
       - name: Upload artifacts
@@ -353,26 +354,31 @@ jobs:
           mkdir -p Bin/web-screenshots
           node Tests/web/test-page.mjs Bin/web-screenshots
 
-      # Static site, ready to be served (python3 -m http.server, GitHub Pages, ...).
-      # The artifact ZIP holds it in a deskew-web folder: upload-artifact strips
-      # the given path, so the folder is one level below it.
-      - name: Assemble web GUI
+      # Static site, ready to be served (python3 -m http.server, GitHub Pages, ...),
+      # packed like the other release archives: Releases/deskew-<version>-web.zip with
+      # a deskew-<version>-web folder inside (version of the CLI = the engine)
+      - name: Assemble WebUI
         shell: bash
         env:
           # Head of the PR branch, github.sha of a PR run is a merge commit nobody can open
           BUILD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          mkdir -p Bin/web/deskew-web
-          cp Web/index.html Web/app.js Web/worker.js Web/wasi.js Web/style.css Web/deskew.wasm Bin/web/deskew-web/
+          . Scripts/get_versions.sh
+          NAME=deskew-$CLI_VERSION-web
+          SITE=Releases/$NAME
+          mkdir -p "$SITE"
+          cp Web/index.html Web/app.js Web/worker.js Web/wasi.js Web/style.css Web/deskew.wasm Web/Readme.md "$SITE/"
           # Stamp the WebUI build shown in the page footer (Web/version.js marks a dev build)
-          echo "export const WEBUI_BUILD = { date: '$(date -u +%F)', commit: '$BUILD_COMMIT' };" > Bin/web/deskew-web/version.js
-          ls -lh Bin/web/deskew-web
+          echo "export const WEBUI_BUILD = { date: '$(date -u +%F)', commit: '$BUILD_COMMIT' };" > "$SITE/version.js"                    
+          cp LICENSE "$SITE/"
+          ls -lh "$SITE"
+          (cd Releases && zip -r -9 -q "$NAME.zip" "$NAME")
 
-      - name: Upload web GUI
-        uses: actions/upload-artifact@v7
+      - name: Upload WebUI
+        uses: actions/upload-artifact@v7        
         with:
-          name: deskew-web
-          path: Bin/web
+          path: Releases/deskew-*-web.zip
+          archive: false
           if-no-files-found: error
 
       - name: Upload screenshots

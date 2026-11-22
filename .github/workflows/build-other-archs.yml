@@ -75,9 +75,10 @@ jobs:
       - name: Upload release archive
         if: matrix.arch == 'armv7'
         uses: actions/upload-artifact@v7
+        # archive: false uploads the release ZIP as it is, not wrapped in another ZIP
         with:
-          name: deskew-linux-armv7
           path: Releases/deskew-*.zip
+          archive: false
           if-no-files-found: error
 
       - name: Upload binaries
