@@ -287,11 +287,11 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrCenter
       Left = 8
       Height = 15
+      Hint = 'Pixels are split to text (dark) and background (light) by a threshold level before the skew is looked for:'#13#10'- Auto (default): the level is found for each image separately.'#13#10'- Level from 1 to 255: used for all the images, pixels darker than it are text.'#13#10'   A fixed level can help with faint print or dark paper.'
       Top = 211
       Width = 72
       BorderSpacing.Top = 20
       Caption = 'Thresholding:'
-      Hint = 'Pixels are split to text (dark) and background (light) by a threshold level before the skew is looked for:'#13#10'- Auto (default): the level is found for each image separately.'#13#10'- Level from 1 to 255: used for all the images, pixels darker than it are text.'#13#10'   A fixed level can help with faint print or dark paper.'
       ParentColor = False
     end
     object CheckThresholdAuto: TCheckBox
@@ -350,7 +350,7 @@ object FormAdvOptions: TFormAdvOptions
       AnchorSideTop.Side = asrBottom
       Left = 195
       Height = 23
-      Hint = 'More parameters passed to the Deskew command line tool as they are.'#13#10'Examples: '#13#10'    content rectangle:  -r 100,150,900,1200'#13#10'    JSON report file: -s r'
+      Hint = 'More parameters passed to the Deskew command line tool as they are.'#13#10#13#10'Examples: '#13#10'    Content rectangle:  -r 100,150,900,1200'#13#10'    JSON report file: -s r'#13#10'    Skew detection stats: -s s'#13#10'    All text infos: -s slpt'
       Top = 353
       Width = 219
       BorderSpacing.Left = 16

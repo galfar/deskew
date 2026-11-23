@@ -17,6 +17,7 @@ deskew [options] input
 - [JSON report](#json-report)
 - [Exit code](#exit-code)
 - [Large images](#large-images)
+- [PDF, multi-page TIFF and OCR](#pdf-multi-page-tiff-and-ocr)
 - [Good to know](#good-to-know)
 
 ## How options are written
@@ -39,7 +40,8 @@ Any image in one of the supported file formats: BMP, JPEG, PNG, GIF, QOI, TGA, P
 TIFF and WebP. The list is also printed at the end of the help (`deskew -h`).
 WebP can be written only when the libwebp library is found (see [Good to know](#good-to-know)).
 
-Only the first page of multi-page files is processed.
+Only the first page of multi-page files is processed, see [PDF, multi-page TIFF and OCR](#pdf-multi-page-tiff-and-ocr)
+for how to deskew all the pages.
 
 ### `-o` output file
 
@@ -485,6 +487,71 @@ BigTIFF files, in 64-bit builds.
 - **Input and output formats**: Deskew can work with TIFF, PNG, JPEG, QOI, and BMP files over 4 GB. Exact limits depend on file format but mainly on the available memory.
 - **TIFF**: files over 4 GB need BigTIFF. It is read in all builds and written automatically when the classic TIFF is not enough.
 - 32-bit builds cannot work with images anywhere near these sizes.
+
+## PDF, multi-page TIFF and OCR
+
+Here are a few examples how you can use Deskew in conjunction with other tools. 
+
+Deskew works with one image at a time and PDFs are not supported at all.
+Scanned PDFs and multi-page TIFFs are split into pages first,
+the pages deskewed, and joined again. These recipes use common free tools (Debian/Ubuntu package names
+in parentheses; most of them are available for macOS and Windows as well).
+
+### Scanned PDF
+
+With [poppler](https://poppler.freedesktop.org/) (`poppler-utils`) and [img2pdf](https://gitlab.mister-muffin.de/josch/img2pdf) (`img2pdf`):
+
+```bash
+mkdir pages out
+pdfimages -list scan.pdf                  # x-ppi column: resolution of the scanned pages
+pdftoppm -r 300 -png scan.pdf pages/page  # pages/page-1.png, page-2.png, ... at 300 DPI
+for f in pages/*.png; do deskew -b ffffff -o out/ "$f"; done
+img2pdf out/*.png -o scan-deskewed.pdf
+```
+
+- Give `pdftoppm -r` the resolution of the scan (`pdfimages -list` tells it): a higher one only makes
+  the files bigger. With 10 or more pages the numbers get leading zeros, so the order stays right.
+- img2pdf puts the images into the PDF as they are (no recompression) and gets the size of the page from
+  their resolution, which Deskew carries over. Rotated pages are a bit bigger than the original ones
+  (the corners are added), `-g c` keeps the size of the input.
+- 1-bit scans: `-f b1 -b ff` instead of `-b ffffff` keeps the pages 1-bit and the PDF small.
+  Color scans: `pdftoppm -jpeg` and `deskew -c j85` make JPEG pages, img2pdf embeds them unchanged.
+- `pdfimages -png scan.pdf pages/page` extracts the scanned images with their exact pixels instead of
+  rendering the pages, but they have no resolution stored: give it to Deskew with `-p` (e.g. `-p 300`,
+  the value from `pdfimages -list`), otherwise the pages come out much larger in the PDF. This works when
+  each page is a single image.
+
+### Multi-page TIFF
+
+With the libtiff tools (`libtiff-tools`):
+
+```bash
+mkdir pages out
+tiffsplit scan.tif pages/page-            # pages/page-aaa.tif, page-aab.tif, ...
+for f in pages/*.tif; do deskew -f b1 -b ff -o out/ "$f"; done
+tiffcp out/*.tif scan-deskewed.tif
+```
+
+- `-f b1 -b ff` is for black and white pages (they are saved with Group 4 fax compression).
+  For gray or color pages leave it out and use `-b ffffff -c tinput-lossless` to keep the compression of the input.
+- tiffcp copies the pages as they are, with their own compression and resolution.
+- With ImageMagick: `magick scan.tif pages/page-%03d.tif` to split and `magick out/*.tif scan-deskewed.tif`
+  to join (ImageMagick 6: `convert`).
+
+### OCR
+
+Text recognition works better on straight pages. With [Tesseract](https://github.com/tesseract-ocr/tesseract) (`tesseract-ocr`),
+after the pages are deskewed as above:
+
+```bash
+tesseract out/page-1.png out/page-1       # plain text in out/page-1.txt
+ls out/*.png > pages.txt
+tesseract pages.txt scan-ocr pdf          # searchable PDF, one page per image
+```
+
+Tesseract uses the resolution of the images, so keep it right (`-p` when the input has none).
+[OCRmyPDF](https://ocrmypdf.readthedocs.io/) has its own `--deskew`; to use Deskew instead, make the PDF
+with img2pdf as above and run `ocrmypdf scan-deskewed.pdf scan-ocr.pdf`.
 
 ## Good to know
 
