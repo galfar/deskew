@@ -5,7 +5,7 @@ by Marek Mauder
 <https://github.com/galfar/deskew>  
 <https://galfar.vevb.net/deskew>  
 
-**v1.35 2026-10-05**
+**v1.35 2026-11-23**
 
 - [Overview](#overview): [Downloads And Releases](#downloads-and-releases)
 - [Usage](#usage): [Examples](#examples), [What Deskew Tells You](#what-deskew-tells-you), [Platform Notes](#platform-notes),
@@ -20,16 +20,17 @@ Deskew is a command line tool for deskewing scanned text documents.
 It uses Hough transform to detect "text lines" in the image. As an output, you
 get an image rotated so that the lines are horizontal.
 
-| Scanned page | After `deskew page.png` |
-|---|---|
-| ![Skewed scan](Docs/images/example-before.png) | ![Deskewed result](Docs/images/example-after.png) |
+**Scanned page -> after `deskew page.png`**
+![Skewed scan -> Deskewed result](Docs/Example.png) 
+
+---
 
 It tells you when it cannot do its job: blank pages and pages without any text lines
 are recognized and left as they are instead of being rotated by some random angle.
 
 GUI frontend for this CLI tool is available as well (Windows, Linux, and macOS), see [GUI's Readme](Gui/Readme.md).
 
-WebUI runs Deskew right in your web browser, no installation needed: <https://galfar.github.io/deskew-webui>.
+WebUI runs Deskew in your web browser, no installation needed: <https://galfar.github.io/deskew-webui>.
 It is the same CLI tool compiled to WebAssembly, so images are processed on your computer and never uploaded. See [WebUI's Readme](Web/Readme.md).
 
 License: MPL 2.0
@@ -39,7 +40,8 @@ License: MPL 2.0
 <https://github.com/galfar/deskew/releases>  
 
 There is one archive for each platform. It contains the command line tool, the GUI,
-documentation and a few example images with a script to try them out.
+documentation and a few example images with a script to try them out. The WebUI archive
+is a static site to host anywhere or run locally (see [WebUI's Readme](Web/Readme.md#running-locally)).
 
 | Platform | Archive |
 |---|---|
@@ -49,12 +51,13 @@ documentation and a few example images with a script to try them out.
 | Linux ARM 64-bit (aarch64) | `deskew-1.35-linux-arm64.zip` |
 | macOS Apple Silicon | `deskew-1.35-macos-arm64.zip` |
 | macOS Intel | `deskew-1.35-macos-x64.zip` |
+| WebUI (any modern web browser) | `deskew-1.35-web.zip` |
 
 See [Platform Notes](#platform-notes) for what each of them needs.
 
 Development snapshot: <https://github.com/galfar/deskew/releases/tag/snapshot>
 Archives of the latest successful build of the development version, the same as above with
-`dev-<date>` in the name, plus the WebUI. Tested by CI, but not as much as the releases.
+`dev-<date>` in the name. Tested by CI, but not as much as the releases.
 
 Usage
 ------------------------
@@ -189,6 +192,9 @@ for %f in (scans\*.png) do deskew -b ffffff -o out\ "%f"
 Get-ChildItem scans\*.png | ForEach-Object { .\deskew -b ffffff -o out\ $_.FullName }
 ```
 
+Scanned PDFs, multi-page TIFFs and OCR with other free tools (poppler, img2pdf, libtiff tools, Tesseract):
+see [Docs/Usage.md](Docs/Usage.md#pdf-multi-page-tiff-and-ocr).
+
 ### What Deskew Tells You
 
 ```console
@@ -237,9 +243,9 @@ File them here:
 Version History
 ------------------------
 
-v1.35 2026-10-05:
+**v1.35 2026-11-23**:
 
-- skew detection tells when it cannot be trusted: blank pages and pages without text lines are not rotated anymore (#71), detection confidence is printed, `-g f` forces the rotation
+- skew detection tells when it cannot be trusted: blank pages and pages without text lines are not rotated anymore (#71, thanks to jmaslak for the first take on it in PR #52), detection confidence is printed, `-g f` forces the rotation
 - more robust skew angle: a few long lines (edges of pages in book scans, borders) cannot outvote the text anymore
 - new `-r auto`: skew detection only in automatically found content area (#43)
 - new `-m`: content area defined by page margins (#31)
@@ -248,7 +254,7 @@ v1.35 2026-10-05:
 - new `-p`: print resolution (DPI) override (#11)
 - new `-c tinput` and `tinput-lossless`: TIFF output compression same as of the input (#30)
 - new `-s j` and `-s r`: machine readable JSON report on standard output or in a file
-- skew detection is several times faster on large and dense pages (precomputed SinCos)
+- skew detection is 3 to 5 times faster on large and dense pages: e.g. from 28s down to 5s instead on 134 Mpx scan 
 - new `-h`, invalid values of options and unknown options are refused with a clear message (#68)
 - fix: wrong automatic threshold for scans with more than 16.7 million pixels of one gray level (e.g. A4 at 600 DPI)
 - fix: rotation with nearest filter read past the end of the image

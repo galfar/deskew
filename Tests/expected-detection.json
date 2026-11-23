@@ -33,7 +33,7 @@
     "5.png": {
       "skewAngle": 3.41,
       "outcome": "detected",
-      "threshold": 159
+      "threshold": 162
     },
     "6.png": {
       "skewAngle": -2.81,
@@ -126,7 +126,7 @@
     "5.png": {
       "skewAngle": 3.43,
       "outcome": "detected",
-      "threshold": 159,
+      "threshold": 162,
       "contentRect": [
         25,
         54,

@@ -63,7 +63,7 @@ done
 
 echo "=== Packaging $NAME (CLI $CLI_VERSION, GUI $GUI_VERSION)"
 rm -rf "$STAGE" "Releases/$NAME.zip"
-mkdir -p "$STAGE/Docs/images" "$STAGE/Examples"
+mkdir -p "$STAGE/Docs" "$STAGE/Examples"
 
 # --- Binaries, the same names on all platforms
 case "$TARGET" in
@@ -111,7 +111,7 @@ fi
 cp LICENSE "$STAGE/LICENSE"
 cp Docs/Usage.md "$STAGE/Docs/Usage.md"
 sed -e 's|(\.\./Gui/Readme\.md|(../Readme-GUI.md|g' Docs/History.md > "$STAGE/Docs/History.md"
-cp Docs/images/*.png "$STAGE/Docs/images/"
+cp Docs/*.png "$STAGE/Docs/"
 
 # --- Examples
 cp TestImages/4.png      "$STAGE/Examples/book-page.png"

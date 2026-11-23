@@ -6,7 +6,7 @@ by Marek Mauder
 <https://galfar.vevb.net/deskew>  
 
 
-**v1.00 2026-10-05**
+**v1.00 2026-11-23**
 
 
 Overview
@@ -64,7 +64,7 @@ File them here:
 Version History
 ------------------------
 
-v1.00 2026-10-05:
+v1.00 2026-11-23:
 
 - needs Deskew command line tool v1.35 or newer
 - tooltips for all the controls
