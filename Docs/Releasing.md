@@ -69,7 +69,7 @@ web job of the same workflow into `deskew-<version>-web.zip`.
 7. Create the release as a draft, check it and publish:
    `gh release create vX.YY --draft --title "Deskew X.YY" --notes-file notes.md deskew-*.zip`
 8. After the release: Homebrew formula (`Scripts/homebrew/deskew.rb`: tag URL and its sha256),
-   close the fixed issues, update the home page.
+   close the fixed issues, update the home page, upload WebUI to live version hosting.
 
 ## Known Limits
 

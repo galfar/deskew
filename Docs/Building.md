@@ -23,7 +23,7 @@ Lazarus) and with Delphi, the GUI needs Lazarus.
 | `deskew-group.groupproj` | Delphi | project group: command line tool and unit tests |
 
 The command line tool and its unit tests have an `.lpr` file for Free Pascal and a `.dpr` file
-for Delphi, the units are shared by both compilers. The GUI and its unit tests are Free Pascal
+for Delphi. The units are shared by both compilers. The GUI and its unit tests are Free Pascal
 only and have just the `.lpr` file. Binaries go to `Bin/` and have the same names on all the
 platforms (`deskew`, `deskewgui`), other targets are selected with `--cpu` and `--os` of
 lazbuild. The minimal macOS version the GUI needs for linking is set in the project.

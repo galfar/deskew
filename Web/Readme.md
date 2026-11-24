@@ -27,7 +27,7 @@ decoded input, so output toggles (background, crop, force rotation) are instant.
 rotation and encoding run only for "Deskew & download".
 
 All three views (original with overlay, deskewed preview, work image) can be zoomed with the
-mouse wheel or a pinch and panned by dragging; they are drawn from the full resolution image.
+mouse wheel or a pinch and panned by dragging; they are drawn from the full-resolution image.
 The help button lists the supported formats and all options, taken from `deskew -h` of the engine.
 The engine version (also from `deskew -h`) is shown in the header as soon as the engine loads.
 The footer shows the WebUI build: `version.js` marks a development build, CI overwrites it with
@@ -64,7 +64,7 @@ Running locally
 The page uses a module worker and `fetch`, so it must be served over HTTP, opening
 `index.html` as a file does not work. 
 
-With Python installed, run `python3 -m http.server 8000` in WebUI folder and 
+With Python installed, run `python3 -m http.server 8000` in the folder with WebUI and 
 then open <http://localhost:8000>.
 
 `Tests/web/test-wasi.mjs` runs `deskew.wasm` under the same WASI host in Node, and
