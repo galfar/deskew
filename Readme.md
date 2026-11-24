@@ -164,7 +164,7 @@ deskew -m 10,% -o out.png in.png
 deskew -r auto -o out.png in.png
 ```
 
-Only find out the skew angle, write nothing:
+Find only the skew angle, write no image:
 
 ```console
 deskew -g d page.png
@@ -243,6 +243,13 @@ File them here:
 Version History
 ------------------------
 
+**Planned for the next major version** (subject to change, ideas and feedback welcome in [Discussions](https://github.com/galfar/deskew/discussions)):
+
+- accuracy measured on the public [DISE-2021](https://huggingface.co/datasets/phamquiluan/DISE-2021) benchmark: published numbers, and every change of the detection checked against them
+- better metadata handling: EXIF, XMP and PNG text chunks kept in the output (#69), keep ICC color profiles, Software tag and a record of the rotation written into the file, better DPI handling
+- easier use in scripts and pipelines: quiet mode and version output (#19), standard input and output as image files (#22)
+- new improvements from Imaging: optimized PNG and JPEG support, faster image rotations, WebP encoder built-in, maybe JPEG XL and JPEG 2000 support
+
 **v1.35 2026-11-23**:
 
 - skew detection tells when it cannot be trusted: blank pages and pages without text lines are not rotated anymore (#71, thanks to jmaslak for the first take on it in PR #52), detection confidence is printed, `-g f` forces the rotation
@@ -254,7 +261,7 @@ Version History
 - new `-p`: print resolution (DPI) override (#11)
 - new `-c tinput` and `tinput-lossless`: TIFF output compression same as of the input (#30)
 - new `-s j` and `-s r`: machine readable JSON report on standard output or in a file
-- skew detection is 3 to 5 times faster on large and dense pages: e.g. from 28s down to 5s instead on 134 Mpx scan 
+- skew detection is 3 to 5 times faster on large and dense pages: for example, detection on a 134 Mpx scan dropped from 28 s to 5 s
 - new `-h`, invalid values of options and unknown options are refused with a clear message (#68)
 - fix: wrong automatic threshold for scans with more than 16.7 million pixels of one gray level (e.g. A4 at 600 DPI)
 - fix: rotation with nearest filter read past the end of the image

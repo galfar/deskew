@@ -490,11 +490,11 @@ BigTIFF files, in 64-bit builds.
 
 ## PDF, multi-page TIFF and OCR
 
-Here are a few examples how you can use Deskew in conjunction with other tools. 
+Here are a few examples of how you can use Deskew in conjunction with other tools. 
 
 Deskew works with one image at a time and PDFs are not supported at all.
 Scanned PDFs and multi-page TIFFs are split into pages first,
-the pages deskewed, and joined again. These recipes use common free tools (Debian/Ubuntu package names
+the pages are deskewed, and joined again. These recipes use common free tools (Debian/Ubuntu package names
 in parentheses; most of them are available for macOS and Windows as well).
 
 ### Scanned PDF

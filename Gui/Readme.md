@@ -14,7 +14,7 @@ Overview
 
 With Deskew GUI it’s easy to deskew many files without writing shell scripts.
 
-It needs the command line tool which is called for each input file. Both come together
+It requires the command line tool, which it calls for each input file. Both come together
 in the release archives, so there is nothing to set up:
 
 - Windows and Linux: `deskewgui` and `deskew` executables are in the same folder.
@@ -75,7 +75,7 @@ v1.00 2026-11-23:
 - extra command line parameters now support quoted values and repeated spaces
 - command line tool is also looked for in `PATH` (and Homebrew folders on macOS), a clear message when it is not found
 - failed files are easy to spot: number of failures while running, red summary and a list of the failed files at the end of the output log
-- output log uses a monospaced font with all the widget sets and on macOS
+- output log uses a monospaced font with all the widget sets 
 - fixed: skip angle 0 and max angle just next to the default value were ignored
 - fixed behavior with empty output folder
 - macOS and Linux ARM64 builds
