@@ -53,8 +53,9 @@ const
     'skew seems to be larger than the max angle (it can be raised with "-a")');
 
 type
-  // Steps of the processing that are timed
-  TTimedStep = (tsLoad, tsThresholding, tsContentDetection, tsSkewDetection, tsRotation, tsSave);
+  // Steps of the processing that are timed, in the order they run
+  TTimedStep = (tsLoad, tsGrayConversion, tsThresholding, tsContentDetection, tsSkewDetection,
+    tsWorkImage, tsFormatConversion, tsRotation, tsSave);
   // What happened with the output file
   TOutputWritten = (
     // No output file: detect only mode or an error
@@ -90,7 +91,8 @@ type
     TiffCompression: Integer;
     // Full path of the work image when it was saved (-s w)
     WorkImageFile: string;
-    // In microseconds, negative for steps that did not run
+    // In microseconds, negative for steps that did not run. Steps that run
+    // more than once (thresholding with -r auto, format conversions) are summed.
     Timings: array[TTimedStep] of Int64;
     ErrorMessage: string;
   end;
@@ -99,12 +101,13 @@ type
 
 const
   STimedSteps: array[TTimedStep] of string = (
-    'Load input file', 'Auto thresholding', 'Content detection', 'Skew detection',
-    'Rotate image', 'Save output file');
+    'Load input file', 'Convert to grayscale', 'Auto thresholding', 'Content detection',
+    'Skew detection', 'Save work image', 'Convert pixel format', 'Rotate image', 'Save output file');
 
   // Names used in JSON report
   SJsonTimedSteps: array[TTimedStep] of string = (
-    'load', 'thresholding', 'contentDetection', 'skewDetection', 'rotation', 'save');
+    'load', 'grayConversion', 'thresholding', 'contentDetection', 'skewDetection',
+    'workImage', 'formatConversion', 'rotation', 'save');
   SJsonDetectionOutcomes: array[TSkewDetectionOutcome] of string = (
     'detected', 'noContent', 'lowConfidence', 'atRangeLimit');
   SJsonOutputWritten: array[TOutputWritten] of string = ('none', 'saved', 'copied');
@@ -243,14 +246,19 @@ end;
 var
   Time: Int64;
 
-procedure WriteTiming(Step: TTimedStep);
+// Ends timing of a step started by setting Time. A step can run more than once,
+// the report has the sum then and Detail tells the runs apart in the text output.
+procedure WriteTiming(Step: TTimedStep; const Detail: string = '');
 var
   Elapsed: Int64;
 begin
   Elapsed := GetTimeMicroseconds - Time;
-  Report.Timings[Step] := Elapsed;
+  if Report.Timings[Step] < 0 then
+    Report.Timings[Step] := Elapsed
+  else
+    Inc(Report.Timings[Step], Elapsed);
   if Options.ShowTimings then
-    WriteLn(Log^, STimedSteps[Step] + ' - time taken: ' + FormatNiceNumber(Elapsed, 0) + ' us');
+    WriteLn(Log^, STimedSteps[Step] + Detail + ' - time taken: ' + FormatNiceNumber(Elapsed, 0) + ' us');
 end;
 
 // Libraries Imaging uses for zlib, JPEG, TIFF and WebP in this run
@@ -514,6 +522,7 @@ var
   var
     Thickness: Integer;
   begin
+    Time := GetTimeMicroseconds;
     // We can reuse WorkImage here, it is no longer needed. What the detection saw
     // (thresholded) with frames inside the detection area and around the content.
     BinarizeImage(WorkImage.ImageDataPointer^, Threshold, @ContentRect);
@@ -527,6 +536,14 @@ var
     EnsureOutputLocation(Options.WorkImageFileName);
     WorkImage.SaveToFile(Options.WorkImageFileName);
     Report.WorkImageFile := ExpandFileName(Options.WorkImageFileName);
+    WriteTiming(tsWorkImage);
+  end;
+
+  procedure ConvertOutputImage(NewFormat: TImageFormat; const Detail: string);
+  begin
+    Time := GetTimeMicroseconds;
+    OutputImage.Format := NewFormat;
+    WriteTiming(tsFormatConversion, Detail);
   end;
 
   procedure EnsurePixelFormatForRotation;
@@ -535,7 +552,7 @@ var
   begin
     RotationFormat := GetRotationFormat(OutputImage.ImageDataPointer^, Options.BackgroundColor);
     if RotationFormat <> OutputImage.Format then
-      OutputImage.Format := RotationFormat;
+      ConvertOutputImage(RotationFormat, ' (for rotation)');
   end;
 
   function ChangeOutputFormatIfNeeded: Boolean;
@@ -549,7 +566,7 @@ var
       // Force output format. For example Deskew won't automatically
       // save image as binary if the input was binary since it
       // might degrade the output a lot (rotation adds a lot of colors to image).
-      OutputImage.Format := Options.ForcedOutputFormat;
+      ConvertOutputImage(Options.ForcedOutputFormat, ' (for output)');
       Result := True;
     end;
 
@@ -570,7 +587,8 @@ var
       begin
         // User explicitly requested
         // CCITT Group 4 (T.6) compression which is for 1bit images only.
-        OutputImage.Format := ifBinary;
+        if OutputImage.Format <> ifBinary then
+          ConvertOutputImage(ifBinary, ' (for output)');
         Result := True;
       end;
     end;
@@ -585,7 +603,9 @@ begin
     OutputImage.Width, 'x', OutputImage.Height, '/', string(OutputImage.FormatInfo.Name), ']) ...');
 
   // Working image is converted from the loaded one to 8bit grayscale
+  Time := GetTimeMicroseconds;
   OutputImage.ConvertInto(WorkImage, ifGray8);
+  WriteTiming(tsGrayConversion);
 
   if Options.DpiOverride > 0 then
   begin
@@ -637,7 +657,11 @@ begin
     ContentRect := FoundContentRect;
     // Threshold for the content only, without the surroundings of the page
     if Options.ThresholdingMethod = tmOtsu then
+    begin
+      Time := GetTimeMicroseconds;
       Threshold := OtsuThresholding(WorkImage.ImageDataPointer^, @ContentRect);
+      WriteTiming(tsThresholding, ' (content area)');
+    end;
   end;
 
   if HasContent or ForceRotation then
