@@ -7,7 +7,7 @@ JSON report (-s j) and the files written:
     options and with -r auto) must be the same as in expected-detection.json,
   - decisions of the tool: input copied as is when nothing changes, output
     pixel format, size with and without cropping, detect only mode, work image,
-    TIFF compression and resolution of the output,
+    TIFF compression and resolution of the output, which steps are timed,
   - failures (bad parameters, missing or unreadable input, missing DPI...) must
     end with a non-zero exit code and an error in the report.
 
@@ -295,6 +295,61 @@ def check_detect_only(exe, tmp):
             check(file_report == r.report, 'report file differs from the report on standard output')
 
 
+# Steps in timingsMs of the report, in the order they run
+TIMED_STEPS = ['load', 'grayConversion', 'thresholding', 'contentDetection', 'skewDetection',
+               'workImage', 'formatConversion', 'rotation', 'save']
+
+
+def check_timings(exe, tmp):
+    print('Timings of the steps')
+    cases = [
+        # (input, options, steps that must have a time; all others must be null)
+        ('2.png', ['-g', 'd'],
+         {'load', 'grayConversion', 'thresholding', 'contentDetection', 'skewDetection'}),
+        ('2.png', ['-g', 'd', '-t', '128', '-s', 'w'],
+         {'load', 'grayConversion', 'contentDetection', 'skewDetection', 'workImage'}),
+        ('F1550.jpg', [],
+         {'load', 'grayConversion', 'thresholding', 'contentDetection', 'skewDetection', 'rotation', 'save'}),
+        # 1-bit input is converted to Gray8 for the rotation, and back with -f b1
+        ('1-lzw.tif', ['-f', 'b1'],
+         {'load', 'grayConversion', 'thresholding', 'contentDetection', 'skewDetection',
+          'formatConversion', 'rotation', 'save'}),
+        # Blank page: no detection, no rotation, input copied
+        ('blank.png', [], {'load', 'grayConversion', 'thresholding', 'contentDetection', 'save'}),
+    ]
+    for i, (name, options, timed) in enumerate(cases):
+        out = os.path.join(tmp, 'timings%d%s' % (i, os.path.splitext(name)[1]))
+        r = Run(exe, options + ['-o', out, image(name)])
+        if not r.ok():
+            continue
+        timings = r.get('timingsMs') or {}
+        check(list(timings) == TIMED_STEPS + ['total'], '%s: timing names %r' % (r.label, list(timings)))
+        for step in TIMED_STEPS:
+            value = timings.get(step)
+            if step in timed:
+                check(isinstance(value, (int, float)) and value >= 0, '%s: %s is %r, expected a time' %
+                      (r.label, step, value))
+            else:
+                check(value is None, '%s: %s is %r, expected null' % (r.label, step, value))
+        total = timings.get('total') or 0
+        steps_sum = sum(timings.get(s) or 0 for s in TIMED_STEPS)
+        check(steps_sum <= total + 0.01, '%s: steps take %.3f ms, more than the total %.3f ms' %
+              (r.label, steps_sum, total))
+
+    # -r auto runs the automatic threshold twice, the report has the sum and -s t prints both
+    p = subprocess.run([exe, '-g', 'd', '-r', 'auto', '-s', 'jt', image('2.png')],
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    text = p.stderr.decode('utf-8', errors='replace')
+    if check(p.returncode == 0, '-r auto -s jt: exit code %d' % p.returncode):
+        lines = [l for l in text.splitlines() if l.startswith('Auto thresholding')]
+        check(len(lines) == 2 and '(content area)' in lines[1],
+              '-r auto -s t: thresholding lines %r' % lines)
+        micros = [int(l.rsplit(':', 1)[1].replace('us', '').replace(',', '').strip()) for l in lines]
+        reported = json.loads(p.stdout.decode('ascii'))['timingsMs']['thresholding']
+        check(abs(sum(micros) / 1000 - reported) < 0.002,
+              '-r auto: thresholding %r ms is not the sum of %r us' % (reported, micros))
+
+
 def check_tiff_output(exe, tmp):
     print('TIFF compression and resolution')
     cases = [
@@ -400,6 +455,7 @@ def main():
         check_output_formats(exe, tmp)
         check_output_size(exe, tmp)
         check_detect_only(exe, tmp)
+        check_timings(exe, tmp)
         check_tiff_output(exe, tmp)
         check_physical_units(exe, tmp)
         check_failures(exe, tmp)

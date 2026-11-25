@@ -391,12 +391,15 @@ deskew -s r -o out/page.tif page.tif
   "workImageFile": null,
   "timingsMs": {
     "load": 4.331,
+    "grayConversion": 2.084,
     "thresholding": 15.744,
     "contentDetection": 3.593,
     "skewDetection": 107.613,
+    "workImage": null,
+    "formatConversion": 6.120,
     "rotation": 210.744,
     "save": 31.242,
-    "total": 400.001
+    "total": 408.205
   },
   "error": null
 }
@@ -424,7 +427,7 @@ deskew -s r -o out/page.tif page.tif
 | `output.width`, `height`, `format` | size and pixel format of the written image, `null` when nothing was written |
 | `output.tiffCompression` | TIFF compression asked from the TIFF writer when a TIFF was saved: the scheme of `-c t...`, with `input` and `input-lossless` replaced by the scheme found in the input (e.g. `g4`, `lzw`). `null` when the writer's default is used (LZW, CCITT G4 for 1-bit images) or no TIFF was saved. The writer still switches 1-bit images to G4 and uses LZW when the scheme does not fit the image (e.g. JPEG for 1-bit). `parameters.tiffCompression` is the option as given |
 | `workImageFile` | full path of the work image saved with `-s w`, `null` when none was saved |
-| `timingsMs` | time of the steps in milliseconds, `null` for steps that did not run. `total` is the time of the whole run |
+| `timingsMs` | time of the steps in milliseconds, `null` for steps that did not run: `load`, `grayConversion` (working copy of the image for the detection), `thresholding` (automatic threshold; with `-r auto` both runs, for the page and for the found content), `contentDetection`, `skewDetection`, `workImage` (`-s w`), `formatConversion` (pixel format changes of the image before the rotation and for the output, e.g. `-f`), `rotation`, `save`. `total` is the time of the whole run, including what is not listed (parsing, the report itself) |
 | `error` | `null`, or the error message when the run failed |
 
 What can be counted on:
