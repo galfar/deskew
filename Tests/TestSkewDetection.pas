@@ -60,6 +60,7 @@ type
     procedure TestTinyImages;
     procedure TestCoarseAngleStep;
     procedure TestFullAngleRange;
+    procedure TestNoPreferenceForDiagonal;
     procedure TestColumnsAndTable;
   end;
 
@@ -392,6 +393,23 @@ begin
     AssertAngle('Step ' + FloatToStr(Steps[I]), 2.3, Detect(10, Steps[I]), Steps[I]);
     AssertOutcome('Step ' + FloatToStr(Steps[I]), sdoDetected);
   end;
+end;
+
+procedure TTestSkewDetection.TestNoPreferenceForDiagonal;
+const
+  MaxAngle = 46;
+begin
+  // Pixel grid lines up with the tested lines at exactly +-45 degrees: noise with
+  // no direction at all must not get its peak there
+  DrawDots(40000);
+  Detect(MaxAngle);
+  AssertTrue(Format('Noise peak at %.1f', [FStats.PeakAngle]), Abs(Abs(FStats.PeakAngle) - 45) > 0.05);
+
+  // Distance along the dominant axis must still find text skewed a lot
+  FImage.Fill(ColorWhite);
+  DrawTextLines(-33, Rect(60, 60, 540, 740));
+  AssertAngle('Text at -33', -33, Detect(MaxAngle));
+  AssertOutcome('Text at -33', sdoDetected);
 end;
 
 procedure TTestSkewDetection.TestFullAngleRange;

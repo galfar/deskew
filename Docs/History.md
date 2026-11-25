@@ -3,6 +3,13 @@
 Changes of the command line tool in each version. Versions of the GUI are in
 [GUI's Readme](../Gui/Readme.md#version-history).
 
+**Next version (work in progress):**
+
+- skew detection is faster: 4.4 times with the 64-bit Windows build (A4 page at 600 DPI: 330 -> 95 ms), 3.4 times on Linux ARM64, 1.05 to 1.5 times with the other builds; results are the same as before
+- automatic threshold is 3.5 to 4.6 times faster (A4 page at 600 DPI: 85 -> 19 ms), thresholds are the same as before
+- fix: with max angle over 20 (`-a`) heavily skewed pages could be detected as skewed by exactly ±45 degrees (bias of the pixel grid); such pages are now detected correctly or reported as not reliable. Max angles up to 20 give the same results as before
+- fix #85: PSD support is back
+
 **v1.35 2026-11-23:**
 
 - skew detection tells when it cannot be trusted: blank pages and pages without text lines are not rotated anymore (#71, thanks to jmaslak for the first take on it in PR #52), detection confidence is printed, `-g f` forces the rotation
