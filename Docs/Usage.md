@@ -143,6 +143,13 @@ Larger range takes proportionally more time and memory. A page skewed more than 
 is not fixed: the detection ends as not reliable and the image is left as it is
 (see [What the detection reports](#what-the-detection-reports)).
 
+Max angle over 20 is meant for pages skewed a lot and the detection works a little differently
+then: it avoids a bias of the pixel grid towards exactly 45 degrees, which made heavily skewed
+pages come out as skewed by exactly ±45 degrees. The same page can therefore get an angle a few
+hundredths of a degree different with `-a 15` and with `-a 30`. Pages skewed by 30 degrees or
+more are harder: the sides of letters then compete with the text lines, and such a page more
+often ends as not reliable.
+
 ### `-d` angle step
 
 Step between the tested angles in degrees. Default: `0.1`, allowed: 0.01 to 5.

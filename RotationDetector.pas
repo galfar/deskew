@@ -161,6 +161,18 @@ const
   // Average strength of lines (in votes) at the peak angle that gives full confidence.
   // It's only around one for sparse random dots (dust).
   FullConfidenceLineStrength = 10;
+  // With max angle over this the distance of a line is measured along the dominant
+  // axis (y-intercept up to 45 degrees) instead of perpendicular to the line.
+  // Distances are counted in whole pixels: perpendicular to the line, the pixel
+  // grid lands evenly in them only for some angles. At exactly +-45 degrees one
+  // distance gets one or two pixel diagonals (0.707 apart), and that unevenness alone
+  // adds about 10% to the score of the angle. Text skewed a lot gets competition from
+  // the sides of its glyphs (text angle + 90), and the extra 10% made such pages end
+  // at exactly +-45 degrees as detected (DISE-2021 +-45 test set: 173 of 2800 images).
+  // Along the dominant axis every angle gets the grid evenly. Spikes of the other
+  // simple slopes are small below 20 degrees (under 2%), so smaller max angles
+  // keep the original distance and give the same results as before.
+  AxisDistanceMinMaxAngle = 20;
 
 type
   TLine = record
@@ -232,7 +244,7 @@ var
   procedure CalcSinCosTables;
   var
     I: Integer;
-    Rads: Double;
+    Rads, Scale: Double;
   begin
     SetLength(SinTable, AlphaSteps);
     SetLength(CosTable, AlphaSteps);
@@ -241,6 +253,17 @@ var
       // Angle for current step in radians
       Rads := GetFinalAngle(I) * PI / 180;
       SinCos(Rads, SinTable[I], CosTable[I]);
+
+      if MaxAngle > AxisDistanceMinMaxAngle then
+      begin
+        // Distance along the dominant axis (see AxisDistanceMinMaxAngle)
+        if Abs(SinTable[I]) > Abs(CosTable[I]) then
+          Scale := 1.0 / Abs(SinTable[I])
+        else
+          Scale := 1.0 / Abs(CosTable[I]);
+        SinTable[I] := SinTable[I] * Scale;
+        CosTable[I] := CosTable[I] * Scale;
+      end;
     end;
   end;
 
@@ -445,8 +468,19 @@ begin
 
   AlphaStart := -MaxAngle;
   AlphaSteps := Ceil(2 * MaxAngle / AngleStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
-  MinDist := -Max(PageWidth, PageHeight);
-  DistCount := 2 * (PageWidth + PageHeight);
+
+  if MaxAngle <= AxisDistanceMinMaxAngle then
+  begin
+    // Distance to the origin measured perpendicular to the line
+    MinDist := -Max(PageWidth, PageHeight);
+    DistCount := 2 * (PageWidth + PageHeight);
+  end
+  else
+  begin
+    // Distance along the dominant axis is in [-(PageWidth + PageHeight), PageWidth + PageHeight]
+    MinDist := -(PageWidth + PageHeight);
+    DistCount := 2 * (PageWidth + PageHeight) + 1;
+  end;
 
   // Determine the size of line accumulator
   if Int64(DistCount) * AlphaSteps > MaxAccumulatorSize then

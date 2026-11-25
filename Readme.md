@@ -248,6 +248,7 @@ Version History
 - accuracy measured on the public [DISE-2021](https://huggingface.co/datasets/phamquiluan/DISE-2021) benchmark: published numbers, and every change of the detection checked against them
 - better metadata handling: EXIF, XMP and PNG text chunks kept in the output (#69), keep ICC color profiles, Software tag and a record of the rotation written into the file, better DPI handling
 - easier use in scripts and pipelines: quiet mode and version output (#19), standard input and output as image files (#22)
+- further optimizations of skew detection
 - new improvements from Imaging: optimized PNG and JPEG support, faster image rotations, WebP encoder built-in, maybe JPEG XL and JPEG 2000 support
 
 **v1.35 2026-11-23**:
