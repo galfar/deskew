@@ -139,13 +139,13 @@ end;
 
 function OtsuThresholding(var Image: TImageData; AContentRect: PRect): Integer;
 var
-  // Pixels are counted here first so it must be Double: Single stops counting
-  // at 2^24 which even ordinary scans of mostly white pages exceed.
+  Counts: array[Byte] of Int64;
+  // Share of each level in the rect
   Histogram: array[Byte] of Double;
   NumPixelsInRect: Int64;
   Level, Max, Min, I, J, X, Y: Integer;
   PixPtr: PByte;
-  Mean, Variance: Single;
+  Mean: Single;
   Mu, Omega, LevelMean, LargestMu: Single;
   EffectiveRect, ImageBounds: TRect;
 begin
@@ -166,37 +166,41 @@ begin
   if NumPixelsInRect <= 0 then
     Exit(128); // Default threshold if rect is empty
 
+  FillChar(Counts, SizeOf(Counts), 0);
   FillChar(Histogram, SizeOf(Histogram), 0);
-  Min := 255;
-  Max := 0;
   Level := 0;
 
-  // Compute histogram and determine min and max pixel values within the EffectiveRect
+  // Count the pixels of each level within the EffectiveRect
   for Y := EffectiveRect.Top to EffectiveRect.Bottom - 1 do
   begin
     PixPtr := @PBuffer(Image.Bits)[NativeInt(Y) * Image.Width + EffectiveRect.Left];
     for X := EffectiveRect.Left to EffectiveRect.Right - 1 do
     begin
-      Histogram[PixPtr^] := Histogram[PixPtr^] + 1.0;
-      if PixPtr^ < Min then
-        Min := PixPtr^;
-      if PixPtr^ > Max then
-        Max := PixPtr^;
+      Inc(Counts[PixPtr^]);
       Inc(PixPtr);
     end;
   end;
 
+  // Range of the levels found (the rect is not empty, so there is at least one)
+  Min := 0;
+  while Counts[Min] = 0 do
+    Inc(Min);
+  Max := 255;
+  while Counts[Max] = 0 do
+    Dec(Max);
+
   // Normalize histogram based on pixels in the effective rectangle
   for I := Min to Max do // Iterate only over the range of pixel values found
+  begin
+    // Divided as a Double like the counts before, thresholds stay the same on all CPUs
+    Histogram[I] := Counts[I];
     Histogram[I] := Histogram[I] / NumPixelsInRect;
+  end;
 
-  // Compute image mean and variance using the histogram of the EffectiveRect
+  // Compute image mean using the histogram of the EffectiveRect
   Mean := 0.0;
-  Variance := 0.0;
   for I := Min to Max do
     Mean := Mean + (I + 1) * Histogram[I];
-  for I := Min to Max do
-    Variance := Variance + Sqr(I + 1 - Mean) * Histogram[I];
 
   // Now finally compute threshold level based on the histogram of EffectiveRect
   LargestMu := 0.0;
