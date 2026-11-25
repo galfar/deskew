@@ -102,6 +102,34 @@ function CalcRotationAngle(const MaxAngle, AngleStep: Double; Threshold: Integer
 
 implementation
 
+// Every baseline pixel [Xs[P], Ys[P]] votes for all the lines going through it,
+// one line for each tested angle (sine and cosine in the tables). Votes of one
+// angle go into its own block of DistCount distances of the accumulator.
+// It is not nested in CalcRotationAngle: the inner loop is much faster when
+// it does not reach the variables through the stack frame of the outer function.
+procedure VoteForLines(const Xs, Ys: array of Integer; PointCount: Integer;
+  const SinTable, CosTable: array of Extended; MinDist: Double; DistCount: Integer;
+  var Accumulator: array of Integer);
+var
+  I, P, Base: Integer;
+  SinAlpha, CosAlpha: Extended;  // Extended like the tables
+  D: Double;
+begin
+  // The tables have one item for each tested angle (AlphaSteps of them)
+  for I := 0 to High(SinTable) do
+  begin
+    SinAlpha := SinTable[I];
+    CosAlpha := CosTable[I];
+    Base := I * DistCount;
+    for P := 0 to PointCount - 1 do
+    begin
+      // Parameter D (distance from origin) of the line y=tg(alpha)x + d
+      D := Ys[P] * CosAlpha - Xs[P] * SinAlpha;
+      Inc(Accumulator[Base + Trunc(D - MinDist)]);
+    end;
+  end;
+end;
+
 function CalcRotationAngle(const MaxAngle, AngleStep: Double; Threshold: Integer;
   Width, Height: Integer; Pixels: PBuffer; DetectionArea: PRect; Stats: PCalcSkewAngleStats): Double;
 const
@@ -123,40 +151,77 @@ const
   MaxAccumulatorSize = 500 * 1000 * 1000;
   // Number of tested pixels that is always considered too low to detect anything
   MinTestedPixels = 16;
+  // Baseline pixels are collected and vote in passes of about this many pixels,
+  // so the memory for their coordinates stays small even for huge noisy images.
+  // For usual scans baseline pixels for whole page fit into one pass.
+  MaxPointsPerPass = 1024 * 1024;
   // Sharpness of the peak angle that gives full confidence. Clean text
   // pages are usually well above this.
   FullConfidenceSharpness = 0.5;
   // Average strength of lines (in votes) at the peak angle that gives full confidence.
   // It's only around one for sparse random dots (dust).
   FullConfidenceLineStrength = 10;
+
 type
   TLine = record
     Count: Integer;
-    Index: Integer;
+    AlphaIndex, DistIndex: Integer;
     Alpha: Double;
     Distance: Double;
   end;
   TLineArray = array of TLine;
-var
-  AlphaStart, MinDist, SumAngles, PeakAngle, Tolerance: Double;
-  AlphaSteps, DistCount, AccumulatorSize, I, LineCount, LinesAtPeak, PeakIndex: Integer;
-  TestedPixels: Int64;
-  BestLines: TLineArray;
-  HoughAccumulator: array of Integer;
-  AngleScores: array of Double;
-  SinTable, CosTable: array of Extended;
-  PageWidth, PageHeight: Integer;
-  ContentRect: TRect;
-  Outcome: TSkewDetectionOutcome;
-  Sharpness, Confidence: Double;
 
-  // Classifies pixel at [X, Y] as black or white using threshold.
-  // Pixels are indexed through PBuffer: array pointers like PByteArray
-  // cannot reach over 2 GB in Delphi.
-  function IsPixelBlack(X, Y: Integer): Boolean;
-  begin
-    Result := Pixels[NativeInt(Y) * Width + X] < Threshold;
-  end;
+var
+  // Area where the skew is detected and its size. PageHeight leaves out
+  // the last row of the image, it has no row below for the baseline check.
+  ContentRect: TRect;
+  PageWidth, PageHeight: Integer;
+  // Tested angles: AlphaSteps of them from AlphaStart (-MaxAngle) by AngleStep (degrees)
+  AlphaStart: Double;
+  AlphaSteps: Integer;
+  // Sine and cosine of all the tested angles (array size = AlphaSteps). They are the same for
+  // every pixel so it would be a waste to calculate them over and over.
+  SinTable, CosTable: array of Extended;
+  // Distances D of the lines from the origin.
+  // With D = Y * Cos - X * Sin, X in [0, PageWidth) and Y in [0, PageHeight),
+  // D lies strictly in [-PageWidth, PageWidth + PageHeight],
+  // for angles up to 90 degrees (Cos not negative).
+
+  // Since we use the line distance as index into the accumulator we need to shift it
+  // by MinDist so it's not negative (index then as Trunc(D - MinDist), D of index 0 starts at MinDist).
+  // DistCount distances are enough for a line through any pixel of the content
+  // rect at any tested angle.
+  MinDist: Double;
+  DistCount: Integer;
+  // Votes for lines: block of DistCount distances for each tested angle (angle-major).
+  // For each angle block we track here all the lines in the same direction with any distance from
+  // the origin (where distance fits into the page).
+  // AccumulatorSize = AlphaSteps * DistCount
+  HoughAccumulator: array of Integer;
+  AccumulatorSize: Integer;
+  // Coordinates of baseline pixels of the current pass, relative to the content rect
+  PointsX, PointsY: array of Integer;
+  PointCount: Integer;
+  // Number of baseline pixels found in all the passes (sum of their PointCount),
+  // each voted once for every tested angle
+  TestedPixels: Int64;
+  // Score of each tested angle: sum of squared votes of its lines
+  AngleScores: array of Double;
+  // Tested angle with the best score and its index, how much it stands out
+  // from the other angles and how much the result can be trusted
+  PeakAngle: Double;
+  PeakIndex: Integer;
+  Sharpness, Confidence: Double;
+  Outcome: TSkewDetectionOutcome;
+  // Lines with the most votes, best first
+  BestLines: TLineArray;
+  // Best lines at most Tolerance degrees from the peak angle (LinesAtPeak
+  // of them) are averaged into the result
+  Tolerance: Double;
+  LinesAtPeak: Integer;
+  // Helpers for the result
+  I, LineCount: Integer;
+  SumAngles: Double;
 
   // Calculates final angle for given angle step.
   function GetFinalAngle(StepIndex: Integer): Double;
@@ -164,8 +229,6 @@ var
     Result := AlphaStart + StepIndex * AngleStep;
   end;
 
-  // Sine and cosine of all the tested angles. They are the same for
-  // every pixel so it would be a waste to calculate them again in CalcLines.
   procedure CalcSinCosTables;
   var
     I: Integer;
@@ -181,72 +244,106 @@ var
     end;
   end;
 
-  // Calculates angle and distance parameters for all lines
-  // going through point [X, Y].
-  procedure CalcLines(X, Y: Integer);
+  // Collects baseline pixels (black pixel, darker than Threshold, with a white
+  // one directly below) from row Y on, until the rows end or there are enough
+  // for one pass. Y is the next row to look at then.
+  procedure FindBaselinePixels(var Y: Integer);
   var
-    D: Double;
-    I, DIndex, Index: Integer;
+    X: Integer;
+    Row, RowBelow: PBuffer;
   begin
-    for I := 0 to AlphaSteps - 1 do
+    PointCount := 0;
+    // A row adds at most PageWidth pixels, so the arrays never overflow ("+ PageWidth" capacity)
+    while (Y < PageHeight) and (PointCount <= MaxPointsPerPass) do
     begin
-      // Parameter D(distance from origin) of the line y=tg(alpha)x + d
-      D := Y * CosTable[I] - X * SinTable[I];
-      // Calc index into accumulator for current line
-      DIndex := Trunc(D - MinDist);
-      Index := DIndex * AlphaSteps + I;
-      // Add one vote for current line
-      HoughAccumulator[Index] := HoughAccumulator[Index] + 1;
+      // Pixels are indexed through Imaging's PBuffer (array pointers like PByteArray
+      // cannot reach over 2 GB in Delphi).
+      Row := @Pixels[NativeInt(ContentRect.Top + Y) * Width + ContentRect.Left];
+      RowBelow := @Pixels[NativeInt(ContentRect.Top + Y + 1) * Width + ContentRect.Left];
+
+      for X := 0 to PageWidth - 1 do
+        if (Row[X] < Threshold) and (RowBelow[X] >= Threshold) then
+        begin
+          PointsX[PointCount] := X;
+          PointsY[PointCount] := Y;
+          Inc(PointCount);
+        end;
+      Inc(Y);
     end;
   end;
 
   // Uses Hough transform to calculate all lines that intersect
-  // interesting points (those classified as beign on base line of the text).
+  // interesting points (those classified as being on base line of the text).
   procedure CalcHoughTransform;
   var
-    Y, X: Integer;
+    Y, Capacity: Integer;
   begin
-    for Y := 0 to PageHeight - 1 do
-      for X := 0 to PageWidth - 1 do
-      begin
-        if IsPixelBlack(ContentRect.Left + X, ContentRect.Top + Y) and
-          not IsPixelBlack(ContentRect.Left + X, ContentRect.Top + Y + 1) then
-        begin
-          CalcLines(X, Y);
-          Inc(TestedPixels);
-        end;
-      end;
+    // A pass ends after the row that reached MaxPointsPerPass.
+    // For usual scans we fit into a single pass.
+    Capacity := MaxPointsPerPass + PageWidth;
+    if Int64(PageWidth) * PageHeight < Capacity then
+      Capacity := Math.Max(0, PageWidth * PageHeight);
+
+    SetLength(PointsX, Capacity);
+    SetLength(PointsY, Capacity);
+    Y := 0;
+
+    while Y < PageHeight do
+    begin
+      FindBaselinePixels(Y);
+      VoteForLines(PointsX, PointsY, PointCount, SinTable, CosTable, MinDist, DistCount,
+        HoughAccumulator);
+      Inc(TestedPixels, PointCount);
+    end;
+  end;
+
+  // Tells whether line A goes before line B among the best lines: it has more
+  // votes or, with the same votes, the smaller distance and then the smaller
+  // angle index. The order of lines with the same votes matters for the result,
+  // this is the one the detection was calibrated with.
+  function IsBetterLine(const A, B: TLine): Boolean;
+  begin
+    if A.Count <> B.Count then
+      Result := A.Count > B.Count
+    else if A.DistIndex <> B.DistIndex then
+      Result := A.DistIndex < B.DistIndex
+    else
+      Result := A.AlphaIndex < B.AlphaIndex;
   end;
 
   // Chooses "best" lines (with the most votes) from the accumulator
   // and calculates scores of all the tested angles on the way.
   function GetBestLines(Count: Integer): TLineArray;
   var
-    I, J, DistIndex, AlphaIndex, Votes: Integer;
-    Temp: TLine;
+    I, J, AlphaIndex, DistIndex, Index: Integer;
+    Line, Temp: TLine;
   begin
     SetLength(Result, Count);
-    I := 0;
+    Index := 0;
 
-    for DistIndex := 0 to DistCount - 1 do
-      for AlphaIndex := 0 to AlphaSteps - 1 do
+    // Accumulator is visited in the order it is stored, angle by angle
+    for AlphaIndex := 0 to AlphaSteps - 1 do
+    begin
+      // Now all the lines on the page with this angle (but differing distance from origin)
+      for DistIndex := 0 to DistCount - 1 do
       begin
-        Votes := HoughAccumulator[I];
+        Line.Count := HoughAccumulator[Index];
+        Inc(Index);
 
-        if Votes > 0 then
+        if Line.Count > 0 then
         begin
-          AngleScores[AlphaIndex] := AngleScores[AlphaIndex] + Votes * 1.0 * Votes;
+          AngleScores[AlphaIndex] := AngleScores[AlphaIndex] + Line.Count * 1.0 * Line.Count;
+          Line.AlphaIndex := AlphaIndex;
+          Line.DistIndex := DistIndex;
 
-          if Votes > Result[Count - 1].Count then
+          // Empty places in the result have zero votes, every line is better
+          if IsBetterLine(Line, Result[Count - 1]) then
           begin
-            // Current line has more votes than the last selected one,
-            // let's put it the pot
-            Result[Count - 1].Count := Votes;
-            Result[Count - 1].Index := I;
+            // Current line is better than the last selected one,
+            // let's put it the pot and sort it in
+            Result[Count - 1] := Line;
             J := Count - 1;
-
-            // Sort the lines based on number of votes
-            while (J > 0) and (Result[J].Count > Result[J - 1].Count) do
+            while (J > 0) and IsBetterLine(Result[J], Result[J - 1]) do
             begin
               Temp := Result[J];
               Result[J] := Result[J - 1];
@@ -255,17 +352,13 @@ var
             end;
           end;
         end;
-
-        Inc(I);
       end;
+    end;
 
     for I := 0 to Count - 1 do
     begin
-      // Caculate line angle and distance according to index in the accumulator
-      DistIndex := Result[I].Index div AlphaSteps;
-      AlphaIndex := Result[I].Index - DistIndex * AlphaSteps;
-      Result[I].Alpha := GetFinalAngle(AlphaIndex);
-      Result[I].Distance := DistIndex + MinDist;
+      Result[I].Alpha := GetFinalAngle(Result[I].AlphaIndex);
+      Result[I].Distance := Result[I].DistIndex + MinDist;
     end;
   end;
 
@@ -279,9 +372,9 @@ var
     PeakIndex := 0;
     Sharpness := 0;
     Confidence := 0;
-
     MaxScore := 0;
     SumScores := 0;
+
     for I := 0 to AlphaSteps - 1 do
     begin
       SumScores := SumScores + AngleScores[I];
@@ -348,7 +441,7 @@ begin
   PageWidth := ContentRect.Right - ContentRect.Left;
   PageHeight := ContentRect.Bottom - ContentRect.Top;
   if (ContentRect.Bottom = Height) then
-    Dec(PageHeight); // Don't check for black pixels outsize of image in CalcHoughTransform()
+    Dec(PageHeight); // Baseline pixel check looks at the row below too, it must not go outside of the image
 
   AlphaStart := -MaxAngle;
   AlphaSteps := Ceil(2 * MaxAngle / AngleStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
@@ -378,6 +471,7 @@ begin
   // Average angles of the best lines that agree with the peak angle
   // to get the rotation angle of the image. Usually it's all of them.
   // There can be less lines than we asked for in (nearly) blank images.
+  // Small addition keeps lines exactly at the tolerance in spite of rounding errors
   Tolerance := Math.Max(PeakAngleTolerance, 2 * AngleStep) + 1E-9;
   SumAngles := 0;
   LineCount := 0;
