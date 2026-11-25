@@ -221,9 +221,9 @@ begin
   // Last row cannot be tested (needs a row below)
   AssertTrue('Pixel count: page', FStats.PixelCount = Int64(PageWidth) * (PageHeight - 1));
   AssertTrue('Tested pixels', (FStats.TestedPixels > 1000) and (FStats.TestedPixels < FStats.PixelCount));
-  // Each tested pixel votes once for each angle step
-  AssertTrue('Accumulated counts', FStats.AccumulatedCounts = FStats.TestedPixels * 200);
-  AssertTrue('Accumulator size', FStats.AccumulatorSize = 2 * (PageWidth + PageHeight - 1) * 200);
+  // Each tested pixel votes once for each tested angle: -10 to 10 by 0.1 is 201 of them
+  AssertTrue('Accumulated counts', FStats.AccumulatedCounts = FStats.TestedPixels * 201);
+  AssertTrue('Accumulator size', FStats.AccumulatorSize = 2 * (PageWidth + PageHeight - 1) * 201);
   AssertTrue('Best count', (FStats.BestCount > 100) and (FStats.BestCount <= PageWidth));
   AssertTrue('Lines at peak', FStats.LinesAtPeak = 20);
   AssertTrue('Sharpness', (FStats.Sharpness > 0.5) and (FStats.Sharpness <= 1));
@@ -287,7 +287,17 @@ begin
   DrawTextLines(5.3, Rect(60, 60, 540, 740));
   Detect(5);
   AssertOutcome('Just outside', sdoAtRangeLimit);
-  AssertAngle('Peak at the range limit', 4.9, FStats.PeakAngle, 0.001);
+  AssertAngle('Peak at the range limit', 5, FStats.PeakAngle, 0.001);
+
+  // Both ends of the range are tested
+  FImage.Fill(ColorWhite);
+  DrawTextLines(-5.3, Rect(60, 60, 540, 740));
+  Detect(5);
+  AssertOutcome('Just outside, negative', sdoAtRangeLimit);
+  AssertAngle('Peak at the negative range limit', -5, FStats.PeakAngle, 0.001);
+
+  FImage.Fill(ColorWhite);
+  DrawTextLines(5.3, Rect(60, 60, 540, 740));
 
   AssertAngle('Larger range', 5.3, Detect(10));
   AssertOutcome('Larger range', sdoDetected);

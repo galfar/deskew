@@ -67,7 +67,8 @@ const
   - MaxAngle: the largest skew angle that is looked for, in degrees. Angles in the range
     [-MaxAngle, MaxAngle] are tested, skew outside of it cannot be found.
   - AngleStep: distance between two neighboring tested angles, in degrees.
-    There are 2 * MaxAngle / AngleStep of them.
+    There are 2 * MaxAngle / AngleStep + 1 of them, from -MaxAngle to MaxAngle
+    (when the range is not a whole number of steps the last one is below MaxAngle).
   - Threshold (0..255) is used to classify pixel as black (text) or white (background).
   - Width, Height, Pixels: the image in 8bit grayscale, rows stored one after another.
 
@@ -145,9 +146,9 @@ const
   // Each line takes 4 bytes, so this is 2 GB of memory. It also keeps the line
   // indexes safely within 32-bit integers.
   // Number of lines is 2 * (width + height) * (2 * max angle / angle step):
-  // 4.8 million (19 MB) for A4 page at 600 DPI with default settings (200 angle steps).
+  // 4.8 million (19 MB) for A4 page at 600 DPI with default settings (201 angle steps).
   // The limit is hit only with extreme settings: with max angle 90 and angle step 0.01
-  // (18000 angle steps) when width + height of the page is over 13888 pixels.
+  // (18001 angle steps) when width + height of the page is over 13888 pixels.
   MaxAccumulatorSize = 500 * 1000 * 1000;
   // Number of tested pixels that is always considered too low to detect anything
   MinTestedPixels = 16;
@@ -467,7 +468,9 @@ begin
     Dec(PageHeight); // Baseline pixel check looks at the row below too, it must not go outside of the image
 
   AlphaStart := -MaxAngle;
-  AlphaSteps := Ceil(2 * MaxAngle / AngleStep); // Number of angle steps = samples from interval <-MaxAngle, MaxAngle>
+  // Number of tested angles: both ends of <-MaxAngle, MaxAngle> are included when the range
+  // is a whole number of steps (epsilon for the rounding of the division, e.g. 20 / 0.1)
+  AlphaSteps := Floor(2 * MaxAngle / AngleStep + 1E-6) + 1;
 
   if MaxAngle <= AxisDistanceMinMaxAngle then
   begin
