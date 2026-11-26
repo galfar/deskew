@@ -37,8 +37,8 @@ uses
   RotationDetector;
 
 const
-  SAppVersion = '1.35';
-  SAppTitle = 'Deskew ' + SAppVersion + ' (2026-11-23, ' + SBuildTarget + ', ' + SBuildCompiler
+  SAppVersion = '1.36';
+  SAppTitle = 'Deskew ' + SAppVersion + ' (2026-11-26, ' + SBuildTarget + ', ' + SBuildCompiler
     {$IFDEF DEBUG} + ', DEBUG'{$ENDIF}
     + ') by Marek Mauder';
   SAppHome = 'https://github.com/galfar/deskew' + sLineBreak +
