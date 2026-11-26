@@ -55,7 +55,16 @@ is a static site to host anywhere or run locally (see [WebUI's Readme](Web/Readm
 
 See [Platform Notes](#platform-notes) for what each of them needs.
 
-Development snapshot: <https://github.com/galfar/deskew/releases/tag/snapshot>
+**Homebrew** (macOS, command line tool only, built from source):
+
+```bash
+brew tap deskew/tap https://gitlab.com/deskew/homebrew.git
+brew install deskew/tap/deskew
+```
+
+**Development snapshot**
+
+<https://github.com/galfar/deskew/releases/tag/snapshot>  
 Archives of the latest successful build of the development version, the same as above with
 `dev-<date>` in the name. Tested by CI, but not as much as the releases.
 
