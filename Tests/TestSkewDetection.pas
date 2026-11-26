@@ -251,7 +251,8 @@ end;
 procedure TTestSkewDetection.TestFewPixels;
 begin
   DrawDots(8);
-  Detect;
+  // Angles of single pixels mean nothing: no content gives angle 0
+  AssertEquals('Angle', 0.0, Detect);
   AssertOutcome('Few dots', sdoNoContent);
   AssertEquals('Confidence', 0.0, FStats.Confidence);
 end;
@@ -338,6 +339,15 @@ begin
   Area := Rect(40, 410, 560, 780);
   AssertAngle('Lower half', 3, Detect(10, 0.1, @Area));
   AssertOutcome('Lower half', sdoDetected);
+
+  // Only the part inside the image is used
+  Area := Rect(40, 410, PageWidth + 200, PageHeight + 200);
+  AssertAngle('Lower half, area over the image edge', 3, Detect(10, 0.1, @Area));
+  AssertOutcome('Lower half, area over the image edge', sdoDetected);
+
+  Area := Rect(PageWidth + 10, 0, PageWidth + 300, 300);
+  AssertEquals('Area outside of the image', 0.0, Detect(10, 0.1, @Area));
+  AssertOutcome('Area outside of the image', sdoNoContent);
 end;
 
 procedure TTestSkewDetection.TestTooLargeAccumulator;
