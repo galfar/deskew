@@ -83,12 +83,15 @@ type
     procedure Test_GradientSubpixelAccuracy_AllFilters;
     procedure Test_TinyImages_AllFormatsAndFilters;
     procedure Test_BackgroundWithAlpha_AllFormatsAndFilters;
+    procedure Test_LinearMatchesReference_IncludingEdges;
+    procedure Test_FlatImageOnSameBackground_AllFilters;
+    procedure Test_CubicLanczosMatchReference_IncludingEdges;
   end;
 
 implementation
 
 uses
-  Math;
+  Math, ImagingFormats;
 
 function C32(Color: TColor32): TColor32Rec;
 begin
@@ -1029,6 +1032,263 @@ begin
       // Middle of the image stays opaque
       AssertEquals(Name + ': center alpha', 255,
         FTestImage.GetPixelColor32(FTestImage.Width div 2, FTestImage.Height div 4).A);
+    end;
+  end;
+end;
+
+// Channel C (0 = blue, 1 = green, 2 = red, 3 = alpha) of pixel [X, Y] of a test
+// pattern that changes a lot from pixel to pixel
+function PatternChannel(X, Y, C: Integer): Byte;
+begin
+  Result := Byte(X * 37 + Y * 91 + C * 53 + X * Y * 7);
+end;
+
+procedure TTestImageRotation.Test_LinearMatchesReference_IncludingEdges;
+const
+  SrcW = 23;
+  SrcH = 17;
+  Formats: array[0..2] of TImageFormat = (ifGray8, ifR8G8B8, ifA8R8G8B8);
+  Channels: array[0..2] of Integer = (1, 3, 4);
+  Angles: array[0..7] of Double = (0.05, -0.3, 1.0, 7.5, 44.99, 45.0, 135.3, -60.0);
+var
+  F, I, X, Y, C, X0, Y0, Got, MaxDiff: Integer;
+  Fit: Boolean;
+  Background: TColor32Rec;
+  BackChannels: array[0..3] of Byte;
+  Pixel: TColor32Rec;
+  Name: string;
+  CosA, SinA, SrcX, SrcY, DstX, DstY, Wx, Wy, Expected: Double;
+
+  // Source channel value or the background outside of the source image
+  function Tap(TX, TY, TC: Integer): Double;
+  begin
+    if (TX >= 0) and (TX < SrcW) and (TY >= 0) and (TY < SrcH) then
+      Result := PatternChannel(TX, TY, TC)
+    else
+      Result := BackChannels[TC];
+  end;
+
+begin
+  // Every pixel, also those at the edges of the rotated source where some of the
+  // four neighbors are the background and those around the background, against
+  // bilinear interpolation in Double. The pattern changes a lot from pixel to
+  // pixel, so wrong neighbors or weights show up, and the image is small, so most
+  // pixels are near an edge. Differences of one come from rounding.
+  Background.Color := $80336699;
+
+  for F := Low(Formats) to High(Formats) do
+  begin
+    FOrigImage.RecreateImageData(SrcW, SrcH, Formats[F]);
+    for Y := 0 to SrcH - 1 do
+      for X := 0 to SrcW - 1 do
+        for C := 0 to Channels[F] - 1 do
+          PByte(FOrigImage.PixelPointer[X, Y])[C] := PatternChannel(X, Y, C);
+
+    BackChannels[0] := Background.B;
+    BackChannels[1] := Background.G;
+    BackChannels[2] := Background.R;
+    BackChannels[3] := Background.A;
+
+    for I := Low(Angles) to High(Angles) do
+      for Fit := False to True do
+      begin
+        Name := Format('%s %.2f deg fit=%s', [string(Imaging.GetFormatName(Formats[F])),
+          Angles[I], SysUtils.BoolToStr(Fit, True)]);
+        FTestImage.Assign(FOrigImage);
+        RotateImage(FTestImage.ImageDataPointer^, Angles[I], Background.Color, rfLinear, Fit);
+
+        CosA := Cos(DegToRad(-Angles[I]));
+        SinA := Sin(DegToRad(-Angles[I]));
+        MaxDiff := 0;
+
+        for Y := 0 to FTestImage.Height - 1 do
+          for X := 0 to FTestImage.Width - 1 do
+          begin
+            DstX := X - (FTestImage.Width - 1) / 2;
+            DstY := (FTestImage.Height - 1) / 2 - Y;
+            SrcX := CosA * DstX - SinA * DstY + (SrcW - 1) / 2;
+            SrcY := (SrcH - 1) / 2 - (SinA * DstX + CosA * DstY);
+            X0 := Floor(SrcX);
+            Y0 := Floor(SrcY);
+            Wx := SrcX - X0;
+            Wy := SrcY - Y0;
+            Pixel.Color := 0;
+            Move(FTestImage.PixelPointer[X, Y]^, Pixel, Channels[F]);
+
+            for C := 0 to Channels[F] - 1 do
+            begin
+              if (SrcX < -1) or (SrcY < -1) or (SrcX > SrcW) or (SrcY > SrcH) then
+                Expected := BackChannels[C]
+              else
+                Expected :=
+                  (1 - Wx) * (1 - Wy) * Tap(X0, Y0, C) + Wx * (1 - Wy) * Tap(X0 + 1, Y0, C) +
+                  (1 - Wx) * Wy * Tap(X0, Y0 + 1, C) + Wx * Wy * Tap(X0 + 1, Y0 + 1, C);
+              Got := PByte(@Pixel)[C];
+              MaxDiff := Math.Max(MaxDiff, Abs(Got - Round(Expected)));
+            end;
+          end;
+
+        AssertTrue(Format('%s: max difference %d > 1', [Name, MaxDiff]), MaxDiff <= 1);
+      end;
+  end;
+end;
+
+procedure TTestImageRotation.Test_FlatImageOnSameBackground_AllFilters;
+const
+  Formats: array[0..2] of TImageFormat = (ifGray8, ifR8G8B8, ifA8R8G8B8);
+  Angles: array[0..3] of Double = (0.3, 7.5, 45.0, -120.0);
+  FilterNames: array[TResamplingFilter] of string = ('nearest', 'linear', 'cubic', 'lanczos');
+var
+  F, I, X, Y, Wrong, Bpp: Integer;
+  Filter: TResamplingFilter;
+  Fit: Boolean;
+  Color: TColor32Rec;
+begin
+  // The image is filled with the background color: every pixel of the result,
+  // also at the edges where the kernels take the background for the taps
+  // outside, must be exactly that color. Checks that the weights of the taps
+  // inside and outside add up to one everywhere.
+  Color.Color := $80336699;
+
+  for F := Low(Formats) to High(Formats) do
+    for Filter := Low(TResamplingFilter) to High(TResamplingFilter) do
+      for I := Low(Angles) to High(Angles) do
+        for Fit := False to True do
+        begin
+          FTestImage.RecreateImageData(IMG_WIDTH, IMG_HEIGHT, Formats[F]);
+          Bpp := FTestImage.FormatInfo.BytesPerPixel;
+          for Y := 0 to IMG_HEIGHT - 1 do
+            for X := 0 to IMG_WIDTH - 1 do
+              Move(Color, FTestImage.PixelPointer[X, Y]^, Bpp);
+
+          RotateImage(FTestImage.ImageDataPointer^, Angles[I], Color.Color, Filter, Fit);
+
+          Wrong := 0;
+          for Y := 0 to FTestImage.Height - 1 do
+            for X := 0 to FTestImage.Width - 1 do
+              if not CompareMem(FTestImage.PixelPointer[X, Y], @Color, Bpp) then
+                Inc(Wrong);
+
+          AssertEquals(Format('%s %s %.1f deg fit=%s: changed pixels', [string(Imaging.GetFormatName(Formats[F])),
+            FilterNames[Filter], Angles[I], SysUtils.BoolToStr(Fit, True)]), 0, Wrong);
+        end;
+end;
+
+procedure TTestImageRotation.Test_CubicLanczosMatchReference_IncludingEdges;
+const
+  SrcW = 23;
+  SrcH = 17;
+  Formats: array[0..2] of TImageFormat = (ifGray8, ifR8G8B8, ifA8R8G8B8);
+  Channels: array[0..2] of Integer = (1, 3, 4);
+  Angles: array[0..5] of Double = (0.05, -0.3, 7.5, 44.99, 135.3, -60.0);
+  Filters: array[0..1] of TResamplingFilter = (rfCubic, rfLanczos);
+  SamplingFilters: array[0..1] of TSamplingFilter = (sfCatmullRom, sfLanczos);
+  FilterNames: array[0..1] of string = ('cubic', 'lanczos');
+  // RotateImage takes the filter weights from a table of sub-pixel positions,
+  // the reference computes them for the exact position. On this pattern of
+  // hard edges the difference is largest: 128 positions give up to 2 (rounding
+  // included), the 32 positions used before gave up to 7.
+  MaxAllowedDiff = 2;
+var
+  F, R, I, X, Y, C, J, K, KernelWidth, CeilX, CeilY, Got, MaxDiff: Integer;
+  Fit: Boolean;
+  Background: TColor32Rec;
+  BackChannels: array[0..3] of Byte;
+  Pixel: TColor32Rec;
+  Name: string;
+  FilterFunc: TFilterFunction;
+  CosA, SinA, SrcX, SrcY, DstX, DstY, Sum, SumWx, SumWy, Expected: Double;
+  Wx, Wy: array[-3..3] of Double;
+
+  function Tap(TX, TY, TC: Integer): Double;
+  begin
+    if (TX >= 0) and (TX < SrcW) and (TY >= 0) and (TY < SrcH) then
+      Result := PatternChannel(TX, TY, TC)
+    else
+      Result := BackChannels[TC];
+  end;
+
+begin
+  // Like Test_LinearMatchesReference_IncludingEdges for cubic and Lanczos:
+  // every pixel against the filter computed in Double for the exact source position,
+  // the taps outside of the source are the background, weights normalized to sum 1.
+  Background.Color := $80336699;
+  BackChannels[0] := Background.B;
+  BackChannels[1] := Background.G;
+  BackChannels[2] := Background.R;
+  BackChannels[3] := Background.A;
+
+  for R := Low(Filters) to High(Filters) do
+  begin
+    FilterFunc := SamplingFilterFunctions[SamplingFilters[R]];
+    KernelWidth := Ceil(SamplingFilterRadii[SamplingFilters[R]]);
+
+    for F := Low(Formats) to High(Formats) do
+    begin
+      FOrigImage.RecreateImageData(SrcW, SrcH, Formats[F]);
+      for Y := 0 to SrcH - 1 do
+        for X := 0 to SrcW - 1 do
+          for C := 0 to Channels[F] - 1 do
+            PByte(FOrigImage.PixelPointer[X, Y])[C] := PatternChannel(X, Y, C);
+
+      MaxDiff := 0;
+      Name := FilterNames[R] + ' ' + string(Imaging.GetFormatName(Formats[F]));
+
+      for I := Low(Angles) to High(Angles) do
+        for Fit := False to True do
+        begin
+          FTestImage.Assign(FOrigImage);
+          RotateImage(FTestImage.ImageDataPointer^, Angles[I], Background.Color, Filters[R], Fit);
+
+          CosA := Cos(DegToRad(-Angles[I]));
+          SinA := Sin(DegToRad(-Angles[I]));
+
+          for Y := 0 to FTestImage.Height - 1 do
+            for X := 0 to FTestImage.Width - 1 do
+            begin
+              DstX := X - (FTestImage.Width - 1) / 2;
+              DstY := (FTestImage.Height - 1) / 2 - Y;
+              SrcX := CosA * DstX - SinA * DstY + (SrcW - 1) / 2;
+              SrcY := (SrcH - 1) / 2 - (SinA * DstX + CosA * DstY);
+              // Too close to a whole pixel the ceiling depends on the last bits
+              if (Abs(SrcX - Round(SrcX)) < 1E-6) or (Abs(SrcY - Round(SrcY)) < 1E-6) then
+                Continue;
+              CeilX := Ceil(SrcX);
+              CeilY := Ceil(SrcY);
+
+              SumWx := 0;
+              SumWy := 0;
+              for J := -KernelWidth to KernelWidth do
+              begin
+                Wx[J] := FilterFunc(J + (CeilX - SrcX));
+                Wy[J] := FilterFunc(J + (CeilY - SrcY));
+                SumWx := SumWx + Wx[J];
+                SumWy := SumWy + Wy[J];
+              end;
+
+              Pixel.Color := 0;
+              Move(FTestImage.PixelPointer[X, Y]^, Pixel, Channels[F]);
+
+              for C := 0 to Channels[F] - 1 do
+              begin
+                if (CeilX < 0) or (CeilX > SrcW) or (CeilY < 0) or (CeilY > SrcH) then
+                  Expected := BackChannels[C]
+                else
+                begin
+                  Sum := 0;
+                  for K := -KernelWidth to KernelWidth do
+                    for J := -KernelWidth to KernelWidth do
+                      Sum := Sum + Wx[J] * Wy[K] * Tap(CeilX + J, CeilY + K, C);
+                  Expected := EnsureRange(Sum / (SumWx * SumWy), 0, 255);
+                end;
+                Got := PByte(@Pixel)[C];
+                MaxDiff := Math.Max(MaxDiff, Abs(Got - Round(Expected)));
+              end;
+            end;
+        end;
+
+      AssertTrue(Format('%s: max difference %d > %d', [Name, MaxDiff, MaxAllowedDiff]),
+        MaxDiff <= MaxAllowedDiff);
     end;
   end;
 end;

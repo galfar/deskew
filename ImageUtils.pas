@@ -516,24 +516,45 @@ begin
   end;
 end;
 
-// Use precomputed weights for bicubic and Lanczos filters
-{$DEFINE USE_FILTER_TABLE}
+{$REGION 'Rotation support: types, helpers and pixel loops of RotateImage'}
 
 const
-  // Number of sub-pixel positions with precomputed filter weights
-  FilterTableSize = 32;
+  // Number of sub-pixel positions with precomputed filter weights. With 128 the
+  // position is at most 1/254 pixel off; the table is small enough (3.6 KB) to stay in cache.
+  FilterTableSize = 128;
   MaxFilterTablePos = FilterTableSize - 1;
   MaxKernelRadius = 3;
+  // Source positions are stepped along destination rows in 32.32 fixed point.
+  // They are kept positive by a bias of CoordBias pixels, so the integer part is
+  // a plain shift in both compilers (shr of Int64 is logical in Delphi).
+  FixedShift = 32;
+  FixedOne = Int64(1) shl FixedShift;
+  CoordBias = 1 shl 30;
+  FixedBias = Int64(CoordBias) shl FixedShift;
+  // Weights of all the filters are integers with 16 fractional bits (every row
+  // of the cubic and Lanczos table sums to exactly WeightOne). Sums of a row of
+  // taps fit into Integer, the weighted sums of the rows need Int64.
+  WeightShift = 16;
+  WeightOne = 1 shl WeightShift;
 
 type
-  TFilterWeightTable = array[-MaxKernelRadius..MaxKernelRadius, 0..FilterTableSize] of Single;
+  TFilterWeightTable = array[-MaxKernelRadius..MaxKernelRadius, 0..FilterTableSize] of Integer;
 
   // Center of the source and destination images and the sine and cosine
-  // of the backward rotation (from destination to source)
+  // of the backward rotation (from destination to source), nearest filter
   TRotationGeometry = record
     SrcWidthHalf, SrcHeightHalf: Single;
     DstWidthHalf, DstHeightHalf: Single;
     BackwardSin, BackwardCos: Single;
+  end;
+
+  // Source position of the first pixel of each destination row, and how much
+  // it moves with every next pixel of the row (linear, cubic and Lanczos filters)
+  TRowStepping = record
+    BackwardSin, BackwardCos: Double;
+    SrcWidthHalf, SrcHeightHalf: Double;
+    DstWidthHalf, DstHeightHalf: Double;
+    StepX, StepY: Int64;
   end;
 
   // Everything the pixel loops of RotateImage need. The loops and their helpers
@@ -542,6 +563,7 @@ type
   // made several calls there. The loops copy what they use into local variables.
   TRotationParams = record
     Geometry: TRotationGeometry;
+    Stepping: TRowStepping;
     SrcBits: PBuffer;
     SrcWidth, SrcHeight: Integer;
     DstBits: PByte;
@@ -549,20 +571,9 @@ type
     Bpp: Integer;
     BackColor32: TColor32Rec;
     // Cubic and Lanczos filters only
-    FilterFunction: TFilterFunction;
     KernelWidth: Integer;
     WeightTable: TFilterWeightTable;
   end;
-
-function FastFloor(X: Single): Integer; inline;
-begin
-  Result := Trunc(X + 65536.0) - 65536;
-end;
-
-function FastCeil(X: Single): Integer; inline;
-begin
-  Result := 65536 - Trunc(65536.0 - X);
-end;
 
 // Position in the source image where destination pixel [DstX, DstY] comes from
 procedure CalcSourceCoordinates(const G: TRotationGeometry; DstX, DstY: Integer;
@@ -579,6 +590,32 @@ begin
 
   SrcX := SrcCoordX + G.SrcWidthHalf;
   SrcY := G.SrcHeightHalf - SrcCoordY;
+end;
+
+// Source position (biased fixed point) of the first pixel of destination row Y.
+// Same as CalcSourceCoordinates for DstX = 0, in Double.
+procedure CalcRowStart(const S: TRowStepping; Y: Integer; out FX, FY: Int64); inline;
+var
+  DstCoordX, DstCoordY: Double;
+begin
+  DstCoordX := -S.DstWidthHalf;
+  DstCoordY := S.DstHeightHalf - Y;
+  FX := FixedBias + Round((S.BackwardCos * DstCoordX - S.BackwardSin * DstCoordY +
+    S.SrcWidthHalf) * FixedOne);
+  FY := FixedBias + Round((S.SrcHeightHalf - S.BackwardSin * DstCoordX -
+    S.BackwardCos * DstCoordY) * FixedOne);
+end;
+
+// Integer part (floor) of a biased fixed point position
+function FixedToInt(F: Int64): Integer; inline;
+begin
+  Result := Integer(F shr FixedShift) - CoordBias;
+end;
+
+// Fractional part of a fixed point position
+function FixedFrac(F: Int64): Cardinal; inline;
+begin
+  Result := Cardinal(F and $FFFFFFFF);
 end;
 
 function GetPixelColor24(Bits: PBuffer; Width, Height, X, Y: Integer;
@@ -607,342 +644,30 @@ begin
     Result := BackColor;
 end;
 
-procedure GetBilinearPixelCoords(X, Y: Single;
-  out HorzWeight, VertWeight: Single;
-  out TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint); inline;
-begin
-  // Fields are set one by one, Point() of Classes unit is not inlined
-  TopLeftPt.X := FastFloor(X);
-  TopLeftPt.Y := FastFloor(Y);
-
-  HorzWeight := X - TopLeftPt.X;
-  VertWeight := Y - TopLeftPt.Y;
-
-  BottomLeftPt.X  := TopLeftPt.X;
-  BottomLeftPt.Y  := TopLeftPt.Y + 1;
-  TopRightPt.X    := TopLeftPt.X + 1;
-  TopRightPt.Y    := TopLeftPt.Y;
-  BottomRightPt.X := TopLeftPt.X + 1;
-  BottomRightPt.Y := TopLeftPt.Y + 1;
-end;
-
-// Clamped here and not with ClampToByte: FPC does not inline that one so deep
-// in the inlined calls, and the call per channel made the loops much slower
-function InterpolateBytes(HorzWeight, VertWeight: Single; C11, C12, C21, C22: Byte): Byte; inline;
+// Bilinear interpolation of four neighbors. With fx and fy in [0, 1) the position
+// between them (fx from the left ones, fy from the top ones) it is
+//   Top    = TopLeft    * (1 - fx) + TopRight    * fx
+//   Bottom = BottomLeft * (1 - fx) + BottomRight * fx
+//   Result = Round(Top  * (1 - fy) + Bottom * fy)
+// which is the same as
+//   (1 - fx) * (1 - fy) * TopLeft    + fx * (1 - fy) * TopRight +
+//   (1 - fx) * fy       * BottomLeft + fx * fy       * BottomRight
+// Here the weights are integers in fixed point: Wx = fx * WeightOne and
+// Wy = fy * WeightOne (WeightOne = 2^16 stands for 1). Never above 255.
+function Blend(TopLeft, TopRight, BottomLeft, BottomRight: Integer; Wx, Wy: Integer): Byte; inline;
 var
-  Value: LongInt;
+  Top, Bottom: Integer;
 begin
-  Value := Trunc(
-             (1 - HorzWeight) * (1 - VertWeight) * C11 +
-             (1 - HorzWeight) * VertWeight       * C12 +
-             HorzWeight       * (1 - VertWeight) * C21 +
-             HorzWeight       * VertWeight       * C22 + 0.5);
-  if Value > 255 then
-    Result := 255
-  else if Value < 0 then
-    Result := 0
-  else
-    Result := Value;
-end;
+  // Top and Bottom are WeightOne times the real value (at most 255 * 2^16)
+  Top :=    TopLeft    * (WeightOne - Wx) + TopRight    * Wx;
+  Bottom := BottomLeft * (WeightOne - Wx) + BottomRight * Wx;
 
-function Bilinear24(Bits: PBuffer; Width, Height: Integer; X, Y: Single;
-  const BackColor: TColor24Rec): TColor24Rec; inline;
-var
-  TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint;
-  HorzWeight, VertWeight: Single;
-  TopLeftColor, TopRightColor, BottomLeftColor, BottomRightColor: TColor24Rec;
-begin
-  GetBilinearPixelCoords(X, Y,
-    HorzWeight, VertWeight,
-    TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt);
-
-  TopLeftColor     := GetPixelColor24(Bits, Width, Height, TopLeftPt.X,     TopLeftPt.Y,     BackColor);
-  BottomLeftColor  := GetPixelColor24(Bits, Width, Height, BottomLeftPt.X,  BottomLeftPt.Y,  BackColor);
-  TopRightColor    := GetPixelColor24(Bits, Width, Height, TopRightPt.X,    TopRightPt.Y,    BackColor);
-  BottomRightColor := GetPixelColor24(Bits, Width, Height, BottomRightPt.X, BottomRightPt.Y, BackColor);
-
-  Result.R := InterpolateBytes(HorzWeight, VertWeight,
-    TopLeftColor.R, BottomLeftColor.R, TopRightColor.R, BottomRightColor.R);
-  Result.G := InterpolateBytes(HorzWeight, VertWeight,
-    TopLeftColor.G, BottomLeftColor.G, TopRightColor.G, BottomRightColor.G);
-  Result.B := InterpolateBytes(HorzWeight, VertWeight,
-    TopLeftColor.B, BottomLeftColor.B, TopRightColor.B, BottomRightColor.B);
-end;
-
-function Bilinear8(Bits: PBuffer; Width, Height: Integer; X, Y: Single;
-  BackColor: Byte): Byte; inline;
-var
-  TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint;
-  HorzWeight, VertWeight: Single;
-  TopLeftColor, TopRightColor, BottomLeftColor, BottomRightColor: Byte;
-begin
-  GetBilinearPixelCoords(X, Y,
-    HorzWeight, VertWeight,
-    TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt);
-
-  TopLeftColor     := GetPixelColor8(Bits, Width, Height, TopLeftPt.X,     TopLeftPt.Y,     BackColor);
-  BottomLeftColor  := GetPixelColor8(Bits, Width, Height, BottomLeftPt.X,  BottomLeftPt.Y,  BackColor);
-  TopRightColor    := GetPixelColor8(Bits, Width, Height, TopRightPt.X,    TopRightPt.Y,    BackColor);
-  BottomRightColor := GetPixelColor8(Bits, Width, Height, BottomRightPt.X, BottomRightPt.Y, BackColor);
-
-  Result := InterpolateBytes(HorzWeight, VertWeight,
-    TopLeftColor, BottomLeftColor, TopRightColor, BottomRightColor);
-end;
-
-function Bilinear32(Bits: PBuffer; Width, Height: Integer; X, Y: Single;
-  const BackColor: TColor32Rec): TColor32Rec; inline;
-var
-  TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt: TPoint;
-  HorzWeight, VertWeight: Single;
-  TopLeftColor, TopRightColor, BottomLeftColor, BottomRightColor: TColor32Rec;
-begin
-  GetBilinearPixelCoords(X, Y,
-    HorzWeight, VertWeight,
-    TopLeftPt, BottomLeftPt, TopRightPt, BottomRightPt);
-
-  TopLeftColor     := GetPixelColor32(Bits, Width, Height, TopLeftPt.X,     TopLeftPt.Y,     BackColor);
-  BottomLeftColor  := GetPixelColor32(Bits, Width, Height, BottomLeftPt.X,  BottomLeftPt.Y,  BackColor);
-  TopRightColor    := GetPixelColor32(Bits, Width, Height, TopRightPt.X,    TopRightPt.Y,    BackColor);
-  BottomRightColor := GetPixelColor32(Bits, Width, Height, BottomRightPt.X, BottomRightPt.Y, BackColor);
-
-  Result.A := InterpolateBytes(HorzWeight, VertWeight,
-      TopLeftColor.A, BottomLeftColor.A, TopRightColor.A, BottomRightColor.A);
-  Result.R := InterpolateBytes(HorzWeight, VertWeight,
-    TopLeftColor.R, BottomLeftColor.R, TopRightColor.R, BottomRightColor.R);
-  Result.G := InterpolateBytes(HorzWeight, VertWeight,
-    TopLeftColor.G, BottomLeftColor.G, TopRightColor.G, BottomRightColor.G);
-  Result.B := InterpolateBytes(HorzWeight, VertWeight,
-    TopLeftColor.B, BottomLeftColor.B, TopRightColor.B, BottomRightColor.B);
-end;
-
-{$IFDEF USE_FILTER_TABLE}
-procedure PrecomputeFilterWeights(var P: TRotationParams);
-var
-  I, J: Integer;
-  Weight, Sum: Single;
-  Fraction: Single;
-begin
-  FillMemoryByte(@P.WeightTable, SizeOf(P.WeightTable), 0);
-
-  for I := 0 to FilterTableSize do
-  begin
-    Fraction := I / (FilterTableSize - 1);
-    Sum := 0;
-    for J := -P.KernelWidth to P.KernelWidth do
-    begin
-      Weight := P.FilterFunction(J + Fraction);
-      P.WeightTable[J, I] := Weight;
-      Sum := Sum + Weight;
-    end;
-
-    // Weights of some filters (Lanczos) do not add up to 1, flat areas
-    // would get darker the sub-pixel position -> we need to normalize the weights
-    // so that all the taps must add up to 1.
-    if Sum <> 0 then
-      for J := -P.KernelWidth to P.KernelWidth do
-        P.WeightTable[J, I] := P.WeightTable[J, I] / Sum;
-  end;
-end;
-{$ENDIF}
-
-// Color of the destination pixel that comes from source position [X, Y],
-// cubic and Lanczos filters
-function FilterPixel(const P: TRotationParams; X, Y: Single): TColor32Rec;
-type
-  TBufferEntry = record
-    B, G, R, A: Single;
-  end;
-const
-  EmptyBufferEntry: TBufferEntry = (B: 0; G: 0; R: 0; A: 0);
-var
-  HorzEntry, VertEntry: TBufferEntry;
-  LoX, HiX, LoY, HiY: Integer;
-  I, J: Integer;
-  WeightHorz, WeightVert: Single;
-  CeilX, CeilY: Integer;
-{$IFDEF USE_FILTER_TABLE}
-  XFilterTablePos, YFilterTablePos: Integer;
-{$ELSE}
-  FracXS, FracYS: Single;
-  SumX, SumY, Norm: Single;
-{$ENDIF}
-  SrcPixel: PColor32Rec;
-  ClipRect: TRect;
-  Edge: Boolean;
-  KernelWidth, Bpp: Integer;
-  BackColor32: TColor32Rec;
-begin
-  KernelWidth := P.KernelWidth;
-  Bpp := P.Bpp;
-  BackColor32 := P.BackColor32;
-  // Fields are set one by one, Rect() of Classes unit is not inlined
-  ClipRect.Left := 0;
-  ClipRect.Top := 0;
-  ClipRect.Right := P.SrcWidth;
-  ClipRect.Bottom := P.SrcHeight;
-  Edge := False;
-
-  CeilX := FastCeil(X);
-  CeilY := FastCeil(Y);
-
-  with ClipRect do
-  begin
-    if not ((CeilX < Left) or (CeilX > Right) or (CeilY < Top) or (CeilY > Bottom)) then
-    begin
-      Edge := False;
-
-      if CeilX - KernelWidth < Left then
-      begin
-        LoX := Left - CeilX;
-        Edge := True;
-      end
-      else
-        LoX := -KernelWidth;
-
-      if CeilX + KernelWidth >= Right then
-      begin
-        HiX := Right - CeilX - 1;
-        Edge := True;
-      end
-      else
-        HiX := KernelWidth;
-
-      if CeilY - KernelWidth < Top then
-      begin
-        LoY := Top - CeilY;
-        Edge := True;
-      end
-      else
-        LoY := -KernelWidth;
-
-      if CeilY + KernelWidth >= Bottom then
-      begin
-        HiY := Bottom - CeilY - 1;
-        Edge := True;
-      end
-      else
-        HiY := KernelWidth;
-    end
-    else
-      Exit(BackColor32);
-  end;
-
-{$IFDEF USE_FILTER_TABLE}
-  XFilterTablePos := Round((CeilX - X) * MaxFilterTablePos);
-  YFilterTablePos := Round((CeilY - Y) * MaxFilterTablePos);
-{$ELSE}
-  FracXS := CeilX - X;
-  FracYS := CeilY - Y;
-
-  // Same normalization as in PrecomputeFilterWeights: weights of all the taps
-  // (including those on the background) must add up to 1
-  SumX := 0;
-  SumY := 0;
-  for I := -KernelWidth to KernelWidth do
-  begin
-    SumX := SumX + P.FilterFunction(I + FracXS);
-    SumY := SumY + P.FilterFunction(I + FracYS);
-  end;
-{$ENDIF}
-
-  VertEntry := EmptyBufferEntry;
-
-  for I := LoY to HiY do
-  begin
-  {$IFDEF USE_FILTER_TABLE}
-    WeightVert := P.WeightTable[I, YFilterTablePos];
-  {$ELSE}
-    WeightVert := P.FilterFunction(I + FracYS);
-  {$ENDIF}
-
-    SrcPixel := PColor32Rec(@P.SrcBits[(LoX + CeilX + NativeInt(I + CeilY) * P.SrcWidth) * Bpp]);
-
-    if WeightVert <> 0 then
-    begin
-      HorzEntry := EmptyBufferEntry;
-      for J := LoX to HiX do
-      begin
-      {$IFDEF USE_FILTER_TABLE}
-         WeightHorz := P.WeightTable[J, XFilterTablePos];
-      {$ELSE}
-         WeightHorz := P.FilterFunction(J + FracXS);
-      {$ENDIF}
-
-        HorzEntry.B := HorzEntry.B + SrcPixel.B * WeightHorz;
-        if Bpp > 1 then
-        begin
-          HorzEntry.R := HorzEntry.R + SrcPixel.R * WeightHorz;
-          HorzEntry.G := HorzEntry.G + SrcPixel.G * WeightHorz;
-          if Bpp > 3 then
-            HorzEntry.A := HorzEntry.A + SrcPixel.A * WeightHorz;
-        end;
-
-        Inc(PByte(SrcPixel), Bpp);
-      end;
-
-      VertEntry.A := VertEntry.A + HorzEntry.A * WeightVert;
-      VertEntry.R := VertEntry.R + HorzEntry.R * WeightVert;
-      VertEntry.G := VertEntry.G + HorzEntry.G * WeightVert;
-      VertEntry.B := VertEntry.B + HorzEntry.B * WeightVert;
-    end;
-  end;
-
-  if Edge then
-  begin
-    for I := -KernelWidth to KernelWidth do
-    begin
-    {$IFDEF USE_FILTER_TABLE}
-      WeightVert := P.WeightTable[I, YFilterTablePos];
-    {$ELSE}
-      WeightVert := P.FilterFunction(I + FracYS);
-    {$ENDIF}
-
-      if WeightVert <> 0 then
-      begin
-        HorzEntry := EmptyBufferEntry;
-        for J := -KernelWidth to KernelWidth do
-        begin
-          if (J < LoX) or (J > HiX) or (I < LoY) or (I > HiY) then
-          begin
-          {$IFDEF USE_FILTER_TABLE}
-            WeightHorz := P.WeightTable[J, XFilterTablePos];
-          {$ELSE}
-             WeightHorz := P.FilterFunction(J + FracXS);
-          {$ENDIF}
-
-            HorzEntry.A := HorzEntry.A + BackColor32.A * WeightHorz;
-            HorzEntry.R := HorzEntry.R + BackColor32.R * WeightHorz;
-            HorzEntry.G := HorzEntry.G + BackColor32.G * WeightHorz;
-            HorzEntry.B := HorzEntry.B + BackColor32.B * WeightHorz;
-          end;
-        end;
-
-        VertEntry.A := VertEntry.A + HorzEntry.A * WeightVert;
-        VertEntry.R := VertEntry.R + HorzEntry.R * WeightVert;
-        VertEntry.G := VertEntry.G + HorzEntry.G * WeightVert;
-        VertEntry.B := VertEntry.B + HorzEntry.B * WeightVert;
-      end;
-    end
-  end;
-
-{$IFNDEF USE_FILTER_TABLE}
-  if SumX * SumY <> 0 then
-  begin
-    Norm := 1 / (SumX * SumY);
-    VertEntry.A := VertEntry.A * Norm;
-    VertEntry.R := VertEntry.R * Norm;
-    VertEntry.G := VertEntry.G * Norm;
-    VertEntry.B := VertEntry.B * Norm;
-  end;
-{$ENDIF}
-
-  with Result do
-  begin
-    A := ClampToByte(Trunc(VertEntry.A + 0.5));
-    R := ClampToByte(Trunc(VertEntry.R + 0.5));
-    G := ClampToByte(Trunc(VertEntry.G + 0.5));
-    B := ClampToByte(Trunc(VertEntry.B + 0.5));
-  end;
+  // Their blend is WeightOne^2 = 2^32 times the result: adding half of that
+  // and shifting by 32 bits rounds it to the nearest integer
+  Result := Byte(
+    (Int64(Top) * (WeightOne - Wy) + Int64(Bottom) * Wy +
+    (Int64(1) shl (2 * WeightShift - 1))) shr (2 * WeightShift)
+  );
 end;
 
 procedure RotateNearest(const P: TRotationParams);
@@ -987,96 +712,399 @@ begin
     end;
 end;
 
-// RGB 24 bit path of the linear filter
-procedure RotateLinear24(const P: TRotationParams);
+// The three linear loops below are the same apart from the pixel format.
+// For every destination pixel the source position [X0 + Wx, Y0 + Wy] is
+// stepped from the previous one. When all four neighbors are inside the source
+// they are read through one pointer (unsigned compares check both ends at once).
+// Within one pixel around the source the neighbors outside are the background,
+// further out the destination pixel is the background.
+
+procedure RotateLinear8(const P: TRotationParams);
 var
-  G: TRotationGeometry;
-  SrcBits: PBuffer;
-  SrcWidth, SrcHeight, X, Y: Integer;
-  SrcX, SrcY: Single;
-  DstPixel24: PColor24Rec;
-  BackColor24: TColor24Rec;
+  SrcBits, Src: PBuffer;
+  SrcWidth, SrcHeight, X, Y, X0, Y0, Wx, Wy: Integer;
+  FX, FY, StepX, StepY: Int64;
+  Dst: PByte;
+  Back: Byte;
 begin
-  G := P.Geometry;
   SrcBits := P.SrcBits;
   SrcWidth := P.SrcWidth;
   SrcHeight := P.SrcHeight;
-  BackColor24 := P.BackColor32.Color24Rec;
-  DstPixel24 := PColor24Rec(P.DstBits);
+  StepX := P.Stepping.StepX;
+  StepY := P.Stepping.StepY;
+  Back := P.BackColor32.B;
+  Dst := P.DstBits;
 
   for Y := 0 to P.DstHeight - 1 do
+  begin
+    CalcRowStart(P.Stepping, Y, FX, FY);
     for X := 0 to P.DstWidth - 1 do
     begin
-      CalcSourceCoordinates(G, X, Y, SrcX, SrcY);
+      X0 := FixedToInt(FX);
+      Y0 := FixedToInt(FY);
+      Wx := FixedFrac(FX) shr (32 - WeightShift);
+      Wy := FixedFrac(FY) shr (32 - WeightShift);
 
-      if (SrcX >= -1) and (SrcY >= -1) and (SrcX <= SrcWidth) and (SrcY <= SrcHeight) then
-        DstPixel24^ := Bilinear24(SrcBits, SrcWidth, SrcHeight, SrcX, SrcY, BackColor24)
+      if (Cardinal(X0) < Cardinal(SrcWidth - 1)) and (Cardinal(Y0) < Cardinal(SrcHeight - 1)) then
+      begin
+        Src := @SrcBits[NativeInt(Y0) * SrcWidth + X0];
+        Dst^ := Blend(Src[0], Src[1], Src[SrcWidth], Src[SrcWidth + 1], Wx, Wy);
+      end
+      else if (Cardinal(X0 + 1) < Cardinal(SrcWidth + 1)) and (Cardinal(Y0 + 1) < Cardinal(SrcHeight + 1)) then
+        Dst^ := Blend(
+          GetPixelColor8(SrcBits, SrcWidth, SrcHeight, X0,     Y0,     Back),
+          GetPixelColor8(SrcBits, SrcWidth, SrcHeight, X0 + 1, Y0,     Back),
+          GetPixelColor8(SrcBits, SrcWidth, SrcHeight, X0,     Y0 + 1, Back),
+          GetPixelColor8(SrcBits, SrcWidth, SrcHeight, X0 + 1, Y0 + 1, Back), Wx, Wy)
       else
-        DstPixel24^ := BackColor24;
+        Dst^ := Back;
 
-      Inc(DstPixel24);
+      Inc(Dst);
+      Inc(FX, StepX);
+      Inc(FY, StepY);
     end;
+  end;
 end;
 
-// A bit more generic 8 and 32 bit path of the linear filter
-procedure RotateLinear(const P: TRotationParams);
+procedure RotateLinear24(const P: TRotationParams);
 var
-  G: TRotationGeometry;
   SrcBits: PBuffer;
-  SrcWidth, SrcHeight, Bpp, X, Y: Integer;
-  SrcX, SrcY: Single;
-  DstByte: PByte;
-  BackColor32: TColor32Rec;
+  SrcWidth, SrcHeight, Stride, X, Y, X0, Y0, Wx, Wy: Integer;
+  FX, FY, StepX, StepY: Int64;
+  Dst: PColor24Rec;
+  TL, TR, BL, BR: PColor24Rec;
+  C11, C21, C12, C22, Back: TColor24Rec;
 begin
-  G := P.Geometry;
   SrcBits := P.SrcBits;
   SrcWidth := P.SrcWidth;
   SrcHeight := P.SrcHeight;
-  Bpp := P.Bpp;
-  BackColor32 := P.BackColor32;
-  DstByte := P.DstBits;
+  Stride := SrcWidth * 3;
+  StepX := P.Stepping.StepX;
+  StepY := P.Stepping.StepY;
+  Back := P.BackColor32.Color24Rec;
+  Dst := PColor24Rec(P.DstBits);
 
   for Y := 0 to P.DstHeight - 1 do
+  begin
+    CalcRowStart(P.Stepping, Y, FX, FY);
     for X := 0 to P.DstWidth - 1 do
     begin
-      CalcSourceCoordinates(G, X, Y, SrcX, SrcY);
+      X0 := FixedToInt(FX);
+      Y0 := FixedToInt(FY);
+      Wx := FixedFrac(FX) shr (32 - WeightShift);
+      Wy := FixedFrac(FY) shr (32 - WeightShift);
 
-      if (SrcX >= -1) and (SrcY >= -1) and (SrcX <= SrcWidth) and (SrcY <= SrcHeight) then
+      if (Cardinal(X0) < Cardinal(SrcWidth - 1)) and (Cardinal(Y0) < Cardinal(SrcHeight - 1)) then
       begin
-        if Bpp = 1 then
-          DstByte^ := Bilinear8(SrcBits, SrcWidth, SrcHeight, SrcX, SrcY, BackColor32.B)
-        else
-          PColor32Rec(DstByte)^ := Bilinear32(SrcBits, SrcWidth, SrcHeight, SrcX, SrcY, BackColor32)
+        TL := @SrcBits[(NativeInt(Y0) * SrcWidth + X0) * 3];
+        TR := PColor24Rec(PByte(TL) + 3);
+        BL := PColor24Rec(PByte(TL) + Stride);
+        BR := PColor24Rec(PByte(TL) + Stride + 3);
+        Dst.B := Blend(TL.B, TR.B, BL.B, BR.B, Wx, Wy);
+        Dst.G := Blend(TL.G, TR.G, BL.G, BR.G, Wx, Wy);
+        Dst.R := Blend(TL.R, TR.R, BL.R, BR.R, Wx, Wy);
+      end
+      else if (Cardinal(X0 + 1) < Cardinal(SrcWidth + 1)) and (Cardinal(Y0 + 1) < Cardinal(SrcHeight + 1)) then
+      begin
+        C11 := GetPixelColor24(SrcBits, SrcWidth, SrcHeight, X0,     Y0,     Back);
+        C21 := GetPixelColor24(SrcBits, SrcWidth, SrcHeight, X0 + 1, Y0,     Back);
+        C12 := GetPixelColor24(SrcBits, SrcWidth, SrcHeight, X0,     Y0 + 1, Back);
+        C22 := GetPixelColor24(SrcBits, SrcWidth, SrcHeight, X0 + 1, Y0 + 1, Back);
+        Dst.B := Blend(C11.B, C21.B, C12.B, C22.B, Wx, Wy);
+        Dst.G := Blend(C11.G, C21.G, C12.G, C22.G, Wx, Wy);
+        Dst.R := Blend(C11.R, C21.R, C12.R, C22.R, Wx, Wy);
       end
       else
-        CopyPixel(@BackColor32, DstByte, Bpp);
+        Dst^ := Back;
 
-      Inc(DstByte, Bpp);
+      Inc(Dst);
+      Inc(FX, StepX);
+      Inc(FY, StepY);
     end;
+  end;
+end;
+
+procedure RotateLinear32(const P: TRotationParams);
+var
+  SrcBits: PBuffer;
+  SrcWidth, SrcHeight, Stride, X, Y, X0, Y0, Wx, Wy: Integer;
+  FX, FY, StepX, StepY: Int64;
+  Dst: PColor32Rec;
+  TL, TR, BL, BR: PColor32Rec;
+  C11, C21, C12, C22, Back: TColor32Rec;
+begin
+  SrcBits := P.SrcBits;
+  SrcWidth := P.SrcWidth;
+  SrcHeight := P.SrcHeight;
+  Stride := SrcWidth * 4;
+  StepX := P.Stepping.StepX;
+  StepY := P.Stepping.StepY;
+  Back := P.BackColor32;
+  Dst := PColor32Rec(P.DstBits);
+
+  for Y := 0 to P.DstHeight - 1 do
+  begin
+    CalcRowStart(P.Stepping, Y, FX, FY);
+    for X := 0 to P.DstWidth - 1 do
+    begin
+      X0 := FixedToInt(FX);
+      Y0 := FixedToInt(FY);
+      Wx := FixedFrac(FX) shr (32 - WeightShift);
+      Wy := FixedFrac(FY) shr (32 - WeightShift);
+
+      if (Cardinal(X0) < Cardinal(SrcWidth - 1)) and (Cardinal(Y0) < Cardinal(SrcHeight - 1)) then
+      begin
+        TL := @SrcBits[(NativeInt(Y0) * SrcWidth + X0) * 4];
+        TR := PColor32Rec(PByte(TL) + 4);
+        BL := PColor32Rec(PByte(TL) + Stride);
+        BR := PColor32Rec(PByte(TL) + Stride + 4);
+        Dst.B := Blend(TL.B, TR.B, BL.B, BR.B, Wx, Wy);
+        Dst.G := Blend(TL.G, TR.G, BL.G, BR.G, Wx, Wy);
+        Dst.R := Blend(TL.R, TR.R, BL.R, BR.R, Wx, Wy);
+        Dst.A := Blend(TL.A, TR.A, BL.A, BR.A, Wx, Wy);
+      end
+      else if (Cardinal(X0 + 1) < Cardinal(SrcWidth + 1)) and (Cardinal(Y0 + 1) < Cardinal(SrcHeight + 1)) then
+      begin
+        C11 := GetPixelColor32(SrcBits, SrcWidth, SrcHeight, X0,     Y0,     Back);
+        C21 := GetPixelColor32(SrcBits, SrcWidth, SrcHeight, X0 + 1, Y0,     Back);
+        C12 := GetPixelColor32(SrcBits, SrcWidth, SrcHeight, X0,     Y0 + 1, Back);
+        C22 := GetPixelColor32(SrcBits, SrcWidth, SrcHeight, X0 + 1, Y0 + 1, Back);
+        Dst.B := Blend(C11.B, C21.B, C12.B, C22.B, Wx, Wy);
+        Dst.G := Blend(C11.G, C21.G, C12.G, C22.G, Wx, Wy);
+        Dst.R := Blend(C11.R, C21.R, C12.R, C22.R, Wx, Wy);
+        Dst.A := Blend(C11.A, C21.A, C12.A, C22.A, Wx, Wy);
+      end
+      else
+        Dst^ := Back;
+
+      Inc(Dst);
+      Inc(FX, StepX);
+      Inc(FY, StepY);
+    end;
+  end;
+end;
+
+// Weights of the filter taps for FilterTableSize + 1 sub-pixel positions in
+// WeightShift-bit integers. Position Pos is for the distance Pos / MaxFilterTablePos
+// between the source position and the next pixel up from it (its ceiling);
+// tap J is the pixel J further from that one.
+procedure PrecomputeFilterWeights(var P: TRotationParams; FilterFunction: TFilterFunction);
+var
+  I, J, Largest, Sum: Integer;
+  Weights: array[-MaxKernelRadius..MaxKernelRadius] of Single;
+  WeightSum: Single;
+  Fraction: Single;
+begin
+  FillChar(P.WeightTable, SizeOf(P.WeightTable), 0);
+
+  for I := 0 to FilterTableSize do
+  begin
+    Fraction := I / MaxFilterTablePos;
+    WeightSum := 0;
+    for J := -P.KernelWidth to P.KernelWidth do
+    begin
+      Weights[J] := FilterFunction(J + Fraction);
+      WeightSum := WeightSum + Weights[J];
+    end;
+
+    // Weights of some filters (Lanczos) do not add up to 1, flat areas
+    // would get darker the sub-pixel position -> we need to normalize the weights
+    // so that all the taps must add up to 1.
+    Sum := 0;
+    Largest := 0;
+    for J := -P.KernelWidth to P.KernelWidth do
+    begin
+      if WeightSum <> 0 then
+        Weights[J] := Weights[J] / WeightSum;
+      P.WeightTable[J, I] := Round(Weights[J] * WeightOne);
+      Inc(Sum, P.WeightTable[J, I]);
+      if Abs(P.WeightTable[J, I]) > Abs(P.WeightTable[Largest, I]) then
+        Largest := J;
+    end;
+
+    // Rounding must not break that: what is missing goes to the largest weight
+    Inc(P.WeightTable[Largest, I], WeightOne - Sum);
+  end;
+end;
+
+// Weighted sum of one color channel to a byte: rounded, clamped (cubic and
+// Lanczos have negative weights)
+function FilterSumToByte(Sum: Int64): Byte; inline;
+begin
+  if Sum <= 0 then
+    Result := 0
+  else
+  begin
+    Sum := (Sum + (Int64(1) shl (2 * WeightShift - 1))) shr (2 * WeightShift);
+    if Sum > 255 then
+      Result := 255
+    else
+      Result := Byte(Sum);
+  end;
+end;
+
+// Color of the destination pixel that comes from source position [X, Y]
+// (fixed point, biased), cubic and Lanczos filters. Taps of the kernel outside
+// of the source image take the background color.
+function FilterPixel(const P: TRotationParams; FX, FY: Int64): TColor32Rec;
+var
+  CeilX, CeilY, LoX, HiX, LoY, HiY, I, J, KernelWidth, Bpp, SrcWidth, SrcHeight: Integer;
+  FracX, FracY: Cardinal;
+  PosX, PosY: Integer;
+  Wx, Wy: array[-MaxKernelRadius..MaxKernelRadius] of Integer;
+  InsideX, InsideY: Integer;
+  RowB, RowG, RowR, RowA: Integer;
+  SumB, SumG, SumR, SumA, Outside: Int64;
+  Src: PByte;
+  BackColor32: TColor32Rec;
+begin
+  KernelWidth := P.KernelWidth;
+  Bpp := P.Bpp;
+  SrcWidth := P.SrcWidth;
+  SrcHeight := P.SrcHeight;
+  BackColor32 := P.BackColor32;
+
+  // Ceiling of the position and its distance from it as the table position
+  CeilX := FixedToInt(FX);
+  CeilY := FixedToInt(FY);
+  FracX := FixedFrac(FX);
+  FracY := FixedFrac(FY);
+  PosX := 0;
+  PosY := 0;
+  if FracX <> 0 then
+  begin
+    Inc(CeilX);
+    PosX := ((FixedOne - FracX) * MaxFilterTablePos + (Int64(1) shl (FixedShift - 1))) shr FixedShift;
+  end;
+  if FracY <> 0 then
+  begin
+    Inc(CeilY);
+    PosY := ((FixedOne - FracY) * MaxFilterTablePos + (Int64(1) shl (FixedShift - 1))) shr FixedShift;
+  end;
+
+  if (CeilX < 0) or (CeilX > SrcWidth) or (CeilY < 0) or (CeilY > SrcHeight) then
+    Exit(BackColor32);
+
+  // Taps inside of the source image
+  LoX := Max(-KernelWidth, -CeilX);
+  HiX := Min(KernelWidth, SrcWidth - CeilX - 1);
+  LoY := Max(-KernelWidth, -CeilY);
+  HiY := Min(KernelWidth, SrcHeight - CeilY - 1);
+
+  for I := -KernelWidth to KernelWidth do
+  begin
+    Wx[I] := P.WeightTable[I, PosX];
+    Wy[I] := P.WeightTable[I, PosY];
+  end;
+
+  SumB := 0;
+  SumG := 0;
+  SumR := 0;
+  SumA := 0;
+
+  // One tap loop for each pixel format
+  for I := LoY to HiY do
+  begin
+    Src := @P.SrcBits[(NativeInt(CeilY + I) * SrcWidth + CeilX + LoX) * Bpp];
+    case Bpp of
+      1:
+        begin
+          RowB := 0;
+          for J := LoX to HiX do
+          begin
+            Inc(RowB, Src^ * Wx[J]);
+            Inc(Src);
+          end;
+          Inc(SumB, Int64(RowB) * Wy[I]);
+        end;
+      3:
+        begin
+          RowB := 0;
+          RowG := 0;
+          RowR := 0;
+          for J := LoX to HiX do
+          begin
+            Inc(RowB, PColor24Rec(Src).B * Wx[J]);
+            Inc(RowG, PColor24Rec(Src).G * Wx[J]);
+            Inc(RowR, PColor24Rec(Src).R * Wx[J]);
+            Inc(Src, 3);
+          end;
+          Inc(SumB, Int64(RowB) * Wy[I]);
+          Inc(SumG, Int64(RowG) * Wy[I]);
+          Inc(SumR, Int64(RowR) * Wy[I]);
+        end;
+    else
+      RowB := 0;
+      RowG := 0;
+      RowR := 0;
+      RowA := 0;
+      for J := LoX to HiX do
+      begin
+        Inc(RowB, PColor32Rec(Src).B * Wx[J]);
+        Inc(RowG, PColor32Rec(Src).G * Wx[J]);
+        Inc(RowR, PColor32Rec(Src).R * Wx[J]);
+        Inc(RowA, PColor32Rec(Src).A * Wx[J]);
+        Inc(Src, 4);
+      end;
+      Inc(SumB, Int64(RowB) * Wy[I]);
+      Inc(SumG, Int64(RowG) * Wy[I]);
+      Inc(SumR, Int64(RowR) * Wy[I]);
+      Inc(SumA, Int64(RowA) * Wy[I]);
+    end;
+  end;
+
+  // Taps outside of the source: their weights are all the weights
+  // (WeightOne squared) minus those of the rectangle of taps inside
+  if (LoX > -KernelWidth) or (HiX < KernelWidth) or (LoY > -KernelWidth) or (HiY < KernelWidth) then
+  begin
+    InsideX := 0;
+    for J := LoX to HiX do
+      Inc(InsideX, Wx[J]);
+    InsideY := 0;
+    for I := LoY to HiY do
+      Inc(InsideY, Wy[I]);
+    Outside := (Int64(1) shl (2 * WeightShift)) - Int64(InsideX) * InsideY;
+
+    Inc(SumB, BackColor32.B * Outside);
+    Inc(SumG, BackColor32.G * Outside);
+    Inc(SumR, BackColor32.R * Outside);
+    Inc(SumA, BackColor32.A * Outside);
+  end;
+
+  Result.B := FilterSumToByte(SumB);
+  Result.G := FilterSumToByte(SumG);
+  Result.R := FilterSumToByte(SumR);
+  Result.A := FilterSumToByte(SumA);
 end;
 
 // Cubic and Lanczos filters
 procedure RotateFiltered(const P: TRotationParams);
 var
-  G: TRotationGeometry;
   Bpp, X, Y: Integer;
-  SrcX, SrcY: Single;
+  FX, FY, StepX, StepY: Int64;
   DstByte: PByte;
   Pixel32: TColor32Rec;
 begin
-  G := P.Geometry;
   Bpp := P.Bpp;
+  StepX := P.Stepping.StepX;
+  StepY := P.Stepping.StepY;
   DstByte := P.DstBits;
 
   for Y := 0 to P.DstHeight - 1 do
+  begin
+    CalcRowStart(P.Stepping, Y, FX, FY);
     for X := 0 to P.DstWidth - 1 do
     begin
-      CalcSourceCoordinates(G, X, Y, SrcX, SrcY);
-      Pixel32 := FilterPixel(P, SrcX, SrcY);
+      Pixel32 := FilterPixel(P, FX, FY);
       CopyPixel(@Pixel32, DstByte, Bpp);
       Inc(DstByte, Bpp);
+      Inc(FX, StepX);
+      Inc(FY, StepY);
     end;
+  end;
 end;
+
+{$ENDREGION}
 
 procedure RotateImage(var Image: TImageData; Angle: Double; BackgroundColor: TColor32;
   ResamplingFilter: TResamplingFilter; FitRotated: Boolean);
@@ -1087,10 +1115,10 @@ var
   SrcWidthHalf, SrcHeightHalf, DstWidthHalf, DstHeightHalf: Single;
   DstWidth, DstHeight: Integer;
   AngleRad, ForwardSin, ForwardCos, BackwardSin, BackwardCos: Single;
+  AngleRadD, BackwardSinD, BackwardCosD: Double;
   SrcImage, DstImage: TImageData;
   FormatInfo: TImageFormatInfo;
   Filter: TSamplingFilter;
-  FilterRadius: Single;
   Params: TRotationParams;
 
   function TryMultipleOf90Rotation: Boolean;
@@ -1129,6 +1157,9 @@ begin
   AngleRad := Angle * PI / 180;
   SinCos(AngleRad, ForwardSin, ForwardCos);
   SinCos(-AngleRad, BackwardSin, BackwardCos);
+  // Double for stepping the source positions along destination rows
+  AngleRadD := Angle * PI / 180;
+  SinCos(-AngleRadD, BackwardSinD, BackwardCosD);
 
   SrcImage := Image;
   SrcWidth := SrcImage.Width;
@@ -1173,6 +1204,15 @@ begin
   Params.Geometry.DstHeightHalf := DstHeightHalf;
   Params.Geometry.BackwardSin := BackwardSin;
   Params.Geometry.BackwardCos := BackwardCos;
+  // Along a destination row the source position moves by (cos, -sin) per pixel
+  Params.Stepping.BackwardSin := BackwardSinD;
+  Params.Stepping.BackwardCos := BackwardCosD;
+  Params.Stepping.SrcWidthHalf := SrcWidthHalf;
+  Params.Stepping.SrcHeightHalf := SrcHeightHalf;
+  Params.Stepping.DstWidthHalf := DstWidthHalf;
+  Params.Stepping.DstHeightHalf := DstHeightHalf;
+  Params.Stepping.StepX := Round(BackwardCosD * FixedOne);
+  Params.Stepping.StepY := -Round(BackwardSinD * FixedOne);
   Params.SrcBits := SrcImage.Bits;
   Params.SrcWidth := SrcWidth;
   Params.SrcHeight := SrcHeight;
@@ -1186,10 +1226,12 @@ begin
     RotateNearest(Params)
   else if ResamplingFilter = rfLinear then
   begin
-    if SrcImage.Format = ifR8G8B8 then
-      RotateLinear24(Params)
+    case Params.Bpp of
+      1: RotateLinear8(Params);
+      3: RotateLinear24(Params);
     else
-      RotateLinear(Params);
+      RotateLinear32(Params);
+    end;
   end
   else
   begin
@@ -1198,15 +1240,12 @@ begin
       rfLanczos: Filter := sfLanczos;
     else
       Assert(False);
+      Filter := sfCatmullRom;
     end;
 
-    Params.FilterFunction := ImagingFormats.SamplingFilterFunctions[Filter];
-    FilterRadius := ImagingFormats.SamplingFilterRadii[Filter];
-
-    Params.KernelWidth := FastCeil(FilterRadius);
-  {$IFDEF USE_FILTER_TABLE}
-    PrecomputeFilterWeights(Params);
-  {$ENDIF}
+    Params.KernelWidth := Ceil(ImagingFormats.SamplingFilterRadii[Filter]);
+    Assert(Params.KernelWidth <= MaxKernelRadius);
+    PrecomputeFilterWeights(Params, ImagingFormats.SamplingFilterFunctions[Filter]);
 
     RotateFiltered(Params);
   end;
