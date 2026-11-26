@@ -9,6 +9,7 @@ Changes of the command line tool in each version. Versions of the GUI are in
 - automatic threshold is 3.5 to 4.6 times faster (A4 page at 600 DPI: 85 -> 19 ms), thresholds are the same as before
 - fix: with max angle over 20 (`-a`) heavily skewed pages could be detected as skewed by exactly ±45 degrees (bias of the pixel grid); such pages are now detected correctly or reported as not reliable. Max angles up to 20 give the same results as before
 - fix: the tested angles did not include the max angle itself on the positive side (`-a 10` tested -10 to 9.9); now both ends are tested and pages skewed just beyond the range are reported the same way on both sides
+- fix: a page with nothing to detect from (outcome `noContent`) reported a meaningless angle made from a few single pixels and `-g f` rotated it by that; the angle is 0 now
 - fix #85: PSD support is back
 
 **v1.35 2026-11-23:**

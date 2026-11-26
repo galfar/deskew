@@ -79,6 +79,7 @@ const
   Area of interest rectangle can be defined to restrict the detection to
   work only in defined part of image (useful when the document has text only in
   smaller area of page and non-text features outside the area confuse the rotation detector).
+  Only the part of the area inside the image is used.
 
   How the angle is determined:
   1. Each "base line" pixel (black with white one below) votes for all the lines
@@ -95,7 +96,8 @@ const
 
   Various calculations stats can be retrieved by passing Stats parameter. This includes
   the outcome of the detection and its confidence - the returned angle should not
-  be used for anything serious unless Stats.Outcome is sdoDetected.
+  be used for anything serious unless Stats.Outcome is sdoDetected. It is 0 when
+  the outcome is sdoNoContent.
   Confidence tells how much the peak angle stands out from the others. }
 function CalcRotationAngle(const MaxAngle, AngleStep: Double; Threshold: Integer;
   Width, Height: Integer; Pixels: PBuffer; DetectionArea: PRect = nil;
@@ -458,8 +460,10 @@ begin
   ContentRect := Rect(0, 0, Width, Height);
   if DetectionArea <> nil then
   begin
-    Assert((RectWidth(DetectionArea^) <= Width) and (RectHeight(DetectionArea^) <= Height));
-    ContentRect := DetectionArea^;
+    // Only the part of the area inside the image is used (pixels outside would be
+    // read past the end of the buffer), an area completely outside ends as no content
+    if not IntersectRect(ContentRect, DetectionArea^, Rect(0, 0, Width, Height)) then
+      ContentRect := Rect(0, 0, 0, 0);
   end;
 
   PageWidth := ContentRect.Right - ContentRect.Left;
@@ -525,8 +529,8 @@ begin
       end;
     end;
 
-  if LineCount = 0 then
-    Result := 0 // No black pixel at all
+  if (LineCount = 0) or (Outcome = sdoNoContent) then
+    Result := 0 // Nothing to detect from: angles of a few single pixels mean nothing
   else if LinesAtPeak >= MinLinesAtPeak then
     Result := SumAngles / LinesAtPeak
   else
