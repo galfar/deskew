@@ -12,6 +12,7 @@ Changes of the command line tool in each version. Versions of the GUI are in
 - fix: the tested angles did not include the max angle itself on the positive side (`-a 10` tested -10 to 9.9); now both ends are tested and pages skewed just beyond the range are reported the same way on both sides
 - fix: a page with nothing to detect from (outcome `noContent`) reported a meaningless angle made from a few single pixels and `-g f` rotated it by that; the angle is 0 now
 - fix #85: PSD support is back
+- new ways to install: Homebrew tap for macOS (#40), Scoop bucket for Windows, Docker image `ghcr.io/galfar/deskew` for Linux amd64 and arm64 (see Downloads in the Readme)
 
 **v1.35 2026-11-23:**
 

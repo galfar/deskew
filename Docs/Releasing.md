@@ -75,6 +75,9 @@ web job of the same workflow into `deskew-<version>-web.zip`.
    - Scoop: in a clone of the bucket <https://gitlab.com/deskew/scoop> run
      `& "$env:USERPROFILE\scoop\apps\scoop\current\bin\checkver.ps1" -App deskew -Dir .\bucket -Update`
      (new version, URLs and hashes), commit, push, and check with `scoop update deskew`.
+   - Docker: publishing the release starts the "Docker image" workflow (`.github/workflows/docker.yml`),
+     which pushes `ghcr.io/galfar/deskew:X.YY` and `:latest` from the Linux archives. Check that it
+     passed and that `docker run --rm ghcr.io/galfar/deskew:X.YY` prints the new version.
    - Close the fixed issues, update the home page, upload WebUI to live version hosting.
 
 ## Known Limits

@@ -69,6 +69,12 @@ brew tap deskew/tap https://gitlab.com/deskew/homebrew.git
 brew install deskew/tap/deskew
 ```
 
+**Docker** (Linux amd64 and arm64, command line tool only), files of the current folder in `/data`:
+
+```bash
+docker run --rm -v "$PWD:/data" --user "$(id -u):$(id -g)" ghcr.io/galfar/deskew -o out.png scan.png
+```
+
 **Development snapshot**
 
 <https://github.com/galfar/deskew/releases/tag/snapshot>  
