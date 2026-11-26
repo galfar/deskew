@@ -5,9 +5,11 @@ on:
   # runners, emulated with QEMU. Native x86_64 and ARM64 builds run in the main CI workflow (ci.yml).
   workflow_dispatch:
 
+# No githubToken for run-on-arch-action: with it the action caches its container images as
+# packages of the repository owner (one per arch and distro, never deleted). The install step
+# runs on every run instead.
 permissions:
   contents: read
-  packages: write  # run-on-arch-action caches its Docker images in the GitHub package registry
 
 jobs:
   build_job:
@@ -49,8 +51,6 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           distro: ${{ matrix.distro }}
-
-          githubToken: ${{ github.token }}
 
           env: |
             DESKEW_RELEASE_SUFFIX: ${{ env.DESKEW_RELEASE_SUFFIX }}
