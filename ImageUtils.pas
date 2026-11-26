@@ -540,16 +540,10 @@ const
 type
   TFilterWeightTable = array[-MaxKernelRadius..MaxKernelRadius, 0..FilterTableSize] of Integer;
 
-  // Center of the source and destination images and the sine and cosine
-  // of the backward rotation (from destination to source), nearest filter
-  TRotationGeometry = record
-    SrcWidthHalf, SrcHeightHalf: Single;
-    DstWidthHalf, DstHeightHalf: Single;
-    BackwardSin, BackwardCos: Single;
-  end;
-
   // Source position of the first pixel of each destination row, and how much
-  // it moves with every next pixel of the row (linear, cubic and Lanczos filters)
+  // it moves with every next pixel of the row: center of the source and
+  // destination images and the sine and cosine of the backward rotation
+  // (from destination to source)
   TRowStepping = record
     BackwardSin, BackwardCos: Double;
     SrcWidthHalf, SrcHeightHalf: Double;
@@ -562,7 +556,6 @@ type
   // nested routines that use the variables of the outer one, so every pixel
   // made several calls there. The loops copy what they use into local variables.
   TRotationParams = record
-    Geometry: TRotationGeometry;
     Stepping: TRowStepping;
     SrcBits: PBuffer;
     SrcWidth, SrcHeight: Integer;
@@ -575,45 +568,30 @@ type
     WeightTable: TFilterWeightTable;
   end;
 
-// Position in the source image where destination pixel [DstX, DstY] comes from
-procedure CalcSourceCoordinates(const G: TRotationGeometry; DstX, DstY: Integer;
-  out SrcX, SrcY: Single); inline;
-var
-  SrcCoordX, SrcCoordY: Single;
-  DstCoordX, DstCoordY: Single;
-begin
-  DstCoordX := DstX - G.DstWidthHalf;
-  DstCoordY := G.DstHeightHalf - DstY;
-
-  SrcCoordX := G.BackwardCos * DstCoordX - G.BackwardSin * DstCoordY;
-  SrcCoordY := G.BackwardSin * DstCoordX + G.BackwardCos * DstCoordY;
-
-  SrcX := SrcCoordX + G.SrcWidthHalf;
-  SrcY := G.SrcHeightHalf - SrcCoordY;
-end;
-
 // Source position (biased fixed point) of the first pixel of destination row Y.
-// Same as CalcSourceCoordinates for DstX = 0, in Double.
-procedure CalcRowStart(const S: TRowStepping; Y: Integer; out FX, FY: Int64); inline;
+// Destination coordinates are relative to the image center, Y going up:
+//   SrcX = Cos * DstX - Sin * DstY + SrcWidthHalf
+//   SrcY = SrcHeightHalf - (Sin * DstX + Cos * DstY)
+procedure CalcRowStart(const Step: TRowStepping; Y: Integer; out FX, FY: Int64); inline;
 var
   DstCoordX, DstCoordY: Double;
 begin
-  DstCoordX := -S.DstWidthHalf;
-  DstCoordY := S.DstHeightHalf - Y;
-  FX := FixedBias + Round((S.BackwardCos * DstCoordX - S.BackwardSin * DstCoordY +
-    S.SrcWidthHalf) * FixedOne);
-  FY := FixedBias + Round((S.SrcHeightHalf - S.BackwardSin * DstCoordX -
-    S.BackwardCos * DstCoordY) * FixedOne);
+  DstCoordX := -Step.DstWidthHalf;
+  DstCoordY := Step.DstHeightHalf - Y;
+  FX := FixedBias + Round((Step.BackwardCos * DstCoordX - Step.BackwardSin * DstCoordY +
+    Step.SrcWidthHalf) * FixedOne);
+  FY := FixedBias + Round((Step.SrcHeightHalf - Step.BackwardSin * DstCoordX -
+    Step.BackwardCos * DstCoordY) * FixedOne);
 end;
 
 // Integer part (floor) of a biased fixed point position
-function FixedToInt(F: Int64): Integer; inline;
+function FixedToInt(const F: Int64): Integer; inline;
 begin
   Result := Integer(F shr FixedShift) - CoordBias;
 end;
 
 // Fractional part of a fixed point position
-function FixedFrac(F: Int64): Cardinal; inline;
+function FixedFrac(const F: Int64): Cardinal; inline;
 begin
   Result := Cardinal(F and $FFFFFFFF);
 end;
@@ -670,46 +648,78 @@ begin
   );
 end;
 
-procedure RotateNearest(const P: TRotationParams);
+// Nearest filter: the source pixel the position rounds to. The rows start half
+// a pixel further, so the integer part of the stepped position is the rounded
+// one (halves go up). One loop for each pixel format.
+procedure RotateNearest(const Params: TRotationParams);
+const
+  FixedHalf = Int64(1) shl (FixedShift - 1);
 var
-  G: TRotationGeometry;
   SrcBits: PBuffer;
-  SrcWidth, SrcHeight, Bpp, X, Y, NearestX, NearestY: Integer;
-  SrcX, SrcY: Single;
-  DstByte: PByte;
+  SrcWidth, SrcHeight, DstWidth, X, Y, NearestX, NearestY: Integer;
+  FX, FY, StepX, StepY: Int64;
+  Dst: PByte;
   BackColor32: TColor32Rec;
+  BackColor24: TColor24Rec;
 begin
-  G := P.Geometry;
-  SrcBits := P.SrcBits;
-  SrcWidth := P.SrcWidth;
-  SrcHeight := P.SrcHeight;
-  Bpp := P.Bpp;
-  BackColor32 := P.BackColor32;
-  DstByte := P.DstBits;
+  SrcBits := Params.SrcBits;
+  SrcWidth := Params.SrcWidth;
+  SrcHeight := Params.SrcHeight;
+  DstWidth := Params.DstWidth;
+  StepX := Params.Stepping.StepX;
+  StepY := Params.Stepping.StepY;
+  BackColor32 := Params.BackColor32;
+  BackColor24 := BackColor32.Color24Rec;
+  Dst := Params.DstBits;
 
-  for Y := 0 to P.DstHeight - 1 do
-    for X := 0 to P.DstWidth - 1 do
-    begin
-      CalcSourceCoordinates(G, X, Y, SrcX, SrcY);
-      // Bounds must be checked after the rounding, coordinate just below
-      // the width or height would end up outside of the image otherwise
-      NearestX := Round(SrcX);
-      NearestY := Round(SrcY);
+  for Y := 0 to Params.DstHeight - 1 do
+  begin
+    CalcRowStart(Params.Stepping, Y, FX, FY);
+    Inc(FX, FixedHalf);
+    Inc(FY, FixedHalf);
 
-      if (NearestX >= 0) and (NearestY >= 0) and (NearestX < SrcWidth) and (NearestY < SrcHeight) then
+    case Params.Bpp of
+      1:
+        for X := 0 to DstWidth - 1 do
+        begin
+          NearestX := FixedToInt(FX);
+          NearestY := FixedToInt(FY);
+          if (Cardinal(NearestX) < Cardinal(SrcWidth)) and (Cardinal(NearestY) < Cardinal(SrcHeight)) then
+            Dst^ := SrcBits[NativeInt(NearestY) * SrcWidth + NearestX]
+          else
+            Dst^ := BackColor32.B;
+          Inc(Dst);
+          Inc(FX, StepX);
+          Inc(FY, StepY);
+        end;
+      3:
+        for X := 0 to DstWidth - 1 do
+        begin
+          NearestX := FixedToInt(FX);
+          NearestY := FixedToInt(FY);
+          if (Cardinal(NearestX) < Cardinal(SrcWidth)) and (Cardinal(NearestY) < Cardinal(SrcHeight)) then
+            PColor24Rec(Dst)^ := PColor24Rec(@SrcBits[(NativeInt(NearestY) * SrcWidth + NearestX) * 3])^
+          else
+            PColor24Rec(Dst)^ := BackColor24;
+          Inc(Dst, 3);
+          Inc(FX, StepX);
+          Inc(FY, StepY);
+        end;
+    else
+      for X := 0 to DstWidth - 1 do
       begin
-        if Bpp = 3 then
-          PColor24Rec(DstByte)^ := PColor24Rec(@SrcBits[(NativeInt(NearestY) * SrcWidth + NearestX) * 3])^
-        else if Bpp = 1 then
-          DstByte^ := SrcBits[NativeInt(NearestY) * SrcWidth + NearestX]
+        NearestX := FixedToInt(FX);
+        NearestY := FixedToInt(FY);
+        if (Cardinal(NearestX) < Cardinal(SrcWidth)) and (Cardinal(NearestY) < Cardinal(SrcHeight)) then
+          PColor32Rec(Dst)^ := PColor32Rec(@SrcBits[(NativeInt(NearestY) * SrcWidth + NearestX) * 4])^
         else
-          PColor32Rec(DstByte)^ := PColor32Rec(@SrcBits[(NativeInt(NearestY) * SrcWidth + NearestX) * 4])^;
-      end
-      else
-        CopyPixel(@BackColor32, DstByte, Bpp);
-
-      Inc(DstByte, Bpp);
+          PColor32Rec(Dst)^ := BackColor32;
+        Inc(Dst, 4);
+        Inc(FX, StepX);
+        Inc(FY, StepY);
+      end;
     end;
+  end;
 end;
 
 // The three linear loops below are the same apart from the pixel format.
@@ -718,8 +728,7 @@ end;
 // they are read through one pointer (unsigned compares check both ends at once).
 // Within one pixel around the source the neighbors outside are the background,
 // further out the destination pixel is the background.
-
-procedure RotateLinear8(const P: TRotationParams);
+procedure RotateLinear8(const Params: TRotationParams);
 var
   SrcBits, Src: PBuffer;
   SrcWidth, SrcHeight, X, Y, X0, Y0, Wx, Wy: Integer;
@@ -727,18 +736,18 @@ var
   Dst: PByte;
   Back: Byte;
 begin
-  SrcBits := P.SrcBits;
-  SrcWidth := P.SrcWidth;
-  SrcHeight := P.SrcHeight;
-  StepX := P.Stepping.StepX;
-  StepY := P.Stepping.StepY;
-  Back := P.BackColor32.B;
-  Dst := P.DstBits;
+  SrcBits := Params.SrcBits;
+  SrcWidth := Params.SrcWidth;
+  SrcHeight := Params.SrcHeight;
+  StepX := Params.Stepping.StepX;
+  StepY := Params.Stepping.StepY;
+  Back := Params.BackColor32.B;
+  Dst := Params.DstBits;
 
-  for Y := 0 to P.DstHeight - 1 do
+  for Y := 0 to Params.DstHeight - 1 do
   begin
-    CalcRowStart(P.Stepping, Y, FX, FY);
-    for X := 0 to P.DstWidth - 1 do
+    CalcRowStart(Params.Stepping, Y, FX, FY);
+    for X := 0 to Params.DstWidth - 1 do
     begin
       X0 := FixedToInt(FX);
       Y0 := FixedToInt(FY);
@@ -766,7 +775,7 @@ begin
   end;
 end;
 
-procedure RotateLinear24(const P: TRotationParams);
+procedure RotateLinear24(const Params: TRotationParams);
 var
   SrcBits: PBuffer;
   SrcWidth, SrcHeight, Stride, X, Y, X0, Y0, Wx, Wy: Integer;
@@ -775,19 +784,19 @@ var
   TL, TR, BL, BR: PColor24Rec;
   C11, C21, C12, C22, Back: TColor24Rec;
 begin
-  SrcBits := P.SrcBits;
-  SrcWidth := P.SrcWidth;
-  SrcHeight := P.SrcHeight;
+  SrcBits := Params.SrcBits;
+  SrcWidth := Params.SrcWidth;
+  SrcHeight := Params.SrcHeight;
   Stride := SrcWidth * 3;
-  StepX := P.Stepping.StepX;
-  StepY := P.Stepping.StepY;
-  Back := P.BackColor32.Color24Rec;
-  Dst := PColor24Rec(P.DstBits);
+  StepX := Params.Stepping.StepX;
+  StepY := Params.Stepping.StepY;
+  Back := Params.BackColor32.Color24Rec;
+  Dst := PColor24Rec(Params.DstBits);
 
-  for Y := 0 to P.DstHeight - 1 do
+  for Y := 0 to Params.DstHeight - 1 do
   begin
-    CalcRowStart(P.Stepping, Y, FX, FY);
-    for X := 0 to P.DstWidth - 1 do
+    CalcRowStart(Params.Stepping, Y, FX, FY);
+    for X := 0 to Params.DstWidth - 1 do
     begin
       X0 := FixedToInt(FX);
       Y0 := FixedToInt(FY);
@@ -824,7 +833,7 @@ begin
   end;
 end;
 
-procedure RotateLinear32(const P: TRotationParams);
+procedure RotateLinear32(const Params: TRotationParams);
 var
   SrcBits: PBuffer;
   SrcWidth, SrcHeight, Stride, X, Y, X0, Y0, Wx, Wy: Integer;
@@ -833,19 +842,19 @@ var
   TL, TR, BL, BR: PColor32Rec;
   C11, C21, C12, C22, Back: TColor32Rec;
 begin
-  SrcBits := P.SrcBits;
-  SrcWidth := P.SrcWidth;
-  SrcHeight := P.SrcHeight;
+  SrcBits := Params.SrcBits;
+  SrcWidth := Params.SrcWidth;
+  SrcHeight := Params.SrcHeight;
   Stride := SrcWidth * 4;
-  StepX := P.Stepping.StepX;
-  StepY := P.Stepping.StepY;
-  Back := P.BackColor32;
-  Dst := PColor32Rec(P.DstBits);
+  StepX := Params.Stepping.StepX;
+  StepY := Params.Stepping.StepY;
+  Back := Params.BackColor32;
+  Dst := PColor32Rec(Params.DstBits);
 
-  for Y := 0 to P.DstHeight - 1 do
+  for Y := 0 to Params.DstHeight - 1 do
   begin
-    CalcRowStart(P.Stepping, Y, FX, FY);
-    for X := 0 to P.DstWidth - 1 do
+    CalcRowStart(Params.Stepping, Y, FX, FY);
+    for X := 0 to Params.DstWidth - 1 do
     begin
       X0 := FixedToInt(FX);
       Y0 := FixedToInt(FY);
@@ -888,20 +897,20 @@ end;
 // WeightShift-bit integers. Position Pos is for the distance Pos / MaxFilterTablePos
 // between the source position and the next pixel up from it (its ceiling);
 // tap J is the pixel J further from that one.
-procedure PrecomputeFilterWeights(var P: TRotationParams; FilterFunction: TFilterFunction);
+procedure PrecomputeFilterWeights(var Params: TRotationParams; FilterFunction: TFilterFunction);
 var
   I, J, Largest, Sum: Integer;
   Weights: array[-MaxKernelRadius..MaxKernelRadius] of Single;
   WeightSum: Single;
   Fraction: Single;
 begin
-  FillChar(P.WeightTable, SizeOf(P.WeightTable), 0);
+  FillChar(Params.WeightTable, SizeOf(Params.WeightTable), 0);
 
   for I := 0 to FilterTableSize do
   begin
     Fraction := I / MaxFilterTablePos;
     WeightSum := 0;
-    for J := -P.KernelWidth to P.KernelWidth do
+    for J := -Params.KernelWidth to Params.KernelWidth do
     begin
       Weights[J] := FilterFunction(J + Fraction);
       WeightSum := WeightSum + Weights[J];
@@ -912,24 +921,24 @@ begin
     // so that all the taps must add up to 1.
     Sum := 0;
     Largest := 0;
-    for J := -P.KernelWidth to P.KernelWidth do
+    for J := -Params.KernelWidth to Params.KernelWidth do
     begin
       if WeightSum <> 0 then
         Weights[J] := Weights[J] / WeightSum;
-      P.WeightTable[J, I] := Round(Weights[J] * WeightOne);
-      Inc(Sum, P.WeightTable[J, I]);
-      if Abs(P.WeightTable[J, I]) > Abs(P.WeightTable[Largest, I]) then
+      Params.WeightTable[J, I] := Round(Weights[J] * WeightOne);
+      Inc(Sum, Params.WeightTable[J, I]);
+      if Abs(Params.WeightTable[J, I]) > Abs(Params.WeightTable[Largest, I]) then
         Largest := J;
     end;
 
     // Rounding must not break that: what is missing goes to the largest weight
-    Inc(P.WeightTable[Largest, I], WeightOne - Sum);
+    Inc(Params.WeightTable[Largest, I], WeightOne - Sum);
   end;
 end;
 
 // Weighted sum of one color channel to a byte: rounded, clamped (cubic and
 // Lanczos have negative weights)
-function FilterSumToByte(Sum: Int64): Byte; inline;
+function FilterSumToByte(const Sum: Int64): Byte; inline;
 begin
   if Sum <= 0 then
     Result := 0
@@ -946,7 +955,7 @@ end;
 // Color of the destination pixel that comes from source position [X, Y]
 // (fixed point, biased), cubic and Lanczos filters. Taps of the kernel outside
 // of the source image take the background color.
-function FilterPixel(const P: TRotationParams; FX, FY: Int64): TColor32Rec;
+function FilterPixel(const Params: TRotationParams; FX, FY: Int64): TColor32Rec;
 var
   CeilX, CeilY, LoX, HiX, LoY, HiY, I, J, KernelWidth, Bpp, SrcWidth, SrcHeight: Integer;
   FracX, FracY: Cardinal;
@@ -958,11 +967,11 @@ var
   Src: PByte;
   BackColor32: TColor32Rec;
 begin
-  KernelWidth := P.KernelWidth;
-  Bpp := P.Bpp;
-  SrcWidth := P.SrcWidth;
-  SrcHeight := P.SrcHeight;
-  BackColor32 := P.BackColor32;
+  KernelWidth := Params.KernelWidth;
+  Bpp := Params.Bpp;
+  SrcWidth := Params.SrcWidth;
+  SrcHeight := Params.SrcHeight;
+  BackColor32 := Params.BackColor32;
 
   // Ceiling of the position and its distance from it as the table position
   CeilX := FixedToInt(FX);
@@ -993,8 +1002,8 @@ begin
 
   for I := -KernelWidth to KernelWidth do
   begin
-    Wx[I] := P.WeightTable[I, PosX];
-    Wy[I] := P.WeightTable[I, PosY];
+    Wx[I] := Params.WeightTable[I, PosX];
+    Wy[I] := Params.WeightTable[I, PosY];
   end;
 
   SumB := 0;
@@ -1005,7 +1014,7 @@ begin
   // One tap loop for each pixel format
   for I := LoY to HiY do
   begin
-    Src := @P.SrcBits[(NativeInt(CeilY + I) * SrcWidth + CeilX + LoX) * Bpp];
+    Src := @Params.SrcBits[(NativeInt(CeilY + I) * SrcWidth + CeilX + LoX) * Bpp];
     case Bpp of
       1:
         begin
@@ -1078,24 +1087,24 @@ begin
 end;
 
 // Cubic and Lanczos filters
-procedure RotateFiltered(const P: TRotationParams);
+procedure RotateFiltered(const Params: TRotationParams);
 var
   Bpp, X, Y: Integer;
   FX, FY, StepX, StepY: Int64;
   DstByte: PByte;
   Pixel32: TColor32Rec;
 begin
-  Bpp := P.Bpp;
-  StepX := P.Stepping.StepX;
-  StepY := P.Stepping.StepY;
-  DstByte := P.DstBits;
+  Bpp := Params.Bpp;
+  StepX := Params.Stepping.StepX;
+  StepY := Params.Stepping.StepY;
+  DstByte := Params.DstBits;
 
-  for Y := 0 to P.DstHeight - 1 do
+  for Y := 0 to Params.DstHeight - 1 do
   begin
-    CalcRowStart(P.Stepping, Y, FX, FY);
-    for X := 0 to P.DstWidth - 1 do
+    CalcRowStart(Params.Stepping, Y, FX, FY);
+    for X := 0 to Params.DstWidth - 1 do
     begin
-      Pixel32 := FilterPixel(P, FX, FY);
+      Pixel32 := FilterPixel(Params, FX, FY);
       CopyPixel(@Pixel32, DstByte, Bpp);
       Inc(DstByte, Bpp);
       Inc(FX, StepX);
@@ -1114,7 +1123,7 @@ var
   SrcWidth, SrcHeight: Integer;
   SrcWidthHalf, SrcHeightHalf, DstWidthHalf, DstHeightHalf: Single;
   DstWidth, DstHeight: Integer;
-  AngleRad, ForwardSin, ForwardCos, BackwardSin, BackwardCos: Single;
+  AngleRad, ForwardSin, ForwardCos: Single;
   AngleRadD, BackwardSinD, BackwardCosD: Double;
   SrcImage, DstImage: TImageData;
   FormatInfo: TImageFormatInfo;
@@ -1156,7 +1165,6 @@ begin
 
   AngleRad := Angle * PI / 180;
   SinCos(AngleRad, ForwardSin, ForwardCos);
-  SinCos(-AngleRad, BackwardSin, BackwardCos);
   // Double for stepping the source positions along destination rows
   AngleRadD := Angle * PI / 180;
   SinCos(-AngleRadD, BackwardSinD, BackwardCosD);
@@ -1198,12 +1206,6 @@ begin
   InitImage(DstImage);
   NewImage(DstWidth, DstHeight, SrcImage.Format, DstImage);
 
-  Params.Geometry.SrcWidthHalf := SrcWidthHalf;
-  Params.Geometry.SrcHeightHalf := SrcHeightHalf;
-  Params.Geometry.DstWidthHalf := DstWidthHalf;
-  Params.Geometry.DstHeightHalf := DstHeightHalf;
-  Params.Geometry.BackwardSin := BackwardSin;
-  Params.Geometry.BackwardCos := BackwardCos;
   // Along a destination row the source position moves by (cos, -sin) per pixel
   Params.Stepping.BackwardSin := BackwardSinD;
   Params.Stepping.BackwardCos := BackwardCosD;
