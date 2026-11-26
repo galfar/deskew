@@ -938,7 +938,7 @@ end;
 
 // Weighted sum of one color channel to a byte: rounded, clamped (cubic and
 // Lanczos have negative weights)
-function FilterSumToByte(const Sum: Int64): Byte; inline;
+function FilterSumToByte(Sum: Int64): Byte; inline;
 begin
   if Sum <= 0 then
     Result := 0
