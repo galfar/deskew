@@ -1,0 +1,99 @@
+# Docker image of the command line tool: ghcr.io/galfar/deskew:<version> and :latest
+# for linux/amd64 and linux/arm64. Made from the Linux release archives of a published
+# release (nothing is compiled), so it runs after the release is published by hand.
+# Pre-releases (the CI "snapshot") are skipped.
+name: Docker image
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to make the image of, e.g. v1.35"
+        required: true
+      latest:
+        description: "Also tag the image as latest"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      # The commit of the workflow: the release tag itself for a release event, the chosen
+      # branch for a manual run (for images of releases made before this workflow existed)
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build context from the release archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -D dl \
+            -p "deskew-$VERSION-linux-x64.zip" -p "deskew-$VERSION-linux-arm64.zip"
+          mkdir -p ctx
+          for pair in amd64:x64 arm64:arm64; do
+            DOCKER_ARCH="${pair%%:*}"
+            NAME="deskew-$VERSION-linux-${pair##*:}"
+            unzip -j "dl/$NAME.zip" "$NAME/deskew" -d "ctx/$DOCKER_ARCH"
+            chmod +x "ctx/$DOCKER_ARCH/deskew"
+          done
+          cp LICENSE Scripts/docker/Dockerfile ctx/
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ env.VERSION }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' || inputs.latest }}
+          labels: |
+            org.opencontainers.image.title=Deskew
+            org.opencontainers.image.description=Command line tool for deskewing scanned text documents
+            org.opencontainers.image.url=https://github.com/galfar/deskew
+            org.opencontainers.image.licenses=MPL-2.0
+            org.opencontainers.image.version=${{ env.VERSION }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ctx
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+
+      - name: Check the published image
+        run: |
+          for platform in linux/amd64 linux/arm64; do
+            docker run --rm --platform "$platform" "$IMAGE:$VERSION" -h > /dev/null
+            docker run --rm --platform "$platform" -v "$PWD/TestImages:/data:ro" -v "$RUNNER_TEMP:/out" \
+              "$IMAGE:$VERSION" -o /out/check.png 2.png
+          done
