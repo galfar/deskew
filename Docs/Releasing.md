@@ -68,8 +68,14 @@ web job of the same workflow into `deskew-<version>-web.zip`.
    says, footer shows the build date and commit of the tag.
 7. Create the release as a draft, check it and publish:
    `gh release create vX.YY --draft --title "Deskew X.YY" --notes-file notes.md deskew-*.zip`
-8. After the release: Homebrew formula (`Scripts/homebrew/deskew.rb`: tag URL and its sha256),
-   close the fixed issues, update the home page, upload WebUI to live version hosting.
+8. After the release:
+   - Homebrew: update the tag URL and its sha256 in `Scripts/homebrew/deskew.rb` and commit it,
+     copy it unchanged to `Formula/deskew.rb` of the tap <https://gitlab.com/deskew/homebrew>,
+     push, and check with `brew update`, `brew upgrade deskew` and `brew test deskew`.
+   - Scoop: in a clone of the bucket <https://gitlab.com/deskew/scoop> run
+     `& "$env:USERPROFILE\scoop\apps\scoop\current\bin\checkver.ps1" -App deskew -Dir .\bucket -Update`
+     (new version, URLs and hashes), commit, push, and check with `scoop update deskew`.
+   - Close the fixed issues, update the home page, upload WebUI to live version hosting.
 
 ## Known Limits
 

@@ -55,6 +55,13 @@ is a static site to host anywhere or run locally (see [WebUI's Readme](Web/Readm
 
 See [Platform Notes](#platform-notes) for what each of them needs.
 
+**Scoop** (Windows, command line tool and GUI):
+
+```powershell
+scoop bucket add deskew https://gitlab.com/deskew/scoop.git
+scoop install deskew/deskew
+```
+
 **Homebrew** (macOS, command line tool only, built from source):
 
 ```bash
